@@ -10,4 +10,4 @@ else
 fi
 
 echo "==> Running Celery beat <=="
-exec celery beat -A tradingdb.taskapp -S django_celery_beat.schedulers:DatabaseScheduler --loglevel $log_level
+exec celery beat -A safe_relay_service.taskapp -S django_celery_beat.schedulers:DatabaseScheduler --loglevel $log_level
