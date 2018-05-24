@@ -11,6 +11,7 @@ class AboutView(APIView):
 
     def get(self, request, format=None):
         content = {
+            'name': 'Safe Relay Service',
             'version': __version__,
             'api_version': self.request.version,
             'settings': {
