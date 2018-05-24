@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string"
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "safe": {
+          "type": "string"
+        },
+        "deployer": {
+          "type": "string"
+        }
+      },
+      "required": ["safe", "deployer"]
+    }
+  },
+  "required": ["type", "params"]
+}

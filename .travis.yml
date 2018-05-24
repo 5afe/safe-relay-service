@@ -1,0 +1,38 @@
+language: python
+cache: pip
+python:
+  - "3.6"
+dist: trusty
+env:
+  global:
+  - DOCKERHUB_PROJECT=safe-relay-service
+  - SOURCE_FOLDER=safe_relay_service
+  - PIP_USE_MIRRORS=true
+  - DATABASE_URL=psql://postgres@localhost/travisci
+services:
+  - postgresql
+  - docker
+install:
+  - travis_retry pip install -r requirements.txt
+  - travis_retry pip install coveralls
+before_script:
+  - psql -c 'create database travisci;' -U postgres
+script:
+  - coverage run --source=$SOURCE_FOLDER manage.py test --settings=config.settings.test
+deploy:
+  - provider: script
+    script: bash scripts/deploy_docker.sh staging
+    on:
+      branch: master
+  - provider: script
+    script: bash scripts/deploy_docker.sh develop
+    on:
+      branch: develop
+  - provider: script
+    script: bash scripts/deploy_docker.sh $TRAVIS_TAG
+    on:
+      tags: true
+      all_branches: true
+
+after_success:
+  - coveralls
