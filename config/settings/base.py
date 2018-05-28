@@ -68,6 +68,7 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     'safe_relay_service.safe.apps.SafeConfig',
+    'safe_relay_service.gas_station.apps.GasStationConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -252,6 +253,9 @@ LOGGING = {
     }
 }
 
-# Safe
+# Ethereum
 # ------------------------------------------------------------------------------
 ETH_HASH_PREFIX = env('ETH_HASH_PREFIX', default='GNO')
+ETHEREUM_NODE_URL = env('ETHEREUM_NODE_URL')
+
+GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=200)

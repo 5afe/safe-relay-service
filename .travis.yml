@@ -9,6 +9,7 @@ env:
   - SOURCE_FOLDER=safe_relay_service
   - PIP_USE_MIRRORS=true
   - DATABASE_URL=psql://postgres@localhost/travisci
+  - ETHEREUM_NODE_URL=https://rinkeby.infura.io/gnosis
 services:
   - postgresql
   - docker

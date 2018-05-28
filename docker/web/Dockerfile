@@ -7,7 +7,7 @@ COPY requirements.txt ./
 
 # Signal handling for PID1 https://github.com/krallin/tini
 RUN apk add --update --no-cache tini postgresql-client && \
-    apk add --no-cache --virtual .build-dependencies postgresql-dev alpine-sdk libffi-dev autoconf automake libtool gmp-dev && \
+    apk add --no-cache --virtual .build-dependencies postgresql-dev alpine-sdk libffi-dev autoconf automake libtool gmp-dev linux-headers && \
     pip install --no-cache-dir -r requirements.txt && \
     apk del .build-dependencies && \
     find /usr/local \

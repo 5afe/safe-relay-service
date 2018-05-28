@@ -1,4 +1,3 @@
-import os
 import socket
 
 from .base import *  # noqa
@@ -57,11 +56,26 @@ DEBUG_TOOLBAR_CONFIG = {
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#internal-ips
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2']
 
-if os.environ.get('USE_DOCKER') == 'yes':
-    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
-    INTERNAL_IPS += [ip[:-1] + '1' for ip in ips]
-
 # Celery
 # ------------------------------------------------------------------------------
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_always_eager
-# CELERY_ALWAYS_EAGER = True
+CELERY_ALWAYS_EAGER = False
+
+if env.bool('USE_DOCKER', default=False):
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS += [ip[:-1] + '1' for ip in ips]
+
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': env('REDIS_URL'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                # Mimicing memcache behavior.
+                # http://niwinz.github.io/django-redis/latest/#_memcached_exceptions_behavior
+                'IGNORE_EXCEPTIONS': True,
+            }
+        }
+    }
+
+    CELERY_ALWAYS_EAGER = True
