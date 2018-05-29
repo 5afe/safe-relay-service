@@ -109,9 +109,11 @@ class GasStation:
 
         gas_price = self._get_gas_price_from_cache()
         if not gas_price:
-            gas_price = GasPrice.objects.earliest()
-        # This should never happen, just the first execution
-        # Celery worker should have GasPrice created
-        if not gas_price:
-            gas_price = self.calculate_gas_prices()
+            try:
+                gas_price = GasPrice.objects.earliest()
+            except GasPrice.DoesNotExist:
+                # This should never happen, just the first execution
+                # Celery worker should have GasPrice created
+                gas_price = self.calculate_gas_prices()
+
         return gas_price
