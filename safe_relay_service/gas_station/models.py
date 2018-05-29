@@ -9,6 +9,9 @@ class GasPrice(TimeStampedModel):
     fast = models.BigIntegerField()
     fastest = models.BigIntegerField()
 
+    class Meta:
+        get_latest_by = 'created'
+
     def __str__(self):
         return '%s lowest=%d safe_low=%d standard=%d fast=%d fastest=%d' % (self.created,
                                                                             self.lowest,

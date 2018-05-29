@@ -10,9 +10,8 @@ from .serializers import GasPriceSerializer
 class GasStationView(APIView):
     renderer_classes = (JSONRenderer,)
 
+    gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+
     def get(self, request, format=None):
-        gas_prices = GasStation(settings.ETHEREUM_NODE_URL).get_gas_prices()
-        if gas_prices:
-            return Response(GasPriceSerializer(gas_prices).data)
-        else:
-            return Response({'error': 'Gas Price not calculated yet. Retry in a few minutes'})
+        gas_prices = self.gas_station.get_gas_prices()
+        return Response(GasPriceSerializer(gas_prices).data)

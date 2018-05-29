@@ -1,5 +1,4 @@
 import math
-from collections import namedtuple
 from typing import Dict, Iterable
 
 import numpy as np
@@ -12,11 +11,15 @@ from .models import GasPrice
 
 
 class GasStation:
-    def __init__(self, http_provider_uri='http://localhost:8545', cache_timeout_seconds=10 * 60):
+    def __init__(self,
+                 http_provider_uri='http://localhost:8545',
+                 number_of_blocks: int=200,
+                 cache_timeout_seconds=10 * 60):
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
         self.w3 = Web3(HTTPProvider(http_provider_uri))
         self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+        self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
 
     def _get_block_cache_key(self, block_number):
@@ -78,9 +81,9 @@ class GasStation:
 
         return gas_prices
 
-    def calculate_gas_prices(self, number_of_blocks: int=200) -> GasPrice:
+    def calculate_gas_prices(self) -> GasPrice:
         current_block_number = self.w3.eth.blockNumber
-        block_numbers = range(current_block_number - number_of_blocks, current_block_number)
+        block_numbers = range(current_block_number - self.number_of_blocks, current_block_number)
         gas_prices = self.get_tx_gas_prices(block_numbers)
 
         np_gas_prices = np.array(gas_prices)
@@ -103,4 +106,12 @@ class GasStation:
         return gas_price
 
     def get_gas_prices(self) -> GasPrice:
-        return self._get_gas_price_from_cache()
+
+        gas_price = self._get_gas_price_from_cache()
+        if not gas_price:
+            gas_price = GasPrice.objects.earliest()
+        # This should never happen, just the first execution
+        # Celery worker should have GasPrice created
+        if not gas_price:
+            gas_price = self.calculate_gas_prices()
+        return gas_price
