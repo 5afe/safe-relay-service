@@ -1,37 +1,21 @@
-import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, Tuple
 
-from django.conf import settings
-from django.db.models import Q
-from django.utils import timezone
+from ethereum.transactions import secpk1n
 from ethereum.utils import checksum_encode
+from py_ecc.secp256k1.secp256k1 import N as secp256k1_N
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from safe_relay_service.ether.signing import EthereumSignedMessage
-from safe_relay_service.safe.models import Device, DevicePair
-from safe_relay_service.safe.tasks import send_notification
 
-from .helpers import validate_google_billing_purchase
+from .helpers import SafeCreationTxBuilder, find_valid_random_signature
 
 logger = logging.getLogger(__name__)
 
 
 def isoformat_without_ms(date_time):
     return date_time.replace(microsecond=0).isoformat()
-
-
-# ================================================ #
-#                Base Serializers
-# ================================================ #
-
-
-class SignatureSerializer(serializers.Serializer):
-    v = serializers.IntegerField(min_value=0, max_value=30)
-    r = serializers.IntegerField(min_value=0)
-    s = serializers.IntegerField(min_value=0)
 
 
 # ================================================ #
@@ -58,6 +42,31 @@ class EthereumAddressField(serializers.Field):
             raise ValidationError("Address %s is not valid" % data)
 
         return data
+
+
+# ================================================ #
+#                Base Serializers
+# ================================================ #
+class SignatureSerializer(serializers.Serializer):
+    v = serializers.IntegerField(min_value=0, max_value=30)
+    r = serializers.IntegerField(min_value=1, max_value=secpk1n)
+    s = serializers.IntegerField(min_value=1, max_value=secpk1n)
+
+
+class TransactionSerializer(serializers.Serializer):
+    from_ = EthereumAddressField()
+    value = serializers.IntegerField(min_value=0)
+    data = serializers.CharField()
+    gas = serializers.CharField()
+    gas_price = serializers.CharField()
+    nonce = serializers.IntegerField(min_value=0)
+
+    def get_fields(self):
+        result = super().get_fields()
+        # Rename `from_` to `from`
+        from_ = result.pop('from_')
+        result['from'] = from_
+        return result
 
 
 # ================================================ #
@@ -88,3 +97,26 @@ class SignedMessageSerializer(serializers.Serializer):
         :rtype: Tuple[str]
         """
         return ()
+
+
+class SafeTransactionCreationSerializer(serializers.Serializer):
+    s = serializers.IntegerField(min_value=1, max_value=secpk1n - 1)
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+    threshold = serializers.IntegerField(min_value=0)
+
+    def validate(self, data):
+        super().validate(data)
+        owners = data['owners']
+        threshold = data['threshold']
+
+        if threshold > len(owners):
+            raise ValidationError("Threshold cannot be greater than number of owners")
+
+        return data
+
+
+class SafeTransactionCreationResultSerializer(serializers.Serializer):
+    signature = SignatureSerializer()
+    tx = TransactionSerializer()
+    payment = serializers.CharField()
+    safe = EthereumAddressField()
