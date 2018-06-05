@@ -256,6 +256,11 @@ LOGGING = {
 # Ethereum
 # ------------------------------------------------------------------------------
 ETH_HASH_PREFIX = env('ETH_HASH_PREFIX', default='GNO')
-ETHEREUM_NODE_URL = env('ETHEREUM_NODE_URL')
+ETHEREUM_NODE_URL = env('ETHEREUM_NODE_URL', default=None)
 
 GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
+
+# Safe
+# ------------------------------------------------------------------------------
+SAFE_PERSONAL_CONTRACT_ADDRESS = env('SAFE_PERSONAL_CONTRACT_ADDRESS', default='0x' + '0' * 40)
+SAFE_GAS_PRICE = env.int('SAFE_GAS_PRICE', default=None)

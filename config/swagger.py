@@ -1,3 +1,4 @@
+import json
 import os
 
 from rest_framework import exceptions, status
@@ -6,10 +7,12 @@ from rest_framework.renderers import CoreJSONRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.schemas import SchemaGenerator
 from rest_framework.views import APIView
-from rest_framework_swagger import renderers
 from rest_framework_swagger.renderers import OpenAPICodec
 from rest_framework_swagger.renderers import \
     OpenAPIRenderer as BaseOpenAPIRenderer
+from rest_framework_swagger.renderers import \
+    SwaggerUIRenderer as BaseSwaggerUIRenderer
+from rest_framework_swagger.settings import swagger_settings as settings
 
 
 def get_swagger_view(title=None, url=None, patterns=None, urlconf=None):
@@ -17,6 +20,7 @@ def get_swagger_view(title=None, url=None, patterns=None, urlconf=None):
     Returns schema view which renders Swagger/OpenAPI.
     """
     class OpenAPIRenderer(BaseOpenAPIRenderer):
+
         def render(self, data, accepted_media_type=None, renderer_context=None):
             if renderer_context['response'].status_code != status.HTTP_200_OK:
                 return JSONRenderer().render(data)
@@ -25,15 +29,26 @@ def get_swagger_view(title=None, url=None, patterns=None, urlconf=None):
             scheme = os.getenv('SWAGGER_SCHEME_PROTOCOL', request_scheme)
             self.scheme = scheme
 
-            extra = self.get_customizations()
-
-            return OpenAPICodec().encode(data, extra=extra)
+            options = self.get_customizations()
+            return OpenAPICodec().encode(data, **options)
 
         def get_customizations(self, *args, **kwargs):
             data = super(OpenAPIRenderer, self).get_customizations()
             data["schemes"] = [self.scheme]
             return data
 
+    class SwaggerUIRenderer(BaseSwaggerUIRenderer):
+
+        def set_context(self, data, renderer_context):
+            renderer_context['USE_SESSION_AUTH'] = settings.USE_SESSION_AUTH
+            renderer_context.update(self.get_auth_urls())
+
+            drs_settings = self.get_ui_settings()
+            renderer_context['drs_settings'] = json.dumps(drs_settings)
+            renderer_context['spec'] = OpenAPIRenderer().render(
+                data=data,
+                renderer_context=renderer_context
+            ).decode()
 
     class SwaggerSchemaView(APIView):
         _ignore_model_permissions = True
@@ -42,7 +57,7 @@ def get_swagger_view(title=None, url=None, patterns=None, urlconf=None):
         renderer_classes = [
             CoreJSONRenderer,
             OpenAPIRenderer,
-            renderers.SwaggerUIRenderer
+            SwaggerUIRenderer
         ]
 
         def get(self, request):
