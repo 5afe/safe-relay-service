@@ -3,13 +3,10 @@ from typing import Any, Dict, Tuple
 
 from ethereum.transactions import secpk1n
 from ethereum.utils import checksum_encode
-from py_ecc.secp256k1.secp256k1 import N as secp256k1_N
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from safe_relay_service.ether.signing import EthereumSignedMessage
-
-from .helpers import SafeCreationTxBuilder, find_valid_random_signature
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +48,12 @@ class SignatureSerializer(serializers.Serializer):
     v = serializers.IntegerField(min_value=0, max_value=30)
     r = serializers.IntegerField(min_value=1, max_value=secpk1n)
     s = serializers.IntegerField(min_value=1, max_value=secpk1n)
+
+
+class SignatureResponseSerializer(serializers.Serializer):
+    v = serializers.CharField()
+    r = serializers.CharField()
+    s = serializers.CharField()
 
 
 class TransactionSerializer(serializers.Serializer):
@@ -115,8 +118,8 @@ class SafeTransactionCreationSerializer(serializers.Serializer):
         return data
 
 
-class SafeTransactionCreationResultSerializer(serializers.Serializer):
-    signature = SignatureSerializer()
+class SafeTransactionCreationResponseSerializer(serializers.Serializer):
+    signature = SignatureResponseSerializer()
     tx = TransactionSerializer()
     payment = serializers.CharField()
     safe = EthereumAddressField()

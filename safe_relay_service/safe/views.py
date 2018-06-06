@@ -12,7 +12,7 @@ from safe_relay_service.safe.models import SafeContract, SafeCreation
 from safe_relay_service.version import __version__
 
 from .helpers import SafeCreationTxBuilder
-from .serializers import (SafeTransactionCreationResultSerializer,
+from .serializers import (SafeTransactionCreationResponseSerializer,
                           SafeTransactionCreationSerializer)
 
 gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
@@ -57,7 +57,7 @@ class SafeTransactionCreationView(CreateAPIView):
                                                              master_copy=settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
                                                              gas_price=gas_price)
 
-            safe_transaction_data = SafeTransactionCreationResultSerializer(data={
+            safe_transaction_data = SafeTransactionCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation_tx_builder.v,
                     'r': safe_creation_tx_builder.r,
