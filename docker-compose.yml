@@ -37,6 +37,8 @@ services:
 
   redis:
     image: redis:4-alpine
+    ports:
+      - "6379:6379"
 
   worker: &worker
     build:

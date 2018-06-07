@@ -30,9 +30,6 @@ class EthereumAddressField(models.CharField):
         return ethereum.utils.checksum_encode(value)
 
     def get_prep_value(self, value):
-        """
-        Remove 0x to store in the DB
-        """
         return ethereum.utils.checksum_encode(value)
 
 
@@ -67,12 +64,15 @@ class SafeContract(TimeStampedModel):
     def getBalance(self):
         pass
 
+    def __str__(self):
+        return self.address
+
 
 class SafeCreation(TimeStampedModel):
     deployer = EthereumAddressField(primary_key=True)
+    safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     owners = ArrayField(EthereumAddressField())
     threshold = models.PositiveSmallIntegerField()
-    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
     signed_tx = models.BinaryField()
     tx_hash = models.CharField(max_length=64, unique=True)
     gas = models.PositiveIntegerField()
@@ -83,3 +83,31 @@ class SafeCreation(TimeStampedModel):
 
     def sendEthToDeployer(self):
         pass
+
+    def __str__(self):
+        return 'Deployer {} - Safe {}'.format(self.deployer, self.safe)
+
+
+class SafeFundingManager(models.Manager):
+    def pending_to_deploy(self):
+        return self.filter(
+            safe_deployed=False
+        ).filter(
+            deployer_funded=True
+        ).select_related(
+            'safe'
+        )
+
+
+class SafeFunding(TimeStampedModel):
+    objects = SafeFundingManager()
+    safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
+    safe_funded = models.BooleanField(default=False)
+    deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_receipt is mined
+    deployer_funded_tx_hash = models.CharField(max_length=64, unique=True)
+    safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_receipt is mined
+    # We could use SafeCreation.tx_hash, but we would run into troubles because of Ganache
+    safe_deployed_tx_hash = models.CharField(max_length=64, unique=True)
+
+    def is_all_funded(self):
+        return self.safe_funded and self.deployer_funded
