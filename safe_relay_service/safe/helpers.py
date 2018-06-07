@@ -26,7 +26,7 @@ def find_valid_random_signature(s: int) -> Tuple[int, int]:
                 try:
                     tx.sender
                     return v, r
-                except InvalidTransaction:
+                except (InvalidTransaction, ValueError):
                     logger.debug('Cannot find signature with v=%d r=%d s=%d', v, r, s)
 
         raise ValueError('Valid signature not found with s=%d', s)
