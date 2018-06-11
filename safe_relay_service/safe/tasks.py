@@ -109,7 +109,7 @@ def check_deployer_funded_task(self, safe_address: str) -> None:
             logger.warning('Tx %s for safe %s is already checked!', tx_hash, safe_address)
         else:
             if check_tx_with_confirmations(w3, tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
-                logger.debug('Found transaction for receipt %s', tx_hash)
+                logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address, tx_hash)
                 safe_funding.deployer_funded = True
                 safe_funding.save()
             else:

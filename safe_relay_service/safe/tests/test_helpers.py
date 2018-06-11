@@ -221,32 +221,7 @@ class TestHelpers(TestCase):
                                              gas_price=gas_price,
                                              funder=funder)
 
-        initializer = self.gnosis_safe_contract.functions.setup(
-            owners,
-            threshold,
-            NULL_ADDRESS,
-            b''
-        ).buildTransaction({
-            'nonce': 0,
-            'gas': 1,
-            'gasPrice': 1,
-        })['data']
-
-        master_copy = safe_builder.master_copy
-        payment_token = safe_builder.payment_token
-        payment = safe_builder.payment
-
-        web3_transaction = self.paying_proxy_contract.constructor(
-            master_copy,
-            initializer,
-            funder,
-            payment_token,
-            payment
-        ).buildTransaction({
-            'gas': safe_builder.gas,
-            'gasPrice': safe_builder.gas_price,
-            'nonce': 0,
-        })
+        web3_transaction = safe_builder.contract_creation_tx_dict
 
         # Signing transaction
         v, r = safe_builder.v, safe_builder.r

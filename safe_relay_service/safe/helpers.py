@@ -36,7 +36,6 @@ def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> str:
 
     assert check_checksum(to)
 
-    # FIXME Make configurable
     assert value < w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether')
 
     private_key = settings.SAFE_FUNDER_PRIVATE_KEY
@@ -120,12 +119,15 @@ def create_safe_tx(s: int, owners: Iterable[str], threshold: int) -> SafeTransac
     else:
         gas_price = gas_station.get_gas_prices().fast
 
+    funder = checksum_encode(privtoaddr(settings.SAFE_FUNDER_PRIVATE_KEY)) if settings.SAFE_FUNDER_PRIVATE_KEY else None
+
     safe_creation_tx_builder = SafeCreationTxBuilder(w3=w3,
                                                      owners=owners,
                                                      threshold=threshold,
                                                      signature_s=s,
                                                      master_copy=settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
-                                                     gas_price=gas_price)
+                                                     gas_price=gas_price,
+                                                     funder=funder)
 
     safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
         'signature': {
@@ -166,7 +168,7 @@ def create_safe_tx(s: int, owners: Iterable[str], threshold: int) -> SafeTransac
 
 class SafeCreationTxBuilder:
     def __init__(self, w3: Web3, owners: List[str], threshold: int, signature_s: int, master_copy: str,
-                 gas_price: int, funder: str=NULL_ADDRESS, payment_token: str=NULL_ADDRESS):
+                 gas_price: int, funder: str, payment_token: str=None):
         self.owners = owners
         self.threshold = threshold
         self.s = signature_s
@@ -243,6 +245,8 @@ class SafeCreationTxBuilder:
         if not funder or funder == NULL_ADDRESS:
             funder = NULL_ADDRESS
             payment = 0
+
+        payment_token = payment_token if payment_token else NULL_ADDRESS
 
         return self.paying_proxy_contract.constructor(
             master_copy,
