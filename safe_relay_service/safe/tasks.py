@@ -28,8 +28,6 @@ def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: 
     :param payment: minimum ether required to create the safe (wei)
     """
 
-    # TODO Sequential tasks
-
     # These asserts just to make sure we are not wasting money
     assert check_checksum(safe_address)
     assert check_checksum(deployer_address)
