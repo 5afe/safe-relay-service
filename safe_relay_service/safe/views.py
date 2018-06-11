@@ -1,3 +1,4 @@
+import ethereum.utils
 from django.conf import settings
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
@@ -5,24 +6,24 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from web3 import HTTPProvider, Web3
 
-from safe_relay_service.gas_station.gas_station import GasStation
-from safe_relay_service.safe.models import SafeContract, SafeCreation
+from safe_relay_service.safe.models import SafeCreation
 from safe_relay_service.version import __version__
 
-from .helpers import SafeCreationTxBuilder
-from .serializers import (SafeTransactionCreationResponseSerializer,
-                          SafeTransactionCreationSerializer)
-
-gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
-w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
+from .helpers import create_safe_tx
+from .serializers import SafeTransactionCreationSerializer
+from .tasks import fund_deployer_task
 
 
 class AboutView(APIView):
     renderer_classes = (JSONRenderer,)
 
     def get(self, request, format=None):
+        if settings.SAFE_FUNDER_PRIVATE_KEY:
+            safe_funder_public_key = ethereum.utils.checksum_encode(ethereum.utils.privtoaddr(
+                settings.SAFE_FUNDER_PRIVATE_KEY))
+        else:
+            safe_funder_public_key = None
         content = {
             'name': 'Safe Relay Service',
             'version': __version__,
@@ -31,6 +32,13 @@ class AboutView(APIView):
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
+                'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
+                'SAFE_PERSONAL_CONTRACT_ADDRESS': settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
+                'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
+                'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
+                'SAFE_GAS_PRICE': settings.SAFE_GAS_PRICE,
+                'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
+                'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
             }
         }
         return Response(content)
@@ -44,54 +52,27 @@ class SafeTransactionCreationView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             s, owners, threshold = serializer.data['s'], serializer.data['owners'], serializer.data['threshold']
-            if settings.SAFE_GAS_PRICE:
-                gas_price = settings.SAFE_GAS_PRICE
-            else:
-                gas_prices = gas_station.get_gas_prices()
-                gas_price = gas_prices.fast
-
-            safe_creation_tx_builder = SafeCreationTxBuilder(w3=w3,
-                                                             owners=owners,
-                                                             threshold=threshold,
-                                                             signature_s=s,
-                                                             master_copy=settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
-                                                             gas_price=gas_price)
-
-            safe_transaction_data = SafeTransactionCreationResponseSerializer(data={
-                'signature': {
-                    'v': safe_creation_tx_builder.v,
-                    'r': safe_creation_tx_builder.r,
-                    's': safe_creation_tx_builder.s,
-                },
-                'safe': safe_creation_tx_builder.safe_address,
-                'tx': {
-                    'from': safe_creation_tx_builder.deployer_address,
-                    'value': safe_creation_tx_builder.contract_creation_tx.value,
-                    'data': safe_creation_tx_builder.contract_creation_tx.data.hex(),
-                    'gas': safe_creation_tx_builder.gas,
-                    'gas_price': safe_creation_tx_builder.gas_price,
-                    'nonce': safe_creation_tx_builder.contract_creation_tx.nonce,
-                },
-                'payment': safe_creation_tx_builder.payment
-            })
-            assert safe_transaction_data.is_valid()
-
-            safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address)
-            SafeCreation.objects.create(
-                owners=owners,
-                threshold=threshold,
-                safe=safe_contract,
-                deployer=safe_creation_tx_builder.deployer_address,
-                signed_tx=safe_creation_tx_builder.raw_tx,
-                tx_hash=safe_creation_tx_builder.tx_hash.hex(),
-                gas=safe_creation_tx_builder.gas,
-                gas_price=gas_price,
-                v=safe_creation_tx_builder.v,
-                r=safe_creation_tx_builder.r,
-                s=safe_creation_tx_builder.s
-            )
-
+            safe_transaction_data = create_safe_tx(s, owners, threshold)
             return Response(status=status.HTTP_201_CREATED, data=safe_transaction_data.data)
         else:
-            # TODO Return 422 if R not valid
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+            http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \
+                if 's' in serializer.errors else status.HTTP_400_BAD_REQUEST
+            return Response(status=http_status, data=serializer.errors)
+
+
+class SafeSignalView(APIView):
+    permission_classes = (AllowAny,)
+    renderer_classes = (JSONRenderer,)
+
+    def get(self, request, address, format=None):
+        if not ethereum.utils.check_checksum(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        try:
+            safe_creation = SafeCreation.objects.get(safe=address)
+        except SafeCreation.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        fund_deployer_task.delay(address, safe_creation.deployer, safe_creation.gas * safe_creation.gas_price)
+
+        return Response(status=status.HTTP_200_OK)

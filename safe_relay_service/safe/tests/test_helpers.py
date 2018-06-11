@@ -8,7 +8,8 @@ from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
 from web3 import HTTPProvider, Web3
 
 from ..contracts import get_paying_proxy_contract, get_safe_contract
-from ..helpers import SafeCreationTxBuilder
+from ..helpers import (SafeCreationTxBuilder, check_tx_with_confirmations,
+                       send_eth_to)
 from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 LOG_TITLE_WIDTH = 100
 
-GAS_PRICE = 1
+GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
 class TestHelpers(TestCase):
@@ -38,6 +39,38 @@ class TestHelpers(TestCase):
 
     def setUp(self):
         self.w3 = self._get_web3_provider()
+
+    def test_send_eth(self):
+        w3 = self.w3
+
+        to = w3.eth.accounts[1]
+
+        balance = w3.eth.getBalance(to)
+        value = w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether') // 2
+
+        send_eth_to(w3,
+                    to=to,
+                    gas_price=GAS_PRICE,
+                    value=value)
+
+        new_balance = w3.eth.getBalance(to)
+
+        self.assertTrue(new_balance == (balance + value))
+
+    def test_check_tx_with_confirmations(self):
+        logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
+        w3 = self.w3
+        value = 1
+        to = w3.eth.accounts[-1]
+
+        tx_hash = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
+        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
+
+        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
+        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
+
+        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
+        self.assertTrue(check_tx_with_confirmations(w3, tx_hash, 2))
 
     def test_safe_creation_tx_builder(self):
         logger.info("Test Safe Proxy creation without payment".center(LOG_TITLE_WIDTH, '-'))
@@ -140,7 +173,8 @@ class TestHelpers(TestCase):
     def test_safe_gas_with_multiple_owners(self):
         logger.info("Test Safe Proxy creation gas with multiple owners".center(LOG_TITLE_WIDTH, '-'))
         w3 = self.w3
-        for i in range(2, 20):
+        number_of_accounts = len(w3.eth.accounts)
+        for i in range(2, number_of_accounts):
             s = generate_valid_s()
             owners = w3.eth.accounts[1:i]
             threshold = len(owners)

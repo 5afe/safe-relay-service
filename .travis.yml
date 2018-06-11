@@ -11,8 +11,9 @@ env:
   - DATABASE_URL=psql://postgres@localhost/travisci
   - ETHEREUM_NODE_URL=http://localhost:8545
 services:
-  - postgresql
   - docker
+  - postgresql
+  - redis-server
 install:
   - travis_retry pip install -r requirements.txt
   - travis_retry pip install coveralls

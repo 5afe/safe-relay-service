@@ -17,3 +17,8 @@ def get_eth_address_with_key() -> (str, bytes):
 
     return (public_key,
             private_key)
+
+
+def get_eth_address_with_invalid_checksum() -> str:
+    address, _ = get_eth_address_with_key()
+    return '0x' + ''.join([c.lower() if c.isupper() else c.upper() for c in address[2:]])
