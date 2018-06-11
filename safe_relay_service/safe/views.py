@@ -8,11 +8,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from safe_relay_service.safe.models import SafeCreation
+from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .helpers import create_safe_tx
 from .serializers import SafeTransactionCreationSerializer
-from .tasks import fund_deployer_task
 
 
 class AboutView(APIView):
