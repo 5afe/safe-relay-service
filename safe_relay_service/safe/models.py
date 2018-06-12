@@ -103,11 +103,27 @@ class SafeFunding(TimeStampedModel):
     objects = SafeFundingManager()
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
-    deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_receipt is mined
+    deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
     deployer_funded_tx_hash = models.CharField(max_length=64, unique=True)
-    safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_receipt is mined
+    safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_hash is mined
     # We could use SafeCreation.tx_hash, but we would run into troubles because of Ganache
     safe_deployed_tx_hash = models.CharField(max_length=64, unique=True)
 
     def is_all_funded(self):
         return self.safe_funded and self.deployer_funded
+
+    def __str__(self):
+        s = 'Safe %s - ' % self.safe.address
+        if self.safe_deployed:
+            s += 'deployed'
+        if self.safe_deployed_tx_hash:
+            s += 'deployed but not checked'
+        elif self.deployer_funded:
+            s += 'with deployer funded'
+        elif self.deployer_funded_tx_hash:
+            s += 'with deployer funded but not checked'
+        elif self.safe_funded:
+            s += "has enough balance, but deployer is not funded yet"
+        else:
+            s = 'Safe %s' % self.safe.address
+        return s
