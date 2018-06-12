@@ -7,12 +7,12 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from safe_relay_service.safe.models import SafeCreation
+from safe_relay_service.safe.models import SafeCreation, SafeFunding
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .helpers import create_safe_tx
-from .serializers import SafeTransactionCreationSerializer
+from .serializers import SafeTransactionCreationSerializer, SafeFundingSerializer
 
 
 class AboutView(APIView):
@@ -69,10 +69,24 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         try:
+            safe_funding = SafeFunding.objects.get(safe=address)
+        except SafeFunding.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = SafeFundingSerializer(data=safe_funding)
+        assert serializer.is_valid()
+
+        return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+    def put(self, request, address, format=None):
+        if not ethereum.utils.check_checksum(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        try:
             safe_creation = SafeCreation.objects.get(safe=address)
         except SafeCreation.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         fund_deployer_task.delay(address, safe_creation.deployer, safe_creation.gas * safe_creation.gas_price)
 
-        return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_202_ACCEPTED)

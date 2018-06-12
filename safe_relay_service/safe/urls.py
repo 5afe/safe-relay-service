@@ -13,5 +13,5 @@ urlpatterns = [
     url(r'^about/$', views.AboutView.as_view(), name='about'),
     url(r'^gas-station/$', GasStationView.as_view(), name='gas-station'),
     url(r'^safes/$', views.SafeTransactionCreationView.as_view(), name='safes'),
-    path('safes/<str:address>/', views.SafeSignalView.as_view(), name='safe-signal'),
+    path('safes/<str:address>/funded/', views.SafeSignalView.as_view(), name='safe-signal'),
 ]

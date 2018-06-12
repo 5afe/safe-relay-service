@@ -112,6 +112,21 @@ class SafeFunding(TimeStampedModel):
     def is_all_funded(self):
         return self.safe_funded and self.deployer_funded
 
+    def status(self):
+        if self.safe_deployed:
+            return 'DEPLOYED'
+        elif self.safe_deployed_tx_hash:
+            return 'DEPLOYED_UNCHECKED'
+        elif self.deployer_funded:
+            return 'DEPLOYER_FUNDED'
+        elif self.deployer_funded_tx_hash:
+            return 'DEPLOYER_FUNDED_UNCHECKED'
+        elif self.safe_funded:
+            return 'DEPLOYER_NOT_FUNDED_SAFE_WITH_BALANCE'
+        else:
+            s = 'Safe %s' % self.safe.address
+        return s
+
     def __str__(self):
         s = 'Safe %s - ' % self.safe.address
         if self.safe_deployed:
@@ -123,7 +138,7 @@ class SafeFunding(TimeStampedModel):
         elif self.deployer_funded_tx_hash:
             s += 'with deployer funded but not checked'
         elif self.safe_funded:
-            s += "has enough balance, but deployer is not funded yet"
+            s += 'has enough balance, but deployer is not funded yet'
         else:
             s = 'Safe %s' % self.safe.address
         return s

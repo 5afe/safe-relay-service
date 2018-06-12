@@ -123,3 +123,11 @@ class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     tx = TransactionSerializer()
     payment = serializers.CharField()
     safe = EthereumAddressField()
+
+
+class SafeFundingSerializer(serializers.Serializer):
+    safe_funded = serializers.BooleanField()
+    deployer_funded = serializers.BooleanField()
+    deployer_funded_tx_hash = serializers.CharField()
+    safe_deployed = serializers.BooleanField()
+    safe_deployed_tx_hash = serializers.CharField()
