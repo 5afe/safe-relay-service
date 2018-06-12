@@ -12,7 +12,8 @@ from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .helpers import create_safe_tx
-from .serializers import SafeTransactionCreationSerializer, SafeFundingSerializer
+from .serializers import (SafeFundingSerializer,
+                          SafeTransactionCreationSerializer)
 
 
 class AboutView(APIView):
@@ -73,9 +74,7 @@ class SafeSignalView(APIView):
         except SafeFunding.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        serializer = SafeFundingSerializer(data=safe_funding)
-        assert serializer.is_valid()
-
+        serializer = SafeFundingSerializer(safe_funding)
         return Response(status=status.HTTP_200_OK, data=serializer.data)
 
     def put(self, request, address, format=None):

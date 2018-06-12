@@ -4,7 +4,9 @@ from faker import Faker
 
 from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 
-from ..serializers import SafeTransactionCreationSerializer
+from ..models import SafeContract, SafeFunding
+from ..serializers import (SafeFundingSerializer,
+                           SafeTransactionCreationSerializer)
 
 faker = Faker()
 
@@ -37,3 +39,12 @@ class TestSerializers(TestCase):
                 'owners': [],
                 'threshold': len(owners)}
         self.assertFalse(SafeTransactionCreationSerializer(data=data).is_valid())
+
+    def test_funding_serializer(self):
+        owner1, _ = get_eth_address_with_key()
+        safe_contract = SafeContract.objects.create(address=owner1)
+        safe_funding = SafeFunding.objects.create(safe=safe_contract)
+
+        s = SafeFundingSerializer(safe_funding)
+
+        self.assertTrue(s.data)

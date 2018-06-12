@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from safe_relay_service.ether.signing import EthereumSignedMessage
+from safe_relay_service.safe.models import SafeFunding
 
 logger = logging.getLogger(__name__)
 
@@ -125,9 +126,7 @@ class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     safe = EthereumAddressField()
 
 
-class SafeFundingSerializer(serializers.Serializer):
-    safe_funded = serializers.BooleanField()
-    deployer_funded = serializers.BooleanField()
-    deployer_funded_tx_hash = serializers.CharField()
-    safe_deployed = serializers.BooleanField()
-    safe_deployed_tx_hash = serializers.CharField()
+class SafeFundingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeFunding
+        fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
