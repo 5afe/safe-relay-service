@@ -78,13 +78,13 @@ def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: 
                         safe_funding.save()
                         logger.debug('Safe %s deployer has just been funded. Checking tx_hash %s', safe_address,
                                      tx_hash)
-                        check_deployer_funded_task.apply_async((safe_address,), countdown=1 * 60)
+                        check_deployer_funded_task.apply_async((safe_address,), countdown=1 * 15)
                     else:
                         logger.error('Cannot send payment=%d to deployer safe=%s', payment, deployer_address)
-                        raise self.retry(countdown=1 * 60)
+                        raise self.retry(countdown=1 * 30)
             else:
                 logger.info('Not found required balance=%d for safe=%s', payment, safe_address)
-                raise self.retry(countdown=1 * 60)
+                raise self.retry(countdown=1 * 30)
 
 
 @app.shared_task(bind=True,
@@ -108,7 +108,7 @@ def check_deployer_funded_task(self, safe_address: str) -> None:
         if safe_funding.deployer_funded:
             logger.warning('Tx %s for safe %s is already checked!', tx_hash, safe_address)
         else:
-            if check_tx_with_confirmations(w3, tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
+            if w3.eth.getTransactionReceipt(tx_hash):
                 logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address, tx_hash)
                 safe_funding.deployer_funded = True
                 safe_funding.save()
@@ -154,19 +154,30 @@ def deploy_safes_task() -> None:
                              safe_contract.address,
                              tx_hash)
 
-                if check_tx_with_confirmations(w3, safe_funding.safe_deployed_tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
+                if check_tx_with_confirmations(w3, safe_funding.safe_deployed_tx_hash,
+                                               settings.SAFE_FUNDING_CONFIRMATIONS):
                     logger.info('Safe %s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
                     return
             else:
-                tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
-                if tx_hash:
-                    tx_hash = tx_hash.hex()[2:]
-                    logger.debug('Safe %s creation tx has just been sent to the network with receipt %s',
-                                 safe_contract.address,
-                                 tx_hash)
-                    safe_funding.safe_deployed_tx_hash = tx_hash
+                # Check a reorg didn't happen and deployer tx is still valid
+                if check_tx_with_confirmations(w3, safe_funding.deployer_funded_tx_hash,
+                                               settings.SAFE_FUNDING_CONFIRMATIONS):
+                    tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
+                    if tx_hash:
+                        tx_hash = tx_hash.hex()[2:]
+                        logger.debug('Safe %s creation tx has just been sent to the network with receipt %s',
+                                     safe_contract.address,
+                                     tx_hash)
+                        safe_funding.safe_deployed_tx_hash = tx_hash
+                        safe_funding.save()
+                elif not w3.eth.getTransactionReceipt(safe_funding.deployer_funded_tx_hash):  # A reorg happened
+                    logger.warning("Safe=%s was affected by reorg, deployer funded tx hash %s invalid",
+                                   safe_contract.address,
+                                   safe_funding.deployer_funded_tx_hash)
+                    safe_funding.deployer_funded_tx_hash = ''
+                    safe_funding.deployer_funded = False
                     safe_funding.save()
     finally:
         if have_lock:
