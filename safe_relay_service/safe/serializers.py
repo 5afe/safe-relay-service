@@ -34,6 +34,10 @@ class EthereumAddressField(serializers.Field):
         try:
             if checksum_encode(data) != data:
                 raise ValueError
+            elif int(data, 16) == 0:
+                raise ValidationError("0x0 address is not allowed")
+            elif int(data, 16) == 1:
+                raise ValidationError("0x1 address is not allowed")
         except ValueError:
             raise ValidationError("Address %s is not checksumed" % data)
         except Exception:
