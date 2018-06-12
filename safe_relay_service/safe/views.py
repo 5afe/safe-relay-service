@@ -63,7 +63,6 @@ class SafeTransactionCreationView(CreateAPIView):
 
 class SafeSignalView(APIView):
     permission_classes = (AllowAny,)
-    renderer_classes = (JSONRenderer,)
 
     def get(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
