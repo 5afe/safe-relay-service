@@ -116,7 +116,7 @@ class SafeFunding(TimeStampedModel):
         s = 'Safe %s - ' % self.safe.address
         if self.safe_deployed:
             s += 'deployed'
-        if self.safe_deployed_tx_hash:
+        elif self.safe_deployed_tx_hash:
             s += 'deployed but not checked'
         elif self.deployer_funded:
             s += 'with deployer funded'
