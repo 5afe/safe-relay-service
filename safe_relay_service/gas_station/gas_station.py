@@ -106,7 +106,6 @@ class GasStation:
         return gas_price
 
     def get_gas_prices(self) -> GasPrice:
-
         gas_price = self._get_gas_price_from_cache()
         if not gas_price:
             try:

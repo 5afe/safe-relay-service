@@ -23,7 +23,7 @@ from .utils import NULL_ADDRESS
 logger = getLogger(__name__)
 
 
-def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> str:
+def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> bytes:
     """
     Send ether using configured account
     :param w3: Web3 instance
