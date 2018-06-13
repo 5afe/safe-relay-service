@@ -8,8 +8,12 @@ Service for Gnosis Safe push notifications
 
 ## Index of contents
 
+- [Docs](#docs)
 - [Contributors](#contributors)
 
+Docs
+------------
+You can open the diagrams with [Staruml](http://staruml.io/)
 
 Contributors
 ------------

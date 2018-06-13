@@ -13,4 +13,3 @@ def calculate_gas_prices(self) -> GasPrice:
     logger.info('Starting Gas Price Calculation')
     gas_price = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS).calculate_gas_prices()
     logger.info(gas_price)
-    return gas_price
