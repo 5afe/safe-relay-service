@@ -57,6 +57,10 @@ class TestHelpers(TestCase):
 
         self.assertTrue(new_balance == (balance + value))
 
+    def test_send_eth_without_key(self):
+        with self.settings(SAFE_FUNDER_PRIVATE_KEY=None):
+            self.test_send_eth()
+
     def test_check_tx_with_confirmations(self):
         logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
         w3 = self.w3
@@ -134,14 +138,14 @@ class TestHelpers(TestCase):
                                              gas_price=gas_price,
                                              funder=funder)
 
-        ether = 10
+        ether = 0.01
         logger.info("Send %d ether to safe %s", ether, safe_builder.deployer_address)
         w3.eth.sendTransaction({
             'from': user_external_account,
             'to': safe_builder.safe_address,
             'value': w3.toWei(ether, 'ether')
         })
-        self.assertEqual(w3.eth.getBalance(safe_builder.safe_address), w3.toWei(10, 'ether'))
+        self.assertEqual(w3.eth.getBalance(safe_builder.safe_address), w3.toWei(ether, 'ether'))
 
         ether = safe_builder.payment
         logger.info("Send %d gwei to deployer %s", w3.fromWei(ether, 'gwei'), safe_builder.deployer_address)
@@ -225,12 +229,10 @@ class TestHelpers(TestCase):
 
         # Signing transaction
         v, r = safe_builder.v, safe_builder.r
-        unsigned_contract_creation_tx = serializable_unsigned_transaction_from_dict(web3_transaction)
-        # Signing transaction. Can be send with `w3.eth.sendRawTransaction`
-        rlp_encoded_transaction = encode_transaction(unsigned_contract_creation_tx, vrs=(v, r, s))
-        # transaction_hash = sha3(rlp_encoded_transaction)
-        # self.raw_tx = rlp_encoded_transaction
-        address_64_encoded = ecrecover_to_pub(unsigned_contract_creation_tx.hash(), v, r, s)
+
+        rlp_encoded_transaction, hash = SafeCreationTxBuilder._sign_web3_transaction(web3_transaction, v, r, s)
+
+        address_64_encoded = ecrecover_to_pub(hash, v, r, s)
         address_bytes = sha3(address_64_encoded)[-20:]
         deployer_address = checksum_encode(address_bytes)
 
