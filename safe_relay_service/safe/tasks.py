@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from celery import app
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from redis import Redis
 from web3 import HTTPProvider, Web3
@@ -162,16 +165,20 @@ def deploy_safes_task() -> None:
             # Check if safe proxy deploy transaction has already been sent to the network
             tx_hash = safe_funding.safe_deployed_tx_hash
             if tx_hash:
-                logger.debug('Safe %s creation tx has already been sent to the network with tx-hash=%s',
+                logger.debug('Safe=%s creation tx has already been sent to the network with tx-hash=%s',
                              safe_contract.address,
                              tx_hash)
 
                 if check_tx_with_confirmations(w3, tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
-                    logger.info('Safe %s was deployed!', safe_funding.safe.address)
+                    logger.info('Safe=%s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
                     return
-                elif not w3.eth.getTransactionReceipt(tx_hash):
+                elif (safe_funding.modified + timedelta(minutes=10) < timezone.now()
+                      and not w3.eth.getTransactionReceipt(tx_hash)):
+                    # A reorg happened
+                    logger.warning('Safe=%s deploy tx=%s was not found after 10 minutes. Trying deploying again...',
+                                   safe_funding.safe.address, tx_hash)
                     safe_funding.safe_deployed_tx_hash = ''
                     safe_funding.save()
             else:

@@ -1,11 +1,14 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.test import TestCase
+from django.utils import timezone
 from web3 import HTTPProvider, Web3
 
-from ..models import SafeFunding, SafeContract
-from ..tasks import deploy_safes_task, fund_deployer_task, send_eth_to, check_deployer_funded_task
+from ..models import SafeContract, SafeFunding
+from ..tasks import (check_deployer_funded_task, deploy_safes_task,
+                     fund_deployer_task, send_eth_to)
 from .factories import generate_safe
 
 logger = logging.getLogger(__name__)
@@ -132,9 +135,74 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.deployer_funded_tx_hash)
 
     def test_reorg_before_safe_deploy(self):
-        # Test safe is not deployed if deployer tx is not valid
-        pass
+        w3 = self.w3
+        safe, deployer, payment = generate_safe()
+
+        send_eth_to(w3,
+                    to=safe,
+                    gas_price=GAS_PRICE,
+                    value=payment)
+
+        fund_deployer_task.delay(safe, deployer, payment).get()
+        check_deployer_funded_task.delay(safe).get()
+
+        safe_funding = SafeFunding.objects.get(safe=safe)
+
+        self.assertTrue(safe_funding.safe_funded)
+        self.assertTrue(safe_funding.deployer_funded_tx_hash)
+        self.assertTrue(safe_funding.deployer_funded)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        safe_funding.deployer_funded_tx_hash = w3.sha3(0).hex()[2:]
+        safe_funding.save()
+
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+
+        # Safe is not deployed if deployer tx is not valid. Deployer tx must be deleted
+        self.assertTrue(safe_funding.safe_funded)
+        self.assertFalse(safe_funding.deployer_funded_tx_hash)
+        self.assertFalse(safe_funding.deployer_funded)
+        self.assertFalse(safe_funding.safe_deployed)
 
     def test_reorg_after_safe_deployed(self):
-        pass
+        w3 = self.w3
+        safe, deployer, payment = generate_safe()
 
+        send_eth_to(w3,
+                    to=safe,
+                    gas_price=GAS_PRICE,
+                    value=payment)
+
+        fund_deployer_task.delay(safe, deployer, payment).get()
+        check_deployer_funded_task.delay(safe).get()
+        deploy_safes_task.delay().get()
+
+        safe_funding = SafeFunding.objects.get(safe=safe)
+
+        self.assertTrue(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # Set an invalid tx
+        safe_funding.safe_deployed_tx_hash = w3.sha3(0).hex()[2:]
+        safe_funding.save()
+
+        # If tx is not found before 10 minutes, nothing should happen
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+        self.assertTrue(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # If tx is not found after 10 minutes, safe will be marked to deploy again
+        SafeFunding.objects.update(modified=timezone.now() - timedelta(minutes=11))
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+        self.assertFalse(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # Raises ValueError because of nonce error when trying to deploy again the contract
+        with self.assertRaises(ValueError):
+            deploy_safes_task.delay().get()

@@ -1,12 +1,14 @@
 import os
 from logging import getLogger
+from typing import Tuple
 
-from ..helpers import create_safe_tx
-from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Factory as FakerFactory
 from faker import Faker
-from typing import Tuple
+
+from safe_relay_service.ether.tests.factories import get_eth_address_with_key
+
+from ..helpers import create_safe_tx
 
 fakerFactory = FakerFactory.create()
 faker = Faker()

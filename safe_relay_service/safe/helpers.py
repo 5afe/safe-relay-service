@@ -99,8 +99,11 @@ def check_tx_with_confirmations(w3, tx_hash: str, confirmations: int) -> bool:
     """
     block_number = w3.eth.blockNumber
     tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    tx_block_number = tx_receipt['blockNumber']
-    return (block_number - tx_block_number) >= confirmations
+    if not tx_receipt:
+        return False
+    else:
+        tx_block_number = tx_receipt['blockNumber']
+        return (block_number - tx_block_number) >= confirmations
 
 
 def create_safe_tx(s: int, owners: Iterable[str], threshold: int) -> SafeTransactionCreationResponseSerializer:
