@@ -24,15 +24,18 @@ from .utils import NULL_ADDRESS
 logger = getLogger(__name__)
 
 
+# TODO: Use INCR and DECR on redis instead of cache
+
 def get_nonce_for_account(w3, address):
     cache_key = 'nonce:%s' % address
     nonce = cache.get(cache_key)
     if nonce:
         nonce += 1
-        cache.set(cache_key, nonce)
-        return nonce
     else:
-        return w3.eth.getTransactionCount(address)
+        nonce = 0
+    nonce = max(nonce, w3.eth.getTransactionCount(address))
+    cache.set(cache_key, nonce)
+    return nonce
 
 
 def decrease_nonce_for_account(address):
