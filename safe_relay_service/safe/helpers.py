@@ -1,15 +1,14 @@
-import os
+from .ethereum_service import EthereumService
 from logging import getLogger
 from typing import Dict, Iterable, List, Tuple
 
 import rlp
 from django.conf import settings
-from django.core.cache import cache
 from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
-from ethereum.transactions import Transaction, secpk1n
-from ethereum.utils import (check_checksum, checksum_encode,
+from ethereum.transactions import Transaction
+from ethereum.utils import (checksum_encode,
                             mk_contract_address, privtoaddr)
 from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
@@ -22,118 +21,6 @@ from .serializers import SafeTransactionCreationResponseSerializer
 from .utils import NULL_ADDRESS
 
 logger = getLogger(__name__)
-
-
-# TODO: Use INCR and DECR on redis instead of cache
-
-def get_nonce_for_account(w3, address):
-    cache_key = 'nonce:%s' % address
-    nonce = cache.get(cache_key)
-    if nonce:
-        nonce += 1
-    else:
-        nonce = 0
-    nonce = max(nonce, w3.eth.getTransactionCount(address))
-    cache.set(cache_key, nonce)
-    return nonce
-
-
-def decrease_nonce_for_account(address):
-    cache_key = 'nonce:%s' % address
-    nonce = cache.get(cache_key)
-    if nonce:
-        nonce -= 1
-        cache.set(cache_key, nonce)
-        return nonce
-
-
-def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> bytes:
-    """
-    Send ether using configured account
-    :param w3: Web3 instance
-    :param to: to
-    :param gas_price: gas_price
-    :param value: value(wei)
-    :param gas: gas, defaults to 22000
-    :return: tx_hash
-    """
-
-    assert check_checksum(to)
-
-    assert value < w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether')
-
-    private_key = settings.SAFE_FUNDER_PRIVATE_KEY
-
-    try:
-        if private_key:
-            ethereum_account = checksum_encode(privtoaddr(private_key))
-            tx = {
-                    'to': to,
-                    'value': value,
-                    'gas': gas,
-                    'gasPrice': gas_price,
-                    'nonce': get_nonce_for_account(w3, ethereum_account),
-                }
-
-            signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
-            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-            return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-        elif w3.eth.accounts:
-            ethereum_account = w3.eth.accounts[0]
-            tx = {
-                    'from': ethereum_account,
-                    'to': to,
-                    'value': value,
-                    'gas': gas,
-                    'gasPrice': gas_price,
-                    'nonce': get_nonce_for_account(w3, ethereum_account),
-                }
-            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-            return w3.eth.sendTransaction(tx)
-        else:
-            ethereum_account = None
-            logger.error('No ethereum account configured')
-            raise ValueError("Ethereum account was not configured or unlocked in the node")
-    except Exception as e:
-        decrease_nonce_for_account(ethereum_account)
-        raise e
-
-
-def find_valid_random_signature(s: int) -> Tuple[int, int]:
-    """
-    Find v and r valid values for a given s
-    :param s: random value
-    :return: v, r
-    """
-    for _ in range(10000):
-        r = int(os.urandom(31).hex(), 16)
-        v = (r % 2) + 27
-        if r < secpk1n:
-            tx = Transaction(0, 1, 21000, b'', 0, b'', v=v, r=r, s=s)
-            try:
-                tx.sender
-                return v, r
-            except (InvalidTransaction, ValueError):
-                logger.debug('Cannot find signature with v=%d r=%d s=%d', v, r, s)
-
-    raise ValueError('Valid signature not found with s=%d', s)
-
-
-def check_tx_with_confirmations(w3, tx_hash: str, confirmations: int) -> bool:
-    """
-    Check tx hash and make sure it has the confirmations required
-    :param w3: Web3 instance
-    :param tx_hash: Hash of the tx
-    :param confirmations: Minimum number of confirmations required
-    :return: True if tx was mined with the number of confirmations required, False otherwise
-    """
-    block_number = w3.eth.blockNumber
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    if not tx_receipt:
-        return False
-    else:
-        tx_block_number = tx_receipt['blockNumber']
-        return (block_number - tx_block_number) >= confirmations
 
 
 def create_safe_tx(s: int, owners: Iterable[str], threshold: int) -> SafeTransactionCreationResponseSerializer:
@@ -247,7 +134,7 @@ class SafeCreationTxBuilder:
         gas_per_owner = 18020  # Magic number calculated by testing and averaging owners
         return base_gas + data_gas + 270000 + len(owners) * gas_per_owner
 
-    def _get_safe_tx(self, owners: List[str], threshold: int) -> bytes:
+    def _get_safe_tx(self, owners: List[str], threshold: int) -> Dict[any, any]:
         return self.gnosis_safe_contract.functions.setup(
             owners,
             threshold,
@@ -298,7 +185,7 @@ class SafeCreationTxBuilder:
                                                                                                         int, int]:
         for _ in range(100):
             try:
-                v, r = find_valid_random_signature(s)
+                v, r = EthereumService.find_valid_random_signature(s)
                 contract_creation_tx = Transaction(nonce, gas_price, gas, b'', 0, HexBytes(data), v=v, r=r, s=s)
                 contract_creation_tx.sender
                 return contract_creation_tx, v, r

@@ -2,14 +2,11 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
-from eth_account.internal.transactions import (encode_transaction,
-                                               serializable_unsigned_transaction_from_dict)
 from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
 from web3 import HTTPProvider, Web3
 
 from ..contracts import get_paying_proxy_contract, get_safe_contract
-from ..helpers import (SafeCreationTxBuilder, check_tx_with_confirmations,
-                       send_eth_to)
+from ..helpers import (SafeCreationTxBuilder)
 from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
 
@@ -39,42 +36,6 @@ class TestHelpers(TestCase):
 
     def setUp(self):
         self.w3 = self._get_web3_provider()
-
-    def test_send_eth(self):
-        w3 = self.w3
-
-        to = w3.eth.accounts[1]
-
-        balance = w3.eth.getBalance(to)
-        value = w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether') // 2
-
-        send_eth_to(w3,
-                    to=to,
-                    gas_price=GAS_PRICE,
-                    value=value)
-
-        new_balance = w3.eth.getBalance(to)
-
-        self.assertTrue(new_balance == (balance + value))
-
-    def test_send_eth_without_key(self):
-        with self.settings(SAFE_FUNDER_PRIVATE_KEY=None):
-            self.test_send_eth()
-
-    def test_check_tx_with_confirmations(self):
-        logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
-        w3 = self.w3
-        value = 1
-        to = w3.eth.accounts[-1]
-
-        tx_hash = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
-
-        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
-
-        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertTrue(check_tx_with_confirmations(w3, tx_hash, 2))
 
     def test_safe_creation_tx_builder(self):
         logger.info("Test Safe Proxy creation without payment".center(LOG_TITLE_WIDTH, '-'))

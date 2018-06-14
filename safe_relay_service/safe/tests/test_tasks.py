@@ -4,12 +4,12 @@ from datetime import timedelta
 from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
-from web3 import HTTPProvider, Web3
 
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
-                     fund_deployer_task, send_eth_to)
+                     fund_deployer_task)
 from .factories import generate_safe
+from ..ethereum_service import EthereumService
 
 logger = logging.getLogger(__name__)
 
@@ -18,45 +18,39 @@ GAS_PRICE = settings.SAFE_GAS_PRICE
 
 class TestTasks(TestCase):
 
-    @staticmethod
-    def _get_web3_provider():
-        return Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
     @classmethod
     def setUpTestData(cls):
-        w3 = cls._get_web3_provider()
-        cls.w3 = w3
+        cls.ethereum_service = EthereumService()
+        cls.w3 = cls.ethereum_service.w3
 
     def test_balance_in_deployer(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment)
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
 
         # If deployer has balance already no ether is sent to the account
         deployer_payment = 1
-        send_eth_to(w3,
-                    to=deployer,
-                    gas_price=GAS_PRICE,
-                    value=deployer_payment)
+        self.ethereum_service.send_eth_to(
+            to=deployer,
+            gas_price=GAS_PRICE,
+            value=deployer_payment)
 
-        self.assertEqual(w3.eth.getBalance(deployer), deployer_payment)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
         fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
 
-        self.assertEqual(w3.eth.getBalance(deployer), deployer_payment)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
     def test_deploy_safe(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment)
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
 
         fund_deployer_task.delay(safe, deployer, payment).get()
 
@@ -101,31 +95,29 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
 
     def test_safe_with_no_funds(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
-        self.assertEqual(w3.eth.getBalance(deployer), 0)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
         # No ether is sent to the deployer is safe is empty
         fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
-        self.assertEqual(w3.eth.getBalance(deployer), 0)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
         # No ether is sent to the deployer is safe has less balance than needed
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment - 1)
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment - 1)
         fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
-        self.assertEqual(w3.eth.getBalance(deployer), 0)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
     def test_check_deployer_funded(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
         safe_contract = SafeContract.objects.get(address=safe)
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
 
         safe_funding.safe_funded = True
-        safe_funding.deployer_funded_tx_hash = w3.sha3(0).hex()[2:]
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
         safe_funding.save()
 
         # If tx hash is not found should be deleted from database
@@ -135,13 +127,12 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.deployer_funded_tx_hash)
 
     def test_reorg_before_safe_deploy(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment)
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
 
         fund_deployer_task.delay(safe, deployer, payment).get()
         check_deployer_funded_task.delay(safe).get()
@@ -153,7 +144,7 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
         self.assertFalse(safe_funding.safe_deployed)
 
-        safe_funding.deployer_funded_tx_hash = w3.sha3(0).hex()[2:]
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
         safe_funding.save()
 
         deploy_safes_task.delay().get()
@@ -167,13 +158,12 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed)
 
     def test_reorg_after_safe_deployed(self):
-        w3 = self.w3
         safe, deployer, payment = generate_safe()
 
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment)
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
 
         fund_deployer_task.delay(safe, deployer, payment).get()
         check_deployer_funded_task.delay(safe).get()
@@ -185,7 +175,7 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed)
 
         # Set an invalid tx
-        safe_funding.safe_deployed_tx_hash = w3.sha3(0).hex()[2:]
+        safe_funding.safe_deployed_tx_hash = self.w3.sha3(0).hex()[2:]
         safe_funding.save()
 
         # If tx is not found before 10 minutes, nothing should happen

@@ -5,19 +5,17 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
-from redis import Redis
-from web3 import HTTPProvider, Web3
+from .redis_service import RedisService
 
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding)
 
-from .helpers import check_tx_with_confirmations, send_eth_to
+from .ethereum_service import EthereumService
 
 logger = get_task_logger(__name__)
 
-w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
-redis = Redis.from_url(settings.REDIS_URL)
+ethereum_service = EthereumService()
+redis = RedisService().redis
 
 # TODO Control ConnectionError: HTTPConnectionPool for web3
 
@@ -60,11 +58,11 @@ def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: 
             check_deployer_funded_task.delay(safe_address)
         elif not safe_funding.deployer_funded:
             confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
-            last_block_number = w3.eth.blockNumber
+            last_block_number = ethereum_service.current_block_number
 
             assert (last_block_number - confirmations) > 0
 
-            safe_balance = w3.eth.getBalance(safe_address, last_block_number - confirmations)
+            safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
 
             if safe_balance >= payment:
                 logger.info('Found %d balance for safe=%s',
@@ -74,7 +72,7 @@ def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: 
                 safe_funding.save()
 
                 # Check deployer has no eth. This should never happen
-                balance = w3.eth.getBalance(deployer_address)
+                balance = ethereum_service.get_balance(deployer_address)
                 if balance:
                     logger.error('Deployer=%s for safe=%s has funds already (%d wei)!', deployer_address, safe_address,
                                  balance)
@@ -83,7 +81,7 @@ def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: 
                                 safe_address,
                                 payment,
                                 deployer_address)
-                    tx_hash = send_eth_to(w3, deployer_address, safe_creation.gas_price, payment)
+                    tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price, payment)
                     if tx_hash:
                         tx_hash = tx_hash.hex()[2:]
                         safe_funding.deployer_funded_tx_hash = tx_hash
@@ -122,7 +120,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
             return
 
         logger.debug('Checking safe %s deployer tx receipt %s', safe_address, tx_hash)
-        if w3.eth.getTransactionReceipt(tx_hash):
+        if ethereum_service.get_transaction_receipt(tx_hash):
             logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address, tx_hash)
             safe_funding.deployer_funded = True
             safe_funding.save()
@@ -169,13 +167,13 @@ def deploy_safes_task() -> None:
                              safe_contract.address,
                              tx_hash)
 
-                if check_tx_with_confirmations(w3, tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
+                if ethereum_service.check_tx_with_confirmations(tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
                     logger.info('Safe=%s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
                     return
                 elif (safe_funding.modified + timedelta(minutes=10) < timezone.now()
-                      and not w3.eth.getTransactionReceipt(tx_hash)):
+                      and not ethereum_service.get_transaction_receipt(tx_hash)):
                     # A reorg happened
                     logger.warning('Safe=%s deploy tx=%s was not found after 10 minutes. Trying deploying again...',
                                    safe_funding.safe.address, tx_hash)
@@ -183,8 +181,8 @@ def deploy_safes_task() -> None:
                     safe_funding.save()
             else:
                 # Check a reorg didn't happen and deployer tx is still valid
-                if w3.eth.getTransactionReceipt(safe_funding.deployer_funded_tx_hash):
-                    tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
+                if ethereum_service.get_transaction_receipt(safe_funding.deployer_funded_tx_hash):
+                    tx_hash = ethereum_service.send_raw_transaction(safe_creation.signed_tx)
                     if tx_hash:
                         tx_hash = tx_hash.hex()[2:]
                         logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
