@@ -7,8 +7,7 @@ from faker import Factory as FakerFactory
 from faker import Faker
 
 from safe_relay_service.ether.tests.factories import get_eth_address_with_key
-
-from ..helpers import create_safe_tx
+from safe_relay_service.safe.models import SafeCreation
 
 fakerFactory = FakerFactory.create()
 faker = Faker()
@@ -32,6 +31,6 @@ def generate_safe() -> Tuple[str, str, int]:
     owners = [owner1, owner2, owner3, owner4]
     threshold = len(owners) - 1
 
-    s = create_safe_tx(s, owners, threshold)
-    safe, deployer, payment = s.data['safe'], s.data['tx']['from'], int(s.data['payment'])
+    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
+    safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
     return safe, deployer, payment

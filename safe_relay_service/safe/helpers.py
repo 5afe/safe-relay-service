@@ -1,89 +1,20 @@
 from .ethereum_service import EthereumService
 from logging import getLogger
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, List, Tuple
 
 import rlp
-from django.conf import settings
 from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
 from ethereum.transactions import Transaction
-from ethereum.utils import (checksum_encode,
-                            mk_contract_address, privtoaddr)
+from ethereum.utils import (checksum_encode, mk_contract_address)
 from hexbytes import HexBytes
-from web3 import HTTPProvider, Web3
-
-from safe_relay_service.gas_station.gas_station import GasStation
-from safe_relay_service.safe.models import SafeContract, SafeCreation
+from web3 import Web3
 
 from .contracts import get_paying_proxy_contract, get_safe_contract
-from .serializers import SafeTransactionCreationResponseSerializer
 from .utils import NULL_ADDRESS
 
 logger = getLogger(__name__)
-
-
-def create_safe_tx(s: int, owners: Iterable[str], threshold: int) -> SafeTransactionCreationResponseSerializer:
-    """
-    Create models for safe tx
-    :param s:
-    :param owners:
-    :param threshold:
-    :return:
-    """
-    gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
-    w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
-    if settings.SAFE_GAS_PRICE:
-        gas_price = settings.SAFE_GAS_PRICE
-    else:
-        gas_price = gas_station.get_gas_prices().fast
-
-    funder = checksum_encode(privtoaddr(settings.SAFE_FUNDER_PRIVATE_KEY)) if settings.SAFE_FUNDER_PRIVATE_KEY else None
-
-    safe_creation_tx_builder = SafeCreationTxBuilder(w3=w3,
-                                                     owners=owners,
-                                                     threshold=threshold,
-                                                     signature_s=s,
-                                                     master_copy=settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
-                                                     gas_price=gas_price,
-                                                     funder=funder)
-
-    safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
-        'signature': {
-            'v': safe_creation_tx_builder.v,
-            'r': safe_creation_tx_builder.r,
-            's': safe_creation_tx_builder.s,
-        },
-        'safe': safe_creation_tx_builder.safe_address,
-        'tx': {
-            'from': safe_creation_tx_builder.deployer_address,
-            'value': safe_creation_tx_builder.contract_creation_tx.value,
-            'data': safe_creation_tx_builder.contract_creation_tx.data.hex(),
-            'gas': safe_creation_tx_builder.gas,
-            'gas_price': safe_creation_tx_builder.gas_price,
-            'nonce': safe_creation_tx_builder.contract_creation_tx.nonce,
-        },
-        'payment': safe_creation_tx_builder.payment
-    })
-    assert safe_transaction_response_data.is_valid()
-
-    safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address)
-    SafeCreation.objects.create(
-        owners=owners,
-        threshold=threshold,
-        safe=safe_contract,
-        deployer=safe_creation_tx_builder.deployer_address,
-        signed_tx=safe_creation_tx_builder.raw_tx,
-        tx_hash=safe_creation_tx_builder.tx_hash.hex(),
-        gas=safe_creation_tx_builder.gas,
-        gas_price=gas_price,
-        v=safe_creation_tx_builder.v,
-        r=safe_creation_tx_builder.r,
-        s=safe_creation_tx_builder.s
-    )
-
-    return safe_transaction_response_data
 
 
 class SafeCreationTxBuilder:

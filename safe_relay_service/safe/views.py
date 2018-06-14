@@ -11,9 +11,9 @@ from safe_relay_service.safe.models import SafeCreation, SafeFunding
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
-from .helpers import create_safe_tx
 from .serializers import (SafeFundingSerializer,
-                          SafeTransactionCreationSerializer)
+                          SafeTransactionCreationSerializer,
+                          SafeTransactionCreationResponseSerializer)
 
 
 class AboutView(APIView):
@@ -53,8 +53,26 @@ class SafeTransactionCreationView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             s, owners, threshold = serializer.data['s'], serializer.data['owners'], serializer.data['threshold']
-            safe_transaction_data = create_safe_tx(s, owners, threshold)
-            return Response(status=status.HTTP_201_CREATED, data=safe_transaction_data.data)
+            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
+            safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
+                'signature': {
+                    'v': safe_creation.v,
+                    'r': safe_creation.r,
+                    's': safe_creation.s,
+                },
+                'safe': safe_creation.safe.address,
+                'tx': {
+                    'from': safe_creation.deployer,
+                    'value': safe_creation.value,
+                    'data': safe_creation.data.hex(),
+                    'gas': safe_creation.gas,
+                    'gas_price': safe_creation.gas_price,
+                    'nonce': 0,
+                },
+                'payment': safe_creation.payment
+            })
+            assert safe_transaction_response_data.is_valid()
+            return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)
         else:
             http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \
                 if 's' in serializer.errors else status.HTTP_400_BAD_REQUEST
