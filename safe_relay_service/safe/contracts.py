@@ -7,7 +7,7 @@ from .utils import NULL_ADDRESS
 Rinkeby contracts
 -----------------
 ProxyFactory: 0x075794c3797bb4cfea74a75d1aae636036af37cd
-GnosisSafePersonalEdition: 0xec7c75c1548765ab51a165873b0b1b71663c1266
+GnosisSafePersonalEdition: 0x2aaB3573eCFD2950a30B75B6f3651b84F4e130da
 GnosisSafeTeamEdition: 0x607c2ea232621ad2221201511f7982d870f1afe5
 DailyLimitModule: 0xac94a500b707fd5c4cdb89777f29b3b28bde2f0c
 CreateAndAddModules: 0x8513246e65c474ad05e88ae8ca7c5a6b04246550
