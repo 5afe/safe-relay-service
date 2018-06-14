@@ -240,6 +240,10 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'INFO',
         },
+        'celery.worker.strategy': {
+            'handlers': ['console'],
+            'level': 'INFO' if DEBUG else 'WARNING',
+        },
         'django.request': {
             'handlers': ['mail_admins'],
             'level': 'ERROR',

@@ -4,6 +4,7 @@ from typing import Dict, Iterable, List, Tuple
 
 import rlp
 from django.conf import settings
+from django.core.cache import cache
 from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
@@ -23,6 +24,26 @@ from .utils import NULL_ADDRESS
 logger = getLogger(__name__)
 
 
+def get_nonce_for_account(w3, address):
+    cache_key = 'nonce:%s' % address
+    nonce = cache.get(cache_key)
+    if nonce:
+        nonce += 1
+        cache.set(cache_key, nonce)
+        return nonce
+    else:
+        return w3.eth.getTransactionCount(address)
+
+
+def decrease_nonce_for_account(address):
+    cache_key = 'nonce:%s' % address
+    nonce = cache.get(cache_key)
+    if nonce:
+        nonce -= 1
+        cache.set(cache_key, nonce)
+        return nonce
+
+
 def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> bytes:
     """
     Send ether using configured account
@@ -40,33 +61,39 @@ def send_eth_to(w3, to: str, gas_price: int, value: int, gas: int=22000) -> byte
 
     private_key = settings.SAFE_FUNDER_PRIVATE_KEY
 
-    if private_key:
-        ethereum_account = checksum_encode(privtoaddr(private_key))
-        tx = {
-                'to': to,
-                'value': value,
-                'gas': gas,
-                'gasPrice': gas_price,
-                'nonce': w3.eth.getTransactionCount(ethereum_account),
-            }
+    try:
+        if private_key:
+            ethereum_account = checksum_encode(privtoaddr(private_key))
+            tx = {
+                    'to': to,
+                    'value': value,
+                    'gas': gas,
+                    'gasPrice': gas_price,
+                    'nonce': get_nonce_for_account(w3, ethereum_account),
+                }
 
-        signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
-        logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-        return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-    elif w3.eth.accounts:
-        ethereum_account = w3.eth.accounts[0]
-        tx = {
-                'from': ethereum_account,
-                'to': to,
-                'value': value,
-                'gas': gas,
-                'gasPrice': gas_price,
-                'nonce': w3.eth.getTransactionCount(ethereum_account),
-            }
-        logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-        return w3.eth.sendTransaction(tx)
-    else:
-        raise ValueError("Ethereum account was not configured or unlocked in the node")
+            signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
+            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
+            return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        elif w3.eth.accounts:
+            ethereum_account = w3.eth.accounts[0]
+            tx = {
+                    'from': ethereum_account,
+                    'to': to,
+                    'value': value,
+                    'gas': gas,
+                    'gasPrice': gas_price,
+                    'nonce': get_nonce_for_account(w3, ethereum_account),
+                }
+            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
+            return w3.eth.sendTransaction(tx)
+        else:
+            ethereum_account = None
+            logger.error('No ethereum account configured')
+            raise ValueError("Ethereum account was not configured or unlocked in the node")
+    except Exception as e:
+        decrease_nonce_for_account(ethereum_account)
+        raise e
 
 
 def find_valid_random_signature(s: int) -> Tuple[int, int]:
