@@ -65,7 +65,7 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
         self.assertTrue(safe_funding.safe_funded)
         self.assertFalse(safe_funding.safe_deployed)
-        self.assertTrue('' == safe_funding.safe_deployed_tx_hash)
+        self.assertIsNone(safe_funding.safe_deployed_tx_hash)
 
         # Safe code is not deployed
         self.assertEqual(self.w3.eth.getCode(safe), b'\x00')

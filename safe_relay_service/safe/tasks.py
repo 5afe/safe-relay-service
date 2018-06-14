@@ -133,7 +133,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
                 logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
                              tx_hash,
                              self.request.retries)
-                safe_funding.deployer_funded_tx_hash = ''
+                safe_funding.deployer_funded_tx_hash = None
                 safe_funding.save()
             else:
                 logger.debug('Retry finding transaction receipt %s', tx_hash)
@@ -179,7 +179,7 @@ def deploy_safes_task() -> None:
                     # A reorg happened
                     logger.warning('Safe=%s deploy tx=%s was not found after 10 minutes. Trying deploying again...',
                                    safe_funding.safe.address, tx_hash)
-                    safe_funding.safe_deployed_tx_hash = ''
+                    safe_funding.safe_deployed_tx_hash = None
                     safe_funding.save()
             else:
                 # Check a reorg didn't happen and deployer tx is still valid
@@ -197,7 +197,7 @@ def deploy_safes_task() -> None:
                     logger.warning("Safe=%s was affected by reorg, deployer funded tx-hash=%s invalid",
                                    safe_contract.address,
                                    safe_funding.deployer_funded_tx_hash)
-                    safe_funding.deployer_funded_tx_hash = ''
+                    safe_funding.deployer_funded_tx_hash = None
                     safe_funding.deployer_funded = False
                     safe_funding.save()
     finally:
