@@ -5,12 +5,12 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
-from .redis_service import RedisService
 
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding)
 
 from .ethereum_service import EthereumService
+from .redis_service import RedisService
 
 logger = get_task_logger(__name__)
 

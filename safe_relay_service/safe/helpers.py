@@ -1,4 +1,4 @@
-from .ethereum_service import EthereumService
+import os
 from logging import getLogger
 from typing import Dict, List, Tuple
 
@@ -6,8 +6,8 @@ import rlp
 from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
-from ethereum.transactions import Transaction
-from ethereum.utils import (checksum_encode, mk_contract_address)
+from ethereum.transactions import Transaction, secpk1n
+from ethereum.utils import checksum_encode, mk_contract_address
 from hexbytes import HexBytes
 from web3 import Web3
 
@@ -57,6 +57,26 @@ class SafeCreationTxBuilder:
         self.tx_hash = self.contract_creation_tx.hash
         self.deployer_address = checksum_encode(self.contract_creation_tx.sender)
         self.safe_address = checksum_encode(mk_contract_address(self.deployer_address, nonce=0))
+
+    @staticmethod
+    def find_valid_random_signature(s: int) -> Tuple[int, int]:
+        """
+        Find v and r valid values for a given s
+        :param s: random value
+        :return: v, r
+        """
+        for _ in range(10000):
+            r = int(os.urandom(31).hex(), 16)
+            v = (r % 2) + 27
+            if r < secpk1n:
+                tx = Transaction(0, 1, 21000, b'', 0, b'', v=v, r=r, s=s)
+                try:
+                    tx.sender
+                    return v, r
+                except (InvalidTransaction, ValueError):
+                    logger.debug('Cannot find signature with v=%d r=%d s=%d', v, r, s)
+
+        raise ValueError('Valid signature not found with s=%d', s)
 
     @staticmethod
     def _calculate_gas(owners: List[str], encoded_data: bytes) -> int:
@@ -111,12 +131,12 @@ class SafeCreationTxBuilder:
             'nonce': nonce,
         })
 
-    @staticmethod
-    def _generate_valid_transaction(gas_price: int, gas: int, data: str, s: int, nonce: int=0) -> Tuple[Transaction,
+    def _generate_valid_transaction(self, gas_price: int, gas: int, data: str, s: int, nonce: int=0) -> Tuple[
+                                                                                                        Transaction,
                                                                                                         int, int]:
         for _ in range(100):
             try:
-                v, r = EthereumService.find_valid_random_signature(s)
+                v, r = self.find_valid_random_signature(s)
                 contract_creation_tx = Transaction(nonce, gas_price, gas, b'', 0, HexBytes(data), v=v, r=r, s=s)
                 contract_creation_tx.sender
                 return contract_creation_tx, v, r

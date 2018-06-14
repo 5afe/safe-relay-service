@@ -12,8 +12,8 @@ from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .serializers import (SafeFundingSerializer,
-                          SafeTransactionCreationSerializer,
-                          SafeTransactionCreationResponseSerializer)
+                          SafeTransactionCreationResponseSerializer,
+                          SafeTransactionCreationSerializer)
 
 
 class AboutView(APIView):

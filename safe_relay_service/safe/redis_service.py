@@ -1,5 +1,5 @@
-from redis import Redis
 from django.conf import settings
+from redis import Redis
 
 
 class RedisService:

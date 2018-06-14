@@ -6,7 +6,7 @@ from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
 from web3 import HTTPProvider, Web3
 
 from ..contracts import get_paying_proxy_contract, get_safe_contract
-from ..helpers import (SafeCreationTxBuilder)
+from ..helpers import SafeCreationTxBuilder
 from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
 

@@ -1,14 +1,12 @@
+from typing import Iterable
+
 import ethereum.utils
-from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from model_utils.models import TimeStampedModel
 
-from .validators import validate_checksumed_address
-from typing import Iterable
 from .ethereum_service import EthereumService
-from .helpers import SafeCreationTxBuilder
-from safe_relay_service.gas_station.gas_station import GasStation
+from .validators import validate_checksumed_address
 
 
 class EthereumAddressField(models.CharField):
@@ -82,27 +80,9 @@ class SafeCreationManager(models.Manager):
         :param threshold:
         :return:
         """
-        gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+
         ethereum_service = EthereumService()
-        w3 = ethereum_service.w3
-
-        if settings.SAFE_GAS_PRICE:
-            gas_price = settings.SAFE_GAS_PRICE
-        else:
-            gas_price = gas_station.get_gas_prices().fast
-
-        funder = ethereum_service.private_key_to_checksumed_address(settings.SAFE_FUNDER_PRIVATE_KEY) \
-            if settings.SAFE_FUNDER_PRIVATE_KEY else None
-
-        safe_creation_tx_builder = SafeCreationTxBuilder(w3=w3,
-                                                         owners=owners,
-                                                         threshold=threshold,
-                                                         signature_s=s,
-                                                         master_copy=settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
-                                                         gas_price=gas_price,
-                                                         funder=funder)
-
-        assert safe_creation_tx_builder.contract_creation_tx.nonce == 0
+        safe_creation_tx_builder = ethereum_service.get_safe_creation_tx_builder(s, owners, threshold)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address)
         return super().create(
@@ -113,7 +93,7 @@ class SafeCreationManager(models.Manager):
             payment=safe_creation_tx_builder.payment,
             tx_hash=safe_creation_tx_builder.tx_hash.hex(),
             gas=safe_creation_tx_builder.gas,
-            gas_price=gas_price,
+            gas_price=safe_creation_tx_builder.gas_price,
             value=safe_creation_tx_builder.contract_creation_tx.value,
             v=safe_creation_tx_builder.v,
             r=safe_creation_tx_builder.r,

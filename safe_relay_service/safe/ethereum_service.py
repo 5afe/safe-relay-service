@@ -1,14 +1,14 @@
-import os
 from logging import getLogger
-from typing import Tuple
+from typing import Iterable
 
 from django.conf import settings
 from django.core.cache import cache
-from ethereum.exceptions import InvalidTransaction
-from ethereum.transactions import Transaction, secpk1n
-from ethereum.utils import (check_checksum, checksum_encode, privtoaddr)
+from ethereum.utils import check_checksum, checksum_encode, privtoaddr
 from web3 import HTTPProvider, Web3
 
+from safe_relay_service.gas_station.gas_station import GasStation
+
+from .helpers import SafeCreationTxBuilder
 
 logger = getLogger(__name__)
 
@@ -23,6 +23,7 @@ class EthereumService:
 
     def __init__(self):
         self.w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
+        self.gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
 
     def _get_nonce_cache_key(self, address):
         return 'nonce:%s' % address
@@ -129,22 +130,23 @@ class EthereumService:
     def private_key_to_checksumed_address(private_key):
         return checksum_encode(privtoaddr(private_key))
 
-    @staticmethod
-    def find_valid_random_signature(s: int) -> Tuple[int, int]:
-        """
-        Find v and r valid values for a given s
-        :param s: random value
-        :return: v, r
-        """
-        for _ in range(10000):
-            r = int(os.urandom(31).hex(), 16)
-            v = (r % 2) + 27
-            if r < secpk1n:
-                tx = Transaction(0, 1, 21000, b'', 0, b'', v=v, r=r, s=s)
-                try:
-                    tx.sender
-                    return v, r
-                except (InvalidTransaction, ValueError):
-                    logger.debug('Cannot find signature with v=%d r=%d s=%d', v, r, s)
+    def get_safe_creation_tx_builder(self, s: int, owners: Iterable[str], threshold: int) -> SafeCreationTxBuilder:
+        master_copy = settings.SAFE_PERSONAL_CONTRACT_ADDRESS
+        gas_price = settings.SAFE_GAS_PRICE
 
-        raise ValueError('Valid signature not found with s=%d', s)
+        if not gas_price:
+            gas_price = self.gas_station.get_gas_prices().fast
+
+        funder = self.private_key_to_checksumed_address(settings.SAFE_FUNDER_PRIVATE_KEY)\
+            if settings.SAFE_FUNDER_PRIVATE_KEY else None
+
+        safe_creation_tx_builder = SafeCreationTxBuilder(w3=self.w3,
+                                                         owners=owners,
+                                                         threshold=threshold,
+                                                         signature_s=s,
+                                                         master_copy=master_copy,
+                                                         gas_price=gas_price,
+                                                         funder=funder)
+
+        assert safe_creation_tx_builder.contract_creation_tx.nonce == 0
+        return safe_creation_tx_builder

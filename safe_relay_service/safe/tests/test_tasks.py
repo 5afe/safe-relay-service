@@ -5,11 +5,11 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
+from ..ethereum_service import EthereumService
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
 from .factories import generate_safe
-from ..ethereum_service import EthereumService
 
 logger = logging.getLogger(__name__)
 
