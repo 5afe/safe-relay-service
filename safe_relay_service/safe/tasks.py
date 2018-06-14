@@ -187,9 +187,9 @@ def deploy_safes_task() -> None:
                     tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
                     if tx_hash:
                         tx_hash = tx_hash.hex()[2:]
-                        logger.debug('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
-                                     safe_contract.address,
-                                     tx_hash)
+                        logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
+                                    safe_contract.address,
+                                    tx_hash)
                         safe_funding.safe_deployed_tx_hash = tx_hash
                         safe_funding.save()
                 else:
