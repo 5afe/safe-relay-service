@@ -51,3 +51,17 @@ class TestHelpers(TestCase):
     def test_send_eth_without_key(self):
         with self.settings(SAFE_FUNDER_PRIVATE_KEY=None):
             self.test_send_eth()
+
+    def test_wait_for_tx_receipt(self):
+        value = 1
+        to = self.w3.eth.accounts[-1]
+
+        tx_hash = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
+        receipt1 = self.ethereum_service.get_transaction_receipt(tx_hash, timeout=None)
+        receipt2 = self.ethereum_service.get_transaction_receipt(tx_hash, timeout=20)
+        self.assertIsNotNone(receipt1)
+        self.assertEqual(receipt1, receipt2)
+
+        fake_tx_hash = self.w3.sha3(0)
+        self.assertIsNone(self.ethereum_service.get_transaction_receipt(fake_tx_hash, timeout=None))
+        self.assertIsNone(self.ethereum_service.get_transaction_receipt(fake_tx_hash, timeout=1))

@@ -3,6 +3,7 @@ from logging import getLogger
 from django.conf import settings
 from ethereum.utils import check_checksum, checksum_encode, privtoaddr
 from web3 import HTTPProvider, Web3
+from web3.utils.threads import Timeout
 
 from safe_relay_service.gas_station.gas_station import GasStation
 
@@ -29,8 +30,14 @@ class EthereumService:
     def get_balance(self, address, block_identifier=None):
         return self.w3.eth.getBalance(address, block_identifier)
 
-    def get_transaction_receipt(self, tx_hash):
-        return self.w3.eth.getTransactionReceipt(tx_hash)
+    def get_transaction_receipt(self, tx_hash, timeout=None):
+        if not timeout:
+            return self.w3.eth.getTransactionReceipt(tx_hash)
+        else:
+            try:
+                return self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=timeout)
+            except Timeout:
+                return None
 
     def send_raw_transaction(self, raw_transaction):
         return self.w3.eth.sendRawTransaction(bytes(raw_transaction))
