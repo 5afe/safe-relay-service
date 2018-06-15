@@ -18,6 +18,20 @@ class TestHelpers(TestCase):
         self.ethereum_service = EthereumService()
         self.w3 = self.ethereum_service.w3
 
+    def test_check_tx_with_confirmations(self):
+        logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
+        value = 1
+        to = self.w3.eth.accounts[-1]
+
+        tx_hash = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
+        self.assertFalse(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
+
+        _ = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
+        self.assertFalse(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
+
+        _ = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
+        self.assertTrue(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
+
     def test_send_eth(self):
         w3 = self.w3
 
@@ -37,17 +51,3 @@ class TestHelpers(TestCase):
     def test_send_eth_without_key(self):
         with self.settings(SAFE_FUNDER_PRIVATE_KEY=None):
             self.test_send_eth()
-
-    def test_check_tx_with_confirmations(self):
-        logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
-        value = 1
-        to = self.w3.eth.accounts[-1]
-
-        tx_hash = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
-
-        _ = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
-
-        _ = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
-        self.assertTrue(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))

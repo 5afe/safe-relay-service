@@ -8,12 +8,9 @@ from web3 import HTTPProvider, Web3
 from safe_relay_service.gas_station.gas_station import GasStation
 
 from .helpers import SafeCreationTxBuilder
-from .redis_service import RedisService
 
 logger = getLogger(__name__)
 
-
-# TODO: Use INCR and DECR on redis instead of cache
 
 class EthereumService:
     def __new__(cls):
@@ -24,23 +21,9 @@ class EthereumService:
     def __init__(self):
         self.w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
         self.gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
-        self.redis = RedisService().redis
-
-    @staticmethod
-    def _get_nonce_cache_key(address):
-        return 'nonce:%s' % address
 
     def get_nonce_for_account(self, address):
-        cache_key = self._get_nonce_cache_key(address)
-        redis_nonce = self.redis.incr(cache_key)
-        nonce = max(redis_nonce, self.w3.eth.getTransactionCount(address, 'pending'))
-        if redis_nonce != nonce:
-            self.redis.set(cache_key, nonce)
-        return nonce
-
-    def _decrease_nonce_for_account(self, address):
-        if address:
-            return self.redis.decr(self._get_nonce_cache_key(address))
+        return self.w3.eth.getTransactionCount(address, 'pending')
 
     @property
     def current_block_number(self):
@@ -70,40 +53,35 @@ class EthereumService:
         assert value < self.w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether')
 
         private_key = settings.SAFE_FUNDER_PRIVATE_KEY
-        ethereum_account = None
 
-        try:
-            if private_key:
-                ethereum_account = self.private_key_to_checksumed_address(private_key)
-                tx = {
-                        'to': to,
-                        'value': value,
-                        'gas': gas,
-                        'gasPrice': gas_price,
-                        'nonce': self.get_nonce_for_account(ethereum_account),
-                    }
+        if private_key:
+            ethereum_account = self.private_key_to_checksumed_address(private_key)
+            tx = {
+                    'to': to,
+                    'value': value,
+                    'gas': gas,
+                    'gasPrice': gas_price,
+                    'nonce': self.get_nonce_for_account(ethereum_account),
+                }
 
-                signed_tx = self.w3.eth.account.signTransaction(tx, private_key=private_key)
-                logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-                return self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-            elif self.w3.eth.accounts:
-                ethereum_account = self.w3.eth.accounts[0]
-                tx = {
-                        'from': ethereum_account,
-                        'to': to,
-                        'value': value,
-                        'gas': gas,
-                        'gasPrice': gas_price,
-                        'nonce': self.get_nonce_for_account(ethereum_account),
-                    }
-                logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
-                return self.w3.eth.sendTransaction(tx)
-            else:
-                logger.error('No ethereum account configured')
-                raise ValueError("Ethereum account was not configured or unlocked in the node")
-        except Exception as e:
-            self._decrease_nonce_for_account(ethereum_account)
-            raise e
+            signed_tx = self.w3.eth.account.signTransaction(tx, private_key=private_key)
+            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
+            return self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        elif self.w3.eth.accounts:
+            ethereum_account = self.w3.eth.accounts[0]
+            tx = {
+                    'from': ethereum_account,
+                    'to': to,
+                    'value': value,
+                    'gas': gas,
+                    'gasPrice': gas_price,
+                    'nonce': self.get_nonce_for_account(ethereum_account),
+                }
+            logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
+            return self.w3.eth.sendTransaction(tx)
+        else:
+            logger.error('No ethereum account configured')
+            raise ValueError("Ethereum account was not configured or unlocked in the node")
 
     def check_tx_with_confirmations(self, tx_hash: str, confirmations: int) -> bool:
         """
