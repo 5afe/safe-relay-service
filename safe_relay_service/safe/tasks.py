@@ -36,7 +36,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     safe_creation = SafeCreation.objects.get(safe=safe_address)
 
     deployer_address = safe_creation.deployer
-    payment = safe_creation.gas * safe_creation.gas_price
+    payment = safe_creation.payment
 
     # These asserts just to make sure we are not wasting money
     assert check_checksum(safe_address)
