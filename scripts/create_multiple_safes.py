@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from urllib.parse import urljoin
 
 import requests
 from ethereum.utils import checksum_encode, privtoaddr
@@ -19,11 +20,11 @@ parser.add_argument("private_key", help="private key to fund the safes")
 args = parser.parse_args()
 
 SAFE_BASE_URL = args.url
-SAFES_URL = SAFE_BASE_URL + 'safes/'
+SAFES_URL = urljoin(SAFE_BASE_URL, '/api/v1/safes/')
 
 
 def get_safes_notify_url(address):
-    return SAFES_URL + address + '/funded/'
+    return urljoin(SAFES_URL, address + '/funded/')
 
 
 def send_eth(private_key, to, value):
@@ -58,11 +59,10 @@ def notify_safes():
             assert r.ok
 
 
-def deploy_safes(owners, private_key):
+def deploy_safes(number, owners, private_key):
     safes = []
-    for _ in range(20):
+    for _ in range(number):
         payload_json = generate_payload(owners)
-
         r = requests.post(SAFES_URL, json=payload_json)
         assert r.ok
         safe_created = r.json()
@@ -81,4 +81,5 @@ def deploy_safes(owners, private_key):
 
 
 # notify_safes()
-deploy_safes([x.strip for x in args.owners.split(',')], args.private_key)
+owners = [x.strip() for x in args.owners.split(',')]
+deploy_safes(args.number, owners, args.private_key)
