@@ -272,7 +272,7 @@ GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
 SAFE_FUNDER_PRIVATE_KEY = env('SAFE_FUNDER_PRIVATE_KEY', default=None)
 # Maximum ether (no wei) for a single transaction (security limit)
 SAFE_FUNDER_MAX_ETH = env.int('SAFE_FUNDER_MAX_ETH', default=0.1)
-SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=3)
+SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  # Set to at least 3
 # Master Copy Address of Safe Personal Edition Contract
 SAFE_PERSONAL_CONTRACT_ADDRESS = env('SAFE_PERSONAL_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
 # If SAFE_GAS_PRICE is None, GasStation will be used
