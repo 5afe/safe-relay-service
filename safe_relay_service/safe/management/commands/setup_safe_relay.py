@@ -10,7 +10,7 @@ class Command(BaseCommand):
         if PeriodicTask.objects.filter(task=task_name).count():
             self.stdout.write(self.style.SUCCESS('Task was already created'))
         else:
-            interval, _ = IntervalSchedule.objects.get_or_create(every=1, period='minutes')
+            interval, _ = IntervalSchedule.objects.get_or_create(every=20, period='seconds')
             PeriodicTask.objects.create(
                 name='Deploy Safes Task',
                 task=task_name,

@@ -128,11 +128,18 @@ class SafeCreation(TimeStampedModel):
 
 
 class SafeFundingManager(models.Manager):
-    def pending_to_deploy(self):
+    def pending_just_to_deploy(self):
         return self.filter(
             safe_deployed=False
         ).filter(
             deployer_funded=True
+        ).select_related(
+            'safe'
+        )
+
+    def not_deployed(self):
+        return self.filter(
+            safe_deployed=False
         ).select_related(
             'safe'
         )

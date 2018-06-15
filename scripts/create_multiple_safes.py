@@ -1,0 +1,81 @@
+import logging
+import os
+
+import requests
+from ethereum.utils import checksum_encode, privtoaddr
+from web3 import HTTPProvider, Web3
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+w3 = Web3(HTTPProvider('https://rinkeby.infura.io/gnosis'))
+
+USER_PRIVATE_KEY = ''
+
+OWNERS = []
+
+
+SAFE_BASE_URL = ''
+SAFES_URL = SAFE_BASE_URL + 'safes/'
+
+
+def get_safes_notify_url(address):
+    return SAFES_URL + address + '/funded/'
+
+
+def send_eth(private_key, to, value):
+    public_key = checksum_encode(privtoaddr(private_key))
+    tx = {
+        'to': to,
+        'value': value,
+        'gas': 23000,
+        'gasPrice': w3.eth.gasPrice,
+        'nonce': w3.eth.getTransactionCount(public_key, 'pending'),
+    }
+
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
+    return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+
+
+def generate_valid_s():
+    return int(os.urandom(31).hex(), 16)
+
+
+def generate_payload(owners, threshold=None):
+    return {"owners": owners,
+            "s": generate_valid_s(),
+            "threshold": threshold if threshold else len(owners) - 1
+            }
+
+
+def notify_safes():
+    with open('safes.txt', mode='r') as safes_file:
+        for safe_address in safes_file:
+            r = requests.put(get_safes_notify_url(safe_address.strip()))
+            assert r.ok
+
+
+def deploy_safes(owners, private_key):
+    safes = []
+    for _ in range(20):
+        payload_json = generate_payload(owners)
+
+        r = requests.post(SAFES_URL, json=payload_json)
+        assert r.ok
+        safe_created = r.json()
+        safe_address = safe_created['safe']
+        payment = int(safe_created['payment'])
+
+        logging.info('Created safe=%s, need payment=%d', safe_address, payment)
+        send_eth(private_key, safe_address, payment)
+        logging.info('Sent payment=%s to safe=%s', payment, safe_address)
+        r = requests.put(get_safes_notify_url(safe_address))
+        assert r.ok
+        safes.append(safe_address)
+
+    with open('safes.txt', mode='a') as safes_file:
+        safes_file.write('\n'.join(safes))
+
+
+# notify_safes()
+deploy_safes(OWNERS, USER_PRIVATE_KEY)

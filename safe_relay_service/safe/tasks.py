@@ -24,23 +24,25 @@ LOCK_TIMEOUT = 60 * 2
 
 
 @app.shared_task(bind=True, max_retries=3)
-def fund_deployer_task(self, safe_address: str, deployer_address: str, payment: int, retry: bool=True) -> None:
+def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     """
     Check if user has sent enough ether to the safe account
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
     is called to check that that tx is mined
     :param safe_address: safe account
-    :param deployer_address: deployer address
-    :param payment: minimum ether required to create the safe (wei)
     """
+
+    safe_contract = SafeContract.objects.get(address=safe_address)
+    safe_creation = SafeCreation.objects.get(safe=safe_address)
+
+    deployer_address = safe_creation.deployer
+    payment = safe_creation.gas * safe_creation.gas_price
 
     # These asserts just to make sure we are not wasting money
     assert check_checksum(safe_address)
     assert check_checksum(deployer_address)
     assert checksum_encode(mk_contract_address(sender=deployer_address, nonce=0)) == safe_address
-
-    safe_contract = SafeContract.objects.get(address=safe_address)
-    safe_creation = SafeCreation.objects.get(safe=safe_address)
+    assert payment > 0
 
     with redis.lock('locks:fund_deployer_task', timeout=LOCK_TIMEOUT):
         safe_funding, _ = SafeFunding.objects.get_or_create(safe=safe_contract)
@@ -152,7 +154,7 @@ def deploy_safes_task() -> None:
     try:
         logger.debug('Starting deploy safes task')
 
-        pending_to_deploy = SafeFunding.objects.pending_to_deploy()
+        pending_to_deploy = SafeFunding.objects.pending_just_to_deploy()
 
         logger.debug('%d safes pending to deploy', len(pending_to_deploy))
 
