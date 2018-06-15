@@ -1,8 +1,9 @@
 import os
 from logging import getLogger
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import rlp
+from django.conf import settings
 from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
@@ -12,12 +13,13 @@ from hexbytes import HexBytes
 from web3 import Web3
 
 from .contracts import get_paying_proxy_contract, get_safe_contract
+from .ethereum_service import EthereumService
 from .utils import NULL_ADDRESS
 
 logger = getLogger(__name__)
 
 
-class SafeCreationTxBuilder:
+class SafeCreationTx:
     def __init__(self, w3: Web3, owners: List[str], threshold: int, signature_s: int, master_copy: str,
                  gas_price: int, funder: str, payment_token: str=None):
         self.owners = owners
@@ -154,3 +156,36 @@ class SafeCreationTxBuilder:
 
         # To get the address signing, just do ecrecover_to_pub(unsigned_transaction.hash(), v, r, s)
         return rlp_encoded_transaction, unsigned_transaction.hash()
+
+
+class SafeCreationTxBuilder:
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super().__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        self.ethereum_service = EthereumService()
+        self.w3 = self.ethereum_service.w3
+        self.gas_station = self.ethereum_service.gas_station
+        self.gas_price = settings.SAFE_GAS_PRICE
+        self.master_copy = settings.SAFE_PERSONAL_CONTRACT_ADDRESS
+        self.funder_private_key = settings.SAFE_FUNDER_PRIVATE_KEY
+        if settings.SAFE_FUNDER_PRIVATE_KEY:
+            self.funder_address = self.ethereum_service.private_key_to_address(settings.SAFE_FUNDER_PRIVATE_KEY)
+        else:
+            self.funder_address = None
+
+    def get_safe_creation_tx(self, s: int, owners: Iterable[str], threshold: int) -> SafeCreationTx:
+        gas_price = self.gas_price if self.gas_price else self.gas_station.get_gas_prices().fast
+
+        safe_creation_tx_builder = SafeCreationTx(w3=self.w3,
+                                                  owners=owners,
+                                                  threshold=threshold,
+                                                  signature_s=s,
+                                                  master_copy=self.master_copy,
+                                                  gas_price=gas_price,
+                                                  funder=self.funder_address)
+
+        assert safe_creation_tx_builder.contract_creation_tx.nonce == 0
+        return safe_creation_tx_builder

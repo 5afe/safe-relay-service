@@ -6,6 +6,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumService
+from .helpers import SafeCreationTxBuilder
 from .validators import validate_checksumed_address
 
 
@@ -64,8 +65,8 @@ class EthereumBigIntegerField(models.CharField):
 class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
 
-    def getBalance(self):
-        pass
+    def getBalance(self, block_identifier=None):
+        EthereumService().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
         return self.address
@@ -81,8 +82,7 @@ class SafeCreationManager(models.Manager):
         :return:
         """
 
-        ethereum_service = EthereumService()
-        safe_creation_tx_builder = ethereum_service.get_safe_creation_tx_builder(s, owners, threshold)
+        safe_creation_tx_builder = SafeCreationTxBuilder().get_safe_creation_tx(s, owners, threshold)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address)
         return super().create(

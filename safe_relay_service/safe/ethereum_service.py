@@ -1,13 +1,10 @@
 from logging import getLogger
-from typing import Iterable
 
 from django.conf import settings
 from ethereum.utils import check_checksum, checksum_encode, privtoaddr
 from web3 import HTTPProvider, Web3
 
 from safe_relay_service.gas_station.gas_station import GasStation
-
-from .helpers import SafeCreationTxBuilder
 
 logger = getLogger(__name__)
 
@@ -55,7 +52,7 @@ class EthereumService:
         private_key = settings.SAFE_FUNDER_PRIVATE_KEY
 
         if private_key:
-            ethereum_account = self.private_key_to_checksumed_address(private_key)
+            ethereum_account = self.private_key_to_address(private_key)
             tx = {
                     'to': to,
                     'value': value,
@@ -100,26 +97,5 @@ class EthereumService:
             return (block_number - tx_block_number) >= confirmations
 
     @staticmethod
-    def private_key_to_checksumed_address(private_key):
+    def private_key_to_address(private_key):
         return checksum_encode(privtoaddr(private_key))
-
-    def get_safe_creation_tx_builder(self, s: int, owners: Iterable[str], threshold: int) -> SafeCreationTxBuilder:
-        master_copy = settings.SAFE_PERSONAL_CONTRACT_ADDRESS
-        gas_price = settings.SAFE_GAS_PRICE
-
-        if not gas_price:
-            gas_price = self.gas_station.get_gas_prices().fast
-
-        funder = self.private_key_to_checksumed_address(settings.SAFE_FUNDER_PRIVATE_KEY)\
-            if settings.SAFE_FUNDER_PRIVATE_KEY else None
-
-        safe_creation_tx_builder = SafeCreationTxBuilder(w3=self.w3,
-                                                         owners=owners,
-                                                         threshold=threshold,
-                                                         signature_s=s,
-                                                         master_copy=master_copy,
-                                                         gas_price=gas_price,
-                                                         funder=funder)
-
-        assert safe_creation_tx_builder.contract_creation_tx.nonce == 0
-        return safe_creation_tx_builder

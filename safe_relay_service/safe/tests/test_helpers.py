@@ -6,7 +6,7 @@ from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
 from web3 import HTTPProvider, Web3
 
 from ..contracts import get_paying_proxy_contract, get_safe_contract
-from ..helpers import SafeCreationTxBuilder
+from ..helpers import SafeCreationTx
 from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
 
@@ -48,13 +48,13 @@ class TestHelpers(TestCase):
         threshold = len(owners) - 1
         gas_price = GAS_PRICE
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=NULL_ADDRESS)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_contract_address,
+                                      gas_price=gas_price,
+                                      funder=NULL_ADDRESS)
 
         logger.info("Send %d gwei to deployer %s",
                     w3.fromWei(safe_builder.payment, 'gwei'),
@@ -91,13 +91,13 @@ class TestHelpers(TestCase):
         user_external_account = w3.eth.accounts[6]
         gas_price = GAS_PRICE
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=funder)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_contract_address,
+                                      gas_price=gas_price,
+                                      funder=funder)
 
         ether = 0.01
         logger.info("Send %d ether to safe %s", ether, safe_builder.deployer_address)
@@ -145,13 +145,13 @@ class TestHelpers(TestCase):
             threshold = len(owners)
             gas_price = w3.toWei(15, 'gwei')
 
-            safe_builder = SafeCreationTxBuilder(w3=w3,
-                                                 owners=owners,
-                                                 threshold=threshold,
-                                                 signature_s=s,
-                                                 master_copy=self.safe_contract_address,
-                                                 gas_price=gas_price,
-                                                 funder=None)
+            safe_builder = SafeCreationTx(w3=w3,
+                                          owners=owners,
+                                          threshold=threshold,
+                                          signature_s=s,
+                                          master_copy=self.safe_contract_address,
+                                          gas_price=gas_price,
+                                          funder=None)
 
             w3.eth.sendTransaction({
                 'from': w3.eth.accounts[0],
@@ -178,20 +178,20 @@ class TestHelpers(TestCase):
 
         s = generate_valid_s()
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=funder)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_contract_address,
+                                      gas_price=gas_price,
+                                      funder=funder)
 
         web3_transaction = safe_builder.contract_creation_tx_dict
 
         # Signing transaction
         v, r = safe_builder.v, safe_builder.r
 
-        rlp_encoded_transaction, hash = SafeCreationTxBuilder._sign_web3_transaction(web3_transaction, v, r, s)
+        rlp_encoded_transaction, hash = SafeCreationTx._sign_web3_transaction(web3_transaction, v, r, s)
 
         address_64_encoded = ecrecover_to_pub(hash, v, r, s)
         address_bytes = sha3(address_64_encoded)[-20:]
