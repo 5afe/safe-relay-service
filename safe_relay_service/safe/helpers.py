@@ -40,10 +40,10 @@ class SafeCreationTx:
 
         self.payment = self.gas * gas_price
 
-        self.contract_creation_tx_dict = self._build_proxy_contract_creation_tx(master_copy=master_copy,
+        self.contract_creation_tx_dict = self._build_proxy_contract_creation_tx(master_copy=self.master_copy,
                                                                                 initializer=encoded_data,
-                                                                                funder=funder,
-                                                                                payment_token=payment_token,
+                                                                                funder=self.funder,
+                                                                                payment_token=self.payment_token,
                                                                                 payment=self.payment,
                                                                                 gas=self.gas,
                                                                                 gas_price=gas_price)
@@ -171,8 +171,8 @@ class SafeCreationTxBuilder:
         self.gas_price = settings.SAFE_GAS_PRICE
         self.master_copy = settings.SAFE_PERSONAL_CONTRACT_ADDRESS
         self.funder_private_key = settings.SAFE_FUNDER_PRIVATE_KEY
-        if settings.SAFE_FUNDER_PRIVATE_KEY:
-            self.funder_address = self.ethereum_service.private_key_to_address(settings.SAFE_FUNDER_PRIVATE_KEY)
+        if self.funder_private_key:
+            self.funder_address = self.ethereum_service.private_key_to_address(self.funder_private_key)
         else:
             self.funder_address = None
 

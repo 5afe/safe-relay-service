@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 
@@ -10,12 +11,14 @@ logging.basicConfig(level=logging.INFO,
 
 w3 = Web3(HTTPProvider('https://rinkeby.infura.io/gnosis'))
 
-USER_PRIVATE_KEY = ''
+parser = argparse.ArgumentParser()
+parser.add_argument("number", help="number of safes to create", type=int)
+parser.add_argument("url", help="base url of service")
+parser.add_argument("owners", help="owners split by commas")
+parser.add_argument("private_key", help="private key to fund the safes")
+args = parser.parse_args()
 
-OWNERS = []
-
-
-SAFE_BASE_URL = ''
+SAFE_BASE_URL = args.url
 SAFES_URL = SAFE_BASE_URL + 'safes/'
 
 
@@ -78,4 +81,4 @@ def deploy_safes(owners, private_key):
 
 
 # notify_safes()
-deploy_safes(OWNERS, USER_PRIVATE_KEY)
+deploy_safes([x.strip for x in args.owners.split(',')], args.private_key)
