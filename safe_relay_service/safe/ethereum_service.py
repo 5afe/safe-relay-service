@@ -2,13 +2,13 @@ from logging import getLogger
 from typing import Iterable
 
 from django.conf import settings
-from django.core.cache import cache
 from ethereum.utils import check_checksum, checksum_encode, privtoaddr
 from web3 import HTTPProvider, Web3
 
 from safe_relay_service.gas_station.gas_station import GasStation
 
 from .helpers import SafeCreationTxBuilder
+from .redis_service import RedisService
 
 logger = getLogger(__name__)
 
@@ -24,28 +24,23 @@ class EthereumService:
     def __init__(self):
         self.w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
         self.gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+        self.redis = RedisService().redis
 
-    def _get_nonce_cache_key(self, address):
+    @staticmethod
+    def _get_nonce_cache_key(address):
         return 'nonce:%s' % address
 
     def get_nonce_for_account(self, address):
         cache_key = self._get_nonce_cache_key(address)
-        nonce = cache.get(cache_key)
-        if nonce:
-            nonce += 1
-        else:
-            nonce = 0
-        nonce = max(nonce, self.w3.eth.getTransactionCount(address))
-        cache.set(cache_key, nonce)
+        redis_nonce = self.redis.incr(cache_key)
+        nonce = max(redis_nonce, self.w3.eth.getTransactionCount(address, 'pending'))
+        if redis_nonce != nonce:
+            self.redis.set(cache_key, nonce)
         return nonce
 
     def _decrease_nonce_for_account(self, address):
-        cache_key = self._get_nonce_cache_key(address)
-        nonce = cache.get(cache_key)
-        if nonce:
-            nonce -= 1
-            cache.set(cache_key, nonce)
-            return nonce
+        if address:
+            return self.redis.decr(self._get_nonce_cache_key(address))
 
     @property
     def current_block_number(self):
@@ -75,6 +70,7 @@ class EthereumService:
         assert value < self.w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether')
 
         private_key = settings.SAFE_FUNDER_PRIVATE_KEY
+        ethereum_account = None
 
         try:
             if private_key:
@@ -103,7 +99,6 @@ class EthereumService:
                 logger.debug('Sending %d wei from %s to %s', value, ethereum_account, to)
                 return self.w3.eth.sendTransaction(tx)
             else:
-                ethereum_account = None
                 logger.error('No ethereum account configured')
                 raise ValueError("Ethereum account was not configured or unlocked in the node")
         except Exception as e:

@@ -120,7 +120,7 @@ class SafeCreation(TimeStampedModel):
     data = models.BinaryField(null=True)
     signed_tx = models.BinaryField(null=True)
 
-    def sendEthToDeployer(self):
+    def send_eth_to_deployer(self):
         pass
 
     def __str__(self):

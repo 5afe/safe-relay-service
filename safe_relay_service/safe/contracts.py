@@ -18,7 +18,8 @@ GNOSIS_SAFE_INTERFACE = load_contract_interface('GnosisSafe.json')
 PAYING_PROXY_INTERFACE = load_contract_interface('PayingProxy.json')
 
 
-def get_safe_contract(w3, address=settings.SAFE_PERSONAL_CONTRACT_ADDRESS):
+def get_safe_contract(w3, address=None):
+    address = settings.SAFE_PERSONAL_CONTRACT_ADDRESS if not address else address
     return w3.eth.contract(address,
                            abi=GNOSIS_SAFE_INTERFACE['abi'],
                            bytecode=GNOSIS_SAFE_INTERFACE['bytecode'])
