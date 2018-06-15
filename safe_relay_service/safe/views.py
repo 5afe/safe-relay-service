@@ -103,6 +103,6 @@ class SafeSignalView(APIView):
         except SafeCreation.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        fund_deployer_task.delay(address, safe_creation.deployer, safe_creation.gas * safe_creation.gas_price)
+        fund_deployer_task.delay(address)
 
         return Response(status=status.HTTP_202_ACCEPTED)

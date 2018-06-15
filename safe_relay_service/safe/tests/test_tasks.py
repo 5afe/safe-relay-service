@@ -40,7 +40,7 @@ class TestTasks(TestCase):
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
-        fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
+        fund_deployer_task.delay(safe, retry=False).get()
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
@@ -52,7 +52,7 @@ class TestTasks(TestCase):
             gas_price=GAS_PRICE,
             value=payment)
 
-        fund_deployer_task.delay(safe, deployer, payment).get()
+        fund_deployer_task.delay(safe).get()
 
         safe_funding = SafeFunding.objects.get(safe=safe)
 
@@ -82,13 +82,13 @@ class TestTasks(TestCase):
         self.assertTrue(len(self.w3.eth.getCode(safe)) > 10)
 
         # Nothing happens if safe is funded
-        fund_deployer_task.delay(safe, deployer, payment).get()
+        fund_deployer_task.delay(safe).get()
 
         # Check deployer tx is checked again
         old_deployer_tx_hash = safe_funding.deployer_funded_tx_hash
         safe_funding.deployer_funded = False
         safe_funding.save()
-        fund_deployer_task.delay(safe, deployer, payment).get()
+        fund_deployer_task.delay(safe).get()
 
         safe_funding.refresh_from_db()
         self.assertEqual(old_deployer_tx_hash, safe_funding.deployer_funded_tx_hash)
@@ -99,7 +99,7 @@ class TestTasks(TestCase):
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
         # No ether is sent to the deployer is safe is empty
-        fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
+        fund_deployer_task.delay(safe, retry=False).get()
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
         # No ether is sent to the deployer is safe has less balance than needed
@@ -107,7 +107,7 @@ class TestTasks(TestCase):
             to=safe,
             gas_price=GAS_PRICE,
             value=payment - 1)
-        fund_deployer_task.delay(safe, deployer, payment, retry=False).get()
+        fund_deployer_task.delay(safe, retry=False).get()
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
     def test_check_deployer_funded(self):
@@ -134,7 +134,7 @@ class TestTasks(TestCase):
             gas_price=GAS_PRICE,
             value=payment)
 
-        fund_deployer_task.delay(safe, deployer, payment).get()
+        fund_deployer_task.delay(safe).get()
         check_deployer_funded_task.delay(safe).get()
 
         safe_funding = SafeFunding.objects.get(safe=safe)
@@ -165,7 +165,7 @@ class TestTasks(TestCase):
             gas_price=GAS_PRICE,
             value=payment)
 
-        fund_deployer_task.delay(safe, deployer, payment).get()
+        fund_deployer_task.delay(safe).get()
         check_deployer_funded_task.delay(safe).get()
         deploy_safes_task.delay().get()
 
