@@ -1,14 +1,14 @@
 import logging
 
 from django.conf import settings
-from django.test import TestCase
 from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
-from web3 import HTTPProvider, Web3
+from hexbytes import HexBytes
 
-from ..contracts import get_paying_proxy_contract, get_safe_contract
+from ..contracts import get_safe_personal_contract
 from ..helpers import SafeCreationTx
 from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
+from .test_safe_service import TestCaseWithSafeContract
 
 logger = logging.getLogger(__name__)
 
@@ -17,25 +17,7 @@ LOG_TITLE_WIDTH = 100
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestHelpers(TestCase):
-
-    @staticmethod
-    def _get_web3_provider():
-        return Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
-    @classmethod
-    def setUpTestData(cls):
-        w3 = cls._get_web3_provider()
-        cls.gnosis_safe_contract, cls.paying_proxy_contract = get_safe_contract(w3), get_paying_proxy_contract(w3)
-
-        tx_hash = cls.gnosis_safe_contract.constructor().transact({'from': w3.eth.accounts[0], 'gas': 3125602})
-        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-        cls.safe_contract_address = tx_receipt.contractAddress
-        cls.safe_contract_deployer = w3.eth.accounts[0]
-        logger.info("Deployed Safe Master Contract in %s by %s", cls.safe_contract_address, cls.safe_contract_deployer)
-
-    def setUp(self):
-        self.w3 = self._get_web3_provider()
+class TestHelpers(TestCaseWithSafeContract):
 
     def test_safe_creation_tx_builder(self):
         logger.info("Test Safe Proxy creation without payment".center(LOG_TITLE_WIDTH, '-'))
@@ -52,7 +34,7 @@ class TestHelpers(TestCase):
                                       owners=owners,
                                       threshold=threshold,
                                       signature_s=s,
-                                      master_copy=self.safe_contract_address,
+                                      master_copy=self.safe_personal_contract_address,
                                       gas_price=gas_price,
                                       funder=NULL_ADDRESS)
 
@@ -71,7 +53,7 @@ class TestHelpers(TestCase):
         tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
         self.assertEqual(tx_receipt.contractAddress, safe_builder.safe_address)
 
-        deployed_safe_proxy_contract = get_safe_contract(w3, tx_receipt.contractAddress)
+        deployed_safe_proxy_contract = get_safe_personal_contract(w3, tx_receipt.contractAddress)
 
         logger.info("Deployer account has still %d gwei left (will be lost)",
                     w3.fromWei(w3.eth.getBalance(safe_builder.deployer_address), 'gwei'))
@@ -95,7 +77,7 @@ class TestHelpers(TestCase):
                                       owners=owners,
                                       threshold=threshold,
                                       signature_s=s,
-                                      master_copy=self.safe_contract_address,
+                                      master_copy=self.safe_personal_contract_address,
                                       gas_price=gas_price,
                                       funder=funder)
 
@@ -130,7 +112,7 @@ class TestHelpers(TestCase):
         logger.info("Deployer account has still %d gwei left (will be lost)",
                     w3.fromWei(w3.eth.getBalance(safe_builder.deployer_address), 'gwei'))
 
-        deployed_safe_proxy_contract = get_safe_contract(w3, tx_receipt.contractAddress)
+        deployed_safe_proxy_contract = get_safe_personal_contract(w3, tx_receipt.contractAddress)
 
         self.assertEqual(deployed_safe_proxy_contract.functions.getThreshold().call(), threshold)
         self.assertEqual(deployed_safe_proxy_contract.functions.getOwners().call(), owners)
@@ -149,7 +131,7 @@ class TestHelpers(TestCase):
                                           owners=owners,
                                           threshold=threshold,
                                           signature_s=s,
-                                          master_copy=self.safe_contract_address,
+                                          master_copy=self.safe_personal_contract_address,
                                           gas_price=gas_price,
                                           funder=None)
 
@@ -182,7 +164,7 @@ class TestHelpers(TestCase):
                                       owners=owners,
                                       threshold=threshold,
                                       signature_s=s,
-                                      master_copy=self.safe_contract_address,
+                                      master_copy=self.safe_personal_contract_address,
                                       gas_price=gas_price,
                                       funder=funder)
 

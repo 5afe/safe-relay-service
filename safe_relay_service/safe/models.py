@@ -1,13 +1,16 @@
-from typing import Iterable
+from typing import Iterable, Dict
 
 import ethereum.utils
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumService
+from .safe_service import SafeService
 from .helpers import SafeCreationTxBuilder
 from .validators import validate_checksumed_address
+from typing import List,Tuple
 
 
 class EthereumAddressField(models.CharField):
@@ -28,13 +31,17 @@ class EthereumAddressField(models.CharField):
 
     def to_python(self, value):
         value = super().to_python(value)
-        if not value:
+        if value:
+            return ethereum.utils.checksum_encode(value)
+        else:
             return value
 
-        return ethereum.utils.checksum_encode(value)
-
     def get_prep_value(self, value):
-        return ethereum.utils.checksum_encode(value)
+        value = super().get_prep_value(value)
+        if value:
+            return ethereum.utils.checksum_encode(value)
+        else:
+            return value
 
 
 class EthereumBigIntegerField(models.CharField):
@@ -64,6 +71,7 @@ class EthereumBigIntegerField(models.CharField):
 
 class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
+    master_copy = EthereumAddressField()
 
     def getBalance(self, block_identifier=None):
         EthereumService().get_balance(address=self.address, block_identifier=block_identifier)
@@ -73,18 +81,18 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int):
+    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, master_copy: str=None):
         """
         Create models for safe tx
-        :param s:
-        :param owners:
-        :param threshold:
         :return:
+        :rtype: SafeCreation
         """
 
-        safe_creation_tx_builder = SafeCreationTxBuilder().get_safe_creation_tx(s, owners, threshold)
+        safe_creation_tx_builder = SafeCreationTxBuilder().get_safe_creation_tx(s, owners, threshold,
+                                                                                master_copy=master_copy)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address)
+        safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address,
+                                                    master_copy=safe_creation_tx_builder.master_copy)
         return super().create(
             deployer=safe_creation_tx_builder.deployer_address,
             safe=safe_contract,
@@ -188,3 +196,73 @@ class SafeFunding(TimeStampedModel):
         else:
             s = 'Safe %s' % self.safe.address
         return s
+
+
+class SafeMultisigTxManager(models.Manager):
+    def create_multisig_tx(self,
+                           safe: str,
+                           to: str,
+                           value: int,
+                           data: bytes,
+                           operation: int,
+                           safe_tx_gas: int,
+                           data_gas: int,
+                           gas_price: int,
+                           gas_token: str,
+                           nonce: int,
+                           signatures: List[Dict[str, int]]):
+
+        safe_service = SafeService()
+
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
+
+        tx_hash, tx = safe_service.send_multisig_tx(
+            safe,
+            to,
+            value,
+            data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            signatures_packed,
+        )
+
+        safe_contract = SafeContract.objects.get(address=safe)
+
+        return super().create(
+            safe=safe_contract,
+            to=to,
+            value=value,
+            data=data,
+            operation=operation,
+            safe_tx_gas=safe_tx_gas,
+            data_gas=data_gas,
+            gas_price=gas_price,
+            gas_token=gas_token,
+            nonce=nonce,
+            signatures=signatures_packed,
+            gas=tx['gas'],
+            tx_hash=tx_hash.hex()[2:],
+            tx_mined=False
+        )
+
+
+class SafeMultisigTx(TimeStampedModel):
+    objects = SafeMultisigTxManager()
+    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
+    to = EthereumAddressField(null=True)
+    value = models.BigIntegerField()
+    data = models.BinaryField(null=True)
+    operation = models.PositiveSmallIntegerField()
+    safe_tx_gas = models.PositiveIntegerField()
+    data_gas = models.PositiveIntegerField()
+    gas_price = models.BigIntegerField()
+    gas_token = EthereumAddressField(null=True)
+    signatures = models.BinaryField()
+    gas = models.PositiveIntegerField()  # Gas for the tx that executes the multisig tx
+    nonce = models.PositiveIntegerField()
+    tx_hash = models.CharField(max_length=64, unique=True)
+    tx_mined = models.BooleanField(default=False)

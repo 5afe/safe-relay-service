@@ -7,13 +7,14 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from safe_relay_service.safe.models import SafeCreation, SafeFunding
+from safe_relay_service.safe.models import SafeCreation, SafeFunding, SafeContract, SafeMultisigTx
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .serializers import (SafeFundingSerializer,
                           SafeTransactionCreationResponseSerializer,
-                          SafeTransactionCreationSerializer)
+                          SafeTransactionCreationSerializer,
+                          SafeMultisigTxSerializer)
 
 
 class AboutView(APIView):
@@ -99,10 +100,61 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         try:
-            safe_creation = SafeCreation.objects.get(safe=address)
+            SafeCreation.objects.get(safe=address)
         except SafeCreation.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         fund_deployer_task.delay(address)
 
         return Response(status=status.HTTP_202_ACCEPTED)
+
+
+class SafeMultisigTxView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request, address, format=None):
+        if not ethereum.utils.check_checksum(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        try:
+            SafeContract.objects.get(address=address)
+        except SafeContract.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        request.data['safe'] = address
+        serializer = SafeMultisigTxSerializer(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+            safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
+                safe=data['safe'],
+                to=data['to'],
+                value=data['value'],
+                data=data['data'],
+                operation=data['operation'],
+                safe_tx_gas=data['safe_tx_gas'],
+                data_gas=data['data_gas'],
+                gas_price=data['gas_price'],
+                gas_token=data['gas_token'],
+                nonce=data['nonce'],
+                signatures=data['signatures'],
+            )
+            data = {'transaction_hash': safe_multisig_tx.tx_hash}
+            return Response(status=status.HTTP_200_OK, data=data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
+class SafeMultisigTxEstimateView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request, address, format=None):
+        if not ethereum.utils.check_checksum(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        try:
+            SafeContract.objects.get(address=address)
+        except SafeContract.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        return Response(status=status.HTTP_200_OK)

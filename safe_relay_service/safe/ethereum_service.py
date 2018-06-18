@@ -1,7 +1,8 @@
 from logging import getLogger
 
 from django.conf import settings
-from ethereum.utils import check_checksum, checksum_encode, privtoaddr
+from ethereum.utils import (check_checksum, checksum_encode, ecrecover_to_pub,
+                            privtoaddr, sha3)
 from web3 import HTTPProvider, Web3
 from web3.utils.threads import Timeout
 
@@ -11,6 +12,8 @@ logger = getLogger(__name__)
 
 
 class EthereumService:
+    NULL_ADDRESS = '0x' + '0' * 40
+
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super().__new__(cls)
@@ -106,3 +109,13 @@ class EthereumService:
     @staticmethod
     def private_key_to_address(private_key):
         return checksum_encode(privtoaddr(private_key))
+
+    @staticmethod
+    def get_signing_address(hash, v, r, s) -> str:
+        """
+        :return: checksum encoded address starting by 0x, for example `0x568c93675A8dEb121700A6FAdDdfE7DFAb66Ae4A`
+        :rtype: str
+        """
+        encoded_64_address = ecrecover_to_pub(hash, v, r, s)
+        address_bytes = sha3(encoded_64_address)[-20:]
+        return checksum_encode(address_bytes)

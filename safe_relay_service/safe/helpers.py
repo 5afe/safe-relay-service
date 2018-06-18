@@ -8,11 +8,12 @@ from eth_account.internal.transactions import (encode_transaction,
                                                serializable_unsigned_transaction_from_dict)
 from ethereum.exceptions import InvalidTransaction
 from ethereum.transactions import Transaction, secpk1n
-from ethereum.utils import checksum_encode, mk_contract_address
+from ethereum.utils import (checksum_encode, ecrecover_to_pub,
+                            mk_contract_address, sha3)
 from hexbytes import HexBytes
 from web3 import Web3
 
-from .contracts import get_paying_proxy_contract, get_safe_contract
+from .contracts import get_paying_proxy_contract, get_safe_personal_contract
 from .ethereum_service import EthereumService
 from .utils import NULL_ADDRESS
 
@@ -33,7 +34,7 @@ class SafeCreationTx:
         self.funder = funder
         self.payment_token = payment_token
 
-        self.gnosis_safe_contract = get_safe_contract(w3, master_copy)
+        self.gnosis_safe_contract = get_safe_personal_contract(w3, master_copy)
         self.paying_proxy_contract = get_paying_proxy_contract(w3)
 
         safe_tx = self._get_safe_tx(owners, threshold)
@@ -180,14 +181,17 @@ class SafeCreationTxBuilder:
         else:
             self.funder_address = None
 
-    def get_safe_creation_tx(self, s: int, owners: Iterable[str], threshold: int) -> SafeCreationTx:
+    def get_safe_creation_tx(self, s: int, owners: Iterable[str], threshold: int,
+                             master_copy: str=None) -> SafeCreationTx:
         gas_price = self.gas_price if self.gas_price else self.gas_station.get_gas_prices().fast
+
+        master_copy = master_copy if master_copy else self.master_copy
 
         safe_creation_tx_builder = SafeCreationTx(w3=self.w3,
                                                   owners=owners,
                                                   threshold=threshold,
                                                   signature_s=s,
-                                                  master_copy=self.master_copy,
+                                                  master_copy=master_copy,
                                                   gas_price=gas_price,
                                                   funder=self.funder_address)
 
