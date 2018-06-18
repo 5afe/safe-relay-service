@@ -48,7 +48,7 @@ def generate_valid_s():
 def generate_payload(owners, threshold=None):
     return {"owners": owners,
             "s": generate_valid_s(),
-            "threshold": threshold if threshold else len(owners) - 1
+            "threshold": threshold if threshold else len(owners)
             }
 
 
