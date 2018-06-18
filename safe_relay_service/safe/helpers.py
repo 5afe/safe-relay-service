@@ -22,6 +22,9 @@ logger = getLogger(__name__)
 class SafeCreationTx:
     def __init__(self, w3: Web3, owners: List[str], threshold: int, signature_s: int, master_copy: str,
                  gas_price: int, funder: str, payment_token: str=None):
+
+        assert 0 < threshold <= len(owners)
+
         self.owners = owners
         self.threshold = threshold
         self.s = signature_s
