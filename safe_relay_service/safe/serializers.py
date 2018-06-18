@@ -110,7 +110,7 @@ class SignedMessageSerializer(serializers.Serializer):
 class SafeTransactionCreationSerializer(serializers.Serializer):
     s = serializers.IntegerField(min_value=1, max_value=secpk1n - 1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
-    threshold = serializers.IntegerField(min_value=0)
+    threshold = serializers.IntegerField(min_value=1)
 
     def validate(self, data):
         super().validate(data)
