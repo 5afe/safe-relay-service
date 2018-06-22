@@ -4,6 +4,7 @@ from django.conf import settings
 from ethereum.utils import (check_checksum, checksum_encode, ecrecover_to_pub,
                             privtoaddr, sha3)
 from web3 import HTTPProvider, Web3
+from web3.middleware import geth_poa_middleware
 from web3.utils.threads import Timeout
 
 from safe_relay_service.gas_station.gas_station import GasStation
@@ -21,6 +22,13 @@ class EthereumService:
 
     def __init__(self):
         self.w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
+        try:
+            if self.w3.net.chainId != 1:
+                self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+            # For tests using dummy connections (like IPC)
+        except (ConnectionError, FileNotFoundError):
+            self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
         self.gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
 
     def get_nonce_for_account(self, address):
