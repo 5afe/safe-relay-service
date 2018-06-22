@@ -109,7 +109,7 @@ class SafeSignalView(APIView):
         return Response(status=status.HTTP_202_ACCEPTED)
 
 
-class SafeMultisigTxView(APIView):
+class SafeMultisigTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigTxSerializer
 
