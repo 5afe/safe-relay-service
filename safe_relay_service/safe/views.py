@@ -111,6 +111,7 @@ class SafeSignalView(APIView):
 
 class SafeMultisigTxView(APIView):
     permission_classes = (AllowAny,)
+    serializer_class = SafeMultisigTxSerializer
 
     def post(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
@@ -122,7 +123,7 @@ class SafeMultisigTxView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
-        serializer = SafeMultisigTxSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
             data = serializer.validated_data
