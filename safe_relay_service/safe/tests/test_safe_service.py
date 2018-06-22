@@ -1,0 +1,207 @@
+import logging
+
+from django.conf import settings
+from django.test import TestCase
+from hexbytes import HexBytes
+
+from ..contracts import get_paying_proxy_contract, get_safe_personal_contract
+from ..ethereum_service import EthereumService
+from ..helpers import SafeCreationTx
+from ..safe_service import SafeService
+from ..utils import NULL_ADDRESS
+from .factories import generate_and_deploy_safe, get_eth_address_with_key
+
+logger = logging.getLogger(__name__)
+
+LOG_TITLE_WIDTH = 100
+
+GAS_PRICE = settings.SAFE_GAS_PRICE
+
+
+class TestCaseWithSafeContract(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.ethereum_service = EthereumService()
+        w3 = cls.ethereum_service.w3
+        cls.w3 = w3
+        cls.safe_personal_contract = get_safe_personal_contract(w3)
+        cls.paying_proxy_contract = get_paying_proxy_contract(w3)
+
+        cls.safe_personal_deployer = w3.eth.accounts[0]
+        tx_hash = cls.safe_personal_contract.constructor().transact({'from': cls.safe_personal_deployer,
+                                                                     'gas': 5125602})
+        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+
+        cls.safe_personal_contract_address = tx_receipt.contractAddress
+        cls.safe_personal_contract = get_safe_personal_contract(w3, cls.safe_personal_contract_address)
+        logger.info("Deployed Safe Master Contract in %s by %s", cls.safe_personal_contract_address, cls.safe_personal_deployer)
+
+
+class TestHelpers(TestCaseWithSafeContract):
+    def setUp(self):
+        self.safe_service = SafeService()
+
+    def test_call_multisig_tx(self):
+        # Create Safe
+        w3 = self.w3
+        funder = w3.eth.accounts[0]
+        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
+        # Signatures must be sorted!
+        owners_with_keys.sort(key=lambda x: x[0].lower())
+        owners = [x[0] for x in owners_with_keys]
+        keys = [x[1] for x in owners_with_keys]
+        threshold = len(owners_with_keys)
+
+        my_safe_address = generate_and_deploy_safe(w3, funder, self.safe_personal_contract_address, owners, threshold)
+
+        # Send something to the safe
+        safe_balance = w3.toWei(0.01, 'ether')
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': my_safe_address,
+            'value': safe_balance
+        }))
+
+        # Send something to the owner[0], who will be sending the tx
+        owner0_balance = safe_balance
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': owners[0],
+            'value': owner0_balance
+        }))
+
+        my_safe_contract = get_safe_personal_contract(w3, my_safe_address)
+
+        to = funder
+        value = safe_balance // 2
+        data = HexBytes(0x00)
+        operation = 0
+        safe_tx_gas = 100000
+        data_gas = 300000
+        gas_price = 1
+        gas_token = NULL_ADDRESS
+        nonce = my_safe_contract.functions.nonce().call()
+        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(contract_address=my_safe_address,
+                                                                       to=to,
+                                                                       value=value,
+                                                                       data=data,
+                                                                       operation=operation,
+                                                                       safe_tx_gas=safe_tx_gas,
+                                                                       data_gas=data_gas,
+                                                                       gas_price=gas_price,
+                                                                       gas_token=gas_token,
+                                                                       nonce=nonce)
+
+        # Just to make sure we are not miscalculating tx_hash
+        contract_multisig_tx_hash = my_safe_contract.functions.getTransactionHash(
+            to,
+            value,
+            data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            nonce).call()
+
+        self.assertEqual(safe_multisig_tx_hash, contract_multisig_tx_hash)
+
+        signatures = [w3.eth.account.signHash(safe_multisig_tx_hash, private_key) for private_key in keys]
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
+
+        # {bytes32 r}{bytes32 s}{uint8 v} = 65 bytes
+        self.assertEqual(len(signatures_packed), 65 * len(owners))
+
+        # Make sure the contract retrieves the same owners
+        for i, owner in enumerate(owners):
+            recovered_owner = my_safe_contract.functions.recoverKey(safe_multisig_tx_hash, signatures_packed, i).call()
+            self.assertEqual(owner, recovered_owner)
+
+        self.assertTrue(self.safe_service.check_hash(safe_multisig_tx_hash, signatures_packed, owners))
+
+        # Check owners are the same
+        contract_owners = my_safe_contract.functions.getOwners().call()
+        self.assertEqual(set(contract_owners), set(owners))
+
+        self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
+
+        tx_gas = (safe_tx_gas + data_gas) * 2
+        sent_tx_hash, _ = self.safe_service.send_multisig_tx(
+            my_safe_address,
+            to,
+            value,
+            data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            signatures_packed,
+            tx_sender_private_key=keys[0],
+            tx_gas=tx_gas,
+            tx_gas_price=GAS_PRICE,
+        )
+
+        tx_receipt = w3.eth.waitForTransactionReceipt(sent_tx_hash)
+        self.assertTrue(tx_receipt['status'])
+        owner0_new_balance = w3.eth.getBalance(owners[0])
+        gas_used = tx_receipt['gasUsed']
+        gas_cost = gas_used * GAS_PRICE
+        estimated_payment = (data_gas + gas_used) * gas_price
+        real_payment = owner0_new_balance - (owner0_balance - gas_cost)
+        # Estimated payment will be bigger, because it uses all the tx gas. Real payment only uses gas left
+        # in the point of calculation of the payment, so it will be slightly lower
+        self.assertTrue(estimated_payment > real_payment > 0)
+        self.assertTrue(owner0_new_balance > owner0_balance - tx_gas * GAS_PRICE)
+        self.assertEqual(my_safe_contract.functions.nonce().call(), 1)
+
+    def test_hash_safe_multisig_tx(self):
+        expected_hash = HexBytes('0x7df475fa56c7e4bd8e4baa7193afed78fd2f9b7f8d827a9b659ce0441bcc0702')
+        tx_hash = self.safe_service.get_hash_for_safe_tx('0x692a70d2e424a56d2c6c27aa97d1a86395877b3a',
+                                                         '0x5AC255889882aaB35A2aa939679E3F3d4Cea221E',
+                                                         5000000,
+                                                         HexBytes('0x00'),
+                                                         0,
+                                                         50000,
+                                                         100,
+                                                         10000,
+                                                         '0x' + '0' * 40,
+                                                         67)
+        self.assertEqual(expected_hash, tx_hash)
+
+        expected_hash = HexBytes('0x2e6c07d4b8b0ebb63d8b0988aa1b65f358e69557cd772d6772fa150f32e76f37')
+        tx_hash = self.safe_service.get_hash_for_safe_tx('0x692a70d2e424a56d2c6c27aa97d1a86395877b3a',
+                                                         '0x' + '0' * 40,
+                                                         80000000,
+                                                         HexBytes('0x562944'),
+                                                         2,
+                                                         54522,
+                                                         773,
+                                                         22000000,
+                                                         '0x' + '0' * 40,
+                                                         257000)
+        self.assertEqual(expected_hash, tx_hash)
+
+        # Expected hash must be the same calculated by `getTransactionHash` of the contract
+        expected_hash = self.safe_personal_contract.functions.getTransactionHash(
+            '0x5AC255889882aaB35A2aa939679E3F3d4Cea221E',
+            5212459,
+            HexBytes('0x00'),
+            1,
+            123456,
+            122,
+            12345,
+            '0x' + '2' * 40,
+            10789).call()
+        tx_hash = self.safe_service.get_hash_for_safe_tx(self.safe_personal_contract_address,
+                                                         '0x5AC255889882aaB35A2aa939679E3F3d4Cea221E',
+                                                         5212459,
+                                                         HexBytes('0x00'),
+                                                         1,
+                                                         123456,
+                                                         122,
+                                                         12345,
+                                                         '0x' + '2' * 40,
+                                                         10789)
+        self.assertEqual(expected_hash, tx_hash)

@@ -1,12 +1,15 @@
 from django.test import TestCase
+from hexbytes import HexBytes
 from ethereum.transactions import secpk1n
 from faker import Faker
 
 from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 
+from .factories import generate_random_safe
 from ..models import SafeContract, SafeFunding
 from ..serializers import (SafeFundingSerializer,
-                           SafeTransactionCreationSerializer)
+                           SafeTransactionCreationSerializer, SafeMultisigTxSerializer)
+from ..safe_service import SafeService
 
 faker = Faker()
 
@@ -42,9 +45,85 @@ class TestSerializers(TestCase):
 
     def test_funding_serializer(self):
         owner1, _ = get_eth_address_with_key()
-        safe_contract = SafeContract.objects.create(address=owner1)
+        safe_contract = SafeContract.objects.create(address=owner1, master_copy='0x' + '0' * 40)
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
 
         s = SafeFundingSerializer(safe_funding)
 
         self.assertTrue(s.data)
+
+    def test_safe_multisig_tx_serializer(self):
+        safe_service = SafeService()
+        w3 = safe_service.w3
+
+        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
+        # Signatures must be sorted!
+        owners_with_keys.sort(key=lambda x: x[0].lower())
+        owners = [x[0] for x in owners_with_keys]
+        keys = [x[1] for x in owners_with_keys]
+
+        safe, _, _ = generate_random_safe(number_owners=3)
+        to = None
+        value = int(10e18)
+        tx_data = None
+        operation = 0
+        safe_tx_gas = 1
+        data_gas = 1
+        gas_price = 1
+        gas_token = None
+        nonce = 0
+
+        data = {
+            "safe": safe,
+            "to": to,
+            "value": value,  # 1 ether
+            "data": tx_data,
+            "operation": operation,
+            "safe_tx_gas": safe_tx_gas,
+            "data_gas": data_gas,
+            "gas_price": gas_price,
+            "gas_token": gas_token,
+            "nonce": nonce,
+            "signatures": [{
+                'r': 5,
+                's': 7,
+                'v': 27
+            },
+                {
+                    'r': 17,
+                    's': 29,
+                    'v': 28
+                }]}
+        serializer = SafeMultisigTxSerializer(data=data)
+        self.assertFalse(serializer.is_valid())  # Less signatures than threshold
+
+        safe, _, _ = generate_random_safe(owners=owners)
+        data['safe'] = safe
+
+        serializer = SafeMultisigTxSerializer(data=data)
+        self.assertFalse(serializer.is_valid())  # To and data cannot both be null
+
+        tx_data = HexBytes('0xabcd')
+        data['data'] = tx_data
+        serializer = SafeMultisigTxSerializer(data=data)
+        self.assertFalse(serializer.is_valid())  # Operation is not create, but no to provided
+
+        # Now we fix the signatures
+        to = owners[-1]
+        data['to'] = to
+        multisig_tx_hash = safe_service.get_hash_for_safe_tx(
+            safe,
+            to,
+            value,
+            tx_data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            nonce
+        )
+        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
+        data['signatures'] = signatures
+        serializer = SafeMultisigTxSerializer(data=data)
+        self.assertTrue(serializer.is_valid())

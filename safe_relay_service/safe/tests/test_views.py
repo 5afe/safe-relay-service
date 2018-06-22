@@ -6,14 +6,37 @@ from rest_framework.test import APITestCase
 from safe_relay_service.ether.tests.factories import (get_eth_address_with_invalid_checksum,
                                                       get_eth_address_with_key)
 
-from ..models import SafeContract, SafeCreation
+from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeTransactionCreationSerializer
-from .factories import generate_valid_s
+from ..ethereum_service import EthereumService
+from ..contracts import get_safe_personal_contract, get_paying_proxy_contract
+from .factories import generate_valid_s, generate_and_deploy_safe, generate_random_safe
+from ..safe_service import SafeService
+import logging
 
 faker = Faker()
 
+logger = logging.getLogger(__name__)
+
 
 class TestViews(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.ethereum_service = EthereumService()
+        w3 = cls.ethereum_service.w3
+        cls.w3 = w3
+        cls.safe_personal_contract = get_safe_personal_contract(w3)
+        cls.paying_proxy_contract = get_paying_proxy_contract(w3)
+
+        cls.safe_personal_deployer = w3.eth.accounts[0]
+        tx_hash = cls.safe_personal_contract.constructor().transact({'from': cls.safe_personal_deployer,
+                                                                     'gas': 5125602})
+        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+
+        cls.safe_personal_contract_address = tx_receipt.contractAddress
+        cls.safe_personal_contract = get_safe_personal_contract(w3, cls.safe_personal_contract_address)
+        logger.info("Deployed Safe Master Contract in %s by %s", cls.safe_personal_contract_address,
+                    cls.safe_personal_deployer)
 
     def test_about(self):
         request = self.client.get(reverse('v1:about'))
@@ -46,6 +69,131 @@ class TestViews(APITestCase):
         request = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
+    def test_safe_multisig_tx(self):
+        # Create Safe ------------------------------------------------
+        safe_service = SafeService()
+        w3 = safe_service.w3
+        funder = w3.eth.accounts[0]
+        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
+        # Signatures must be sorted!
+        owners_with_keys.sort(key=lambda x: x[0].lower())
+        owners = [x[0] for x in owners_with_keys]
+        keys = [x[1] for x in owners_with_keys]
+        threshold = len(owners_with_keys)
+        my_safe_address = generate_and_deploy_safe(w3, funder, self.safe_personal_contract_address, owners, threshold)
+
+        # Send something to the safe
+        safe_balance = w3.toWei(0.01, 'ether')
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': my_safe_address,
+            'value': safe_balance
+        }))
+
+        # Send something to the owner[0], who will be sending the tx
+        owner0_balance = safe_balance
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': owners[0],
+            'value': owner0_balance
+        }))
+        # Safe prepared --------------------------------------------
+        to, _ = get_eth_address_with_key()
+        value = safe_balance // 2
+        tx_data = None
+        operation = 0
+        safe_tx_gas = 23000
+        data_gas = safe_tx_gas * 10
+        gas_price = 1
+        gas_token = None
+        nonce = 0
+
+        multisig_tx_hash = safe_service.get_hash_for_safe_tx(
+            my_safe_address,
+            to,
+            value,
+            tx_data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            nonce
+        )
+        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
+        signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
+
+        data = {
+            "to": to,
+            "value": value,
+            "data": tx_data,
+            "operation": operation,
+            "safe_tx_gas": safe_tx_gas,
+            "data_gas": data_gas,
+            "gas_price": gas_price,
+            "gas_token": gas_token,
+            "nonce": nonce,
+            "signatures": signatures_json
+        }
+
+        with self.settings(SAFE_PERSONAL_CONTRACT_ADDRESS=self.safe_personal_contract_address,
+                           SAFE_TX_SENDER_PRIVATE_KEY=keys[0]):
+            request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                       data=data,
+                                       format='json')
+            self.assertEqual(request.status_code, status.HTTP_200_OK)
+            safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=request.json()['transactionHash'])
+            self.assertEqual(safe_multisig_tx.to, to)
+            self.assertEqual(safe_multisig_tx.value, value)
+            self.assertEqual(safe_multisig_tx.data, tx_data)
+            self.assertEqual(safe_multisig_tx.operation, operation)
+            self.assertEqual(safe_multisig_tx.safe_tx_gas, safe_tx_gas)
+            self.assertEqual(safe_multisig_tx.data_gas, data_gas)
+            self.assertEqual(safe_multisig_tx.gas_price, gas_price)
+            self.assertEqual(safe_multisig_tx.gas_token, gas_token)
+            self.assertEqual(safe_multisig_tx.nonce, nonce)
+            signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+            signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
+            self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
+
+    def test_safe_multisig_tx_errors(self):
+        my_safe_address = get_eth_address_with_invalid_checksum()
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        my_safe_address, _ = get_eth_address_with_key()
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_404_NOT_FOUND)
+
+        my_safe_address, _, _ = generate_random_safe()
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_safe_multisig_tx_estimate(self):
+        my_safe_address = get_eth_address_with_invalid_checksum()
+        request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        my_safe_address, _ = get_eth_address_with_key()
+        request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_404_NOT_FOUND)
+
+        my_safe_address, _, _ = generate_random_safe()
+        request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_200_OK)
+
     def test_safe_signal(self):
         safe_address, _ = get_eth_address_with_key()
 
@@ -56,3 +204,9 @@ class TestViews(APITestCase):
 
         request = self.client.get(reverse('v1:safe-signal', args=(invalid_address,)))
         self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        my_safe_address, _, _ = generate_random_safe()
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data={},
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_400_BAD_REQUEST)
