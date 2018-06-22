@@ -7,14 +7,16 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from safe_relay_service.safe.models import SafeCreation, SafeFunding, SafeContract, SafeMultisigTx
+from safe_relay_service.safe.models import (SafeContract, SafeCreation,
+                                            SafeFunding, SafeMultisigTx)
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
-from .serializers import (SafeFundingSerializer,
-                          SafeTransactionCreationResponseSerializer,
-                          SafeTransactionCreationSerializer,
-                          SafeMultisigTxSerializer)
+from .safe_service import SafeServiceProvider
+from .serializers import (SafeCreationSerializer, SafeFundingSerializer,
+                          SafeMultisigEstimateTxSerializer,
+                          SafeMultisigTxSerializer,
+                          SafeTransactionCreationResponseSerializer)
 
 
 class AboutView(APIView):
@@ -26,29 +28,35 @@ class AboutView(APIView):
                 settings.SAFE_FUNDER_PRIVATE_KEY))
         else:
             safe_funder_public_key = None
+        if settings.SAFE_TX_SENDER_PRIVATE_KEY:
+            safe_sender_public_key = ethereum.utils.checksum_encode(ethereum.utils.privtoaddr(
+                settings.SAFE_TX_SENDER_PRIVATE_KEY))
+        else:
+            safe_sender_public_key = None
         content = {
             'name': 'Safe Relay Service',
             'version': __version__,
             'api_version': self.request.version,
             'settings': {
-                'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
+                'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
-                'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
-                'SAFE_PERSONAL_CONTRACT_ADDRESS': settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
-                'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
-                'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
-                'SAFE_GAS_PRICE': settings.SAFE_GAS_PRICE,
                 'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
                 'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
+                'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
+                'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
+                'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
+                'SAFE_GAS_PRICE': settings.SAFE_GAS_PRICE,
+                'SAFE_PERSONAL_CONTRACT_ADDRESS': settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
+                'SAFE_TX_SENDER_PRIVATE_KEY': safe_sender_public_key,
             }
         }
         return Response(content)
 
 
-class SafeTransactionCreationView(CreateAPIView):
+class SafeCreationView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeTransactionCreationSerializer
+    serializer_class = SafeCreationSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -146,8 +154,9 @@ class SafeMultisigTxView(CreateAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class SafeMultisigTxEstimateView(APIView):
+class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
+    serializer_class = SafeMultisigEstimateTxSerializer
 
     def post(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
@@ -158,4 +167,21 @@ class SafeMultisigTxEstimateView(APIView):
         except SafeContract.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        return Response(status=status.HTTP_200_OK)
+        request.data['safe'] = address
+        serializer = self.serializer_class(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+            safe_service = SafeServiceProvider()
+            safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'])
+            safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
+                                                                 data['operation'], safe_tx_gas)
+            gas_price = safe_service.ethereum_service.get_fast_gas_price()
+
+            response_data = {'safe_tx_gas': safe_tx_gas,
+                             'data_gas': safe_data_tx_gas,
+                             'gas_price': gas_price,
+                             'gas_token': None}
+            return Response(status=status.HTTP_200_OK, data=response_data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

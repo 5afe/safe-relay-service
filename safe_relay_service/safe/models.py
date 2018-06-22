@@ -1,16 +1,13 @@
-from typing import Iterable, Dict
+from typing import Dict, Iterable, List, Tuple
 
 import ethereum.utils
-from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from model_utils.models import TimeStampedModel
 
-from .ethereum_service import EthereumService
-from .safe_service import SafeService
-from .helpers import SafeCreationTxBuilder
+from .ethereum_service import EthereumServiceProvider
+from .safe_service import SafeServiceProvider
 from .validators import validate_checksumed_address
-from typing import List,Tuple
 
 
 class EthereumAddressField(models.CharField):
@@ -74,7 +71,7 @@ class SafeContract(TimeStampedModel):
     master_copy = EthereumAddressField()
 
     def getBalance(self, block_identifier=None):
-        EthereumService().get_balance(address=self.address, block_identifier=block_identifier)
+        EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
         return self.address
@@ -88,26 +85,26 @@ class SafeCreationManager(models.Manager):
         :rtype: SafeCreation
         """
 
-        safe_creation_tx_builder = SafeCreationTxBuilder().get_safe_creation_tx(s, owners, threshold,
-                                                                                master_copy=master_copy)
+        safe_service = SafeServiceProvider()
+        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, master_copy=master_copy)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx_builder.safe_address,
-                                                    master_copy=safe_creation_tx_builder.master_copy)
+        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
+                                                    master_copy=safe_creation_tx.master_copy)
         return super().create(
-            deployer=safe_creation_tx_builder.deployer_address,
+            deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
             owners=owners,
             threshold=threshold,
-            payment=safe_creation_tx_builder.payment,
-            tx_hash=safe_creation_tx_builder.tx_hash.hex(),
-            gas=safe_creation_tx_builder.gas,
-            gas_price=safe_creation_tx_builder.gas_price,
-            value=safe_creation_tx_builder.contract_creation_tx.value,
-            v=safe_creation_tx_builder.v,
-            r=safe_creation_tx_builder.r,
-            s=safe_creation_tx_builder.s,
-            data=safe_creation_tx_builder.contract_creation_tx.data,
-            signed_tx=safe_creation_tx_builder.raw_tx
+            payment=safe_creation_tx.payment,
+            tx_hash=safe_creation_tx.tx_hash.hex(),
+            gas=safe_creation_tx.gas,
+            gas_price=safe_creation_tx.gas_price,
+            value=safe_creation_tx.contract_creation_tx.value,
+            v=safe_creation_tx.v,
+            r=safe_creation_tx.r,
+            s=safe_creation_tx.s,
+            data=safe_creation_tx.contract_creation_tx.data,
+            signed_tx=safe_creation_tx.raw_tx
         )
 
 
@@ -212,7 +209,7 @@ class SafeMultisigTxManager(models.Manager):
                            nonce: int,
                            signatures: List[Dict[str, int]]):
 
-        safe_service = SafeService()
+        safe_service = SafeServiceProvider()
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = safe_service.signatures_to_bytes(signature_pairs)

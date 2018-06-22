@@ -1,15 +1,16 @@
 from django.test import TestCase
-from hexbytes import HexBytes
 from ethereum.transactions import secpk1n
 from faker import Faker
+from hexbytes import HexBytes
 
 from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 
-from .factories import generate_random_safe
 from ..models import SafeContract, SafeFunding
-from ..serializers import (SafeFundingSerializer,
-                           SafeTransactionCreationSerializer, SafeMultisigTxSerializer)
-from ..safe_service import SafeService
+from ..safe_service import SafeServiceProvider
+from ..serializers import (SafeCreationSerializer, SafeFundingSerializer,
+                           SafeMultisigEstimateTxSerializer,
+                           SafeMultisigTxSerializer)
+from .factories import generate_safe
 
 faker = Faker()
 
@@ -26,22 +27,22 @@ class TestSerializers(TestCase):
         data = {'s': secpk1n - 5,
                 'owners': owners,
                 'threshold': len(owners)}
-        self.assertTrue(SafeTransactionCreationSerializer(data=data).is_valid())
+        self.assertTrue(SafeCreationSerializer(data=data).is_valid())
 
         data = {'s': secpk1n - 5,
                 'owners': owners,
                 'threshold': len(owners) + 1}
-        self.assertFalse(SafeTransactionCreationSerializer(data=data).is_valid())
+        self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
         data = {'s': secpk1n - 5,
                 'owners': owners + [invalid_checksumed_address],
                 'threshold': len(owners)}
-        self.assertFalse(SafeTransactionCreationSerializer(data=data).is_valid())
+        self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
         data = {'s': secpk1n - 5,
                 'owners': [],
                 'threshold': len(owners)}
-        self.assertFalse(SafeTransactionCreationSerializer(data=data).is_valid())
+        self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
     def test_funding_serializer(self):
         owner1, _ = get_eth_address_with_key()
@@ -53,16 +54,10 @@ class TestSerializers(TestCase):
         self.assertTrue(s.data)
 
     def test_safe_multisig_tx_serializer(self):
-        safe_service = SafeService()
+        safe_service = SafeServiceProvider()
         w3 = safe_service.w3
 
-        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
-        # Signatures must be sorted!
-        owners_with_keys.sort(key=lambda x: x[0].lower())
-        owners = [x[0] for x in owners_with_keys]
-        keys = [x[1] for x in owners_with_keys]
-
-        safe, _, _ = generate_random_safe(number_owners=3)
+        safe = generate_safe(number_owners=3).safe.address
         to = None
         value = int(10e18)
         tx_data = None
@@ -84,11 +79,12 @@ class TestSerializers(TestCase):
             "gas_price": gas_price,
             "gas_token": gas_token,
             "nonce": nonce,
-            "signatures": [{
-                'r': 5,
-                's': 7,
-                'v': 27
-            },
+            "signatures": [
+                {
+                    'r': 5,
+                    's': 7,
+                    'v': 27
+                },
                 {
                     'r': 17,
                     's': 29,
@@ -97,7 +93,13 @@ class TestSerializers(TestCase):
         serializer = SafeMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Less signatures than threshold
 
-        safe, _, _ = generate_random_safe(owners=owners)
+        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
+        # Signatures must be sorted!
+        owners_with_keys.sort(key=lambda x: x[0].lower())
+        owners = [x[0] for x in owners_with_keys]
+        keys = [x[1] for x in owners_with_keys]
+
+        safe = generate_safe(owners=owners).safe.address
         data['safe'] = safe
 
         serializer = SafeMultisigTxSerializer(data=data)
@@ -126,4 +128,63 @@ class TestSerializers(TestCase):
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
         data['signatures'] = signatures
         serializer = SafeMultisigTxSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+    def test_safe_multisig_tx_estimate_serializer(self):
+        safe_address, _ = get_eth_address_with_key()
+        eth_address, _ = get_eth_address_with_key()
+        data = {
+            'safe': safe_address,
+            'to': None,
+            'data': None,
+            'value': 1,
+            'operation': 0
+        }
+        serializer = SafeMultisigEstimateTxSerializer(data=data)
+
+        # To and data cannot be empty
+        self.assertFalse(serializer.is_valid())
+
+        data = {
+            'safe': safe_address,
+            'to': eth_address,
+            'data': '0x00',
+            'value': 1,
+            'operation': 2
+        }
+        serializer = SafeMultisigEstimateTxSerializer(data=data)
+        # Operation cannot be contract creation and to set
+        self.assertFalse(serializer.is_valid())
+
+        data = {
+            'safe': safe_address,
+            'to': None,
+            'data': None,
+            'value': 1,
+            'operation': 2
+        }
+        serializer = SafeMultisigEstimateTxSerializer(data=data)
+        # Operation is not contract creation and to is not empty
+        self.assertFalse(serializer.is_valid())
+
+        data = {
+            'safe': safe_address,
+            'to': eth_address,
+            'data': '0x00',
+            'value': 1,
+            'operation': 0
+        }
+        serializer = SafeMultisigEstimateTxSerializer(data=data)
+        # Operation is not contract creation and to is not empty
+        self.assertTrue(serializer.is_valid())
+
+        data = {
+            'safe': safe_address,
+            'to': None,
+            'data': '0x00',
+            'value': 1,
+            'operation': 2
+        }
+        serializer = SafeMultisigEstimateTxSerializer(data=data)
+        # Operation is not contract creation and to is not empty
         self.assertTrue(serializer.is_valid())

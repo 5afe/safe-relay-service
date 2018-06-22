@@ -1,5 +1,4 @@
 import logging
-from .ethereum_service import EthereumService
 from typing import Any, Dict, Tuple
 
 from django.conf import settings
@@ -12,7 +11,8 @@ from rest_framework.exceptions import ValidationError
 from safe_relay_service.ether.signing import EthereumSignedMessage
 from safe_relay_service.safe.models import SafeCreation, SafeFunding
 
-from .safe_service import SafeService
+from .ethereum_service import EthereumServiceProvider
+from .safe_service import SafeServiceProvider
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class SignedMessageSerializer(serializers.Serializer):
         return ()
 
 
-class SafeTransactionCreationSerializer(serializers.Serializer):
+class SafeCreationSerializer(serializers.Serializer):
     s = serializers.IntegerField(min_value=1, max_value=secpk1n - 1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
@@ -157,12 +157,29 @@ class SafeFundingSerializer(serializers.ModelSerializer):
         fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
 
 
-class SafeMultisigTxSerializer(serializers.Serializer):
+class SafeMultisigEstimateTxSerializer(serializers.Serializer):
     safe = EthereumAddressField()
     to = EthereumAddressField(default=None, allow_null=True)
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField(default=None, allow_null=True)
     operation = serializers.IntegerField(min_value=0, max_value=2)  # Call, DelegateCall or Create
+
+    def validate(self, data):
+        super().validate(data)
+
+        if not data['to'] and not data['data']:
+            raise ValidationError('`data` and `to` cannot both be null')
+
+        if data['operation'] == 2:
+            if data['to']:
+                raise ValidationError('Operation is Create, but `to` was provided')
+        elif not data['to']:
+            raise ValidationError('Operation is not create, but `to` was not provided')
+
+        return data
+
+
+class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
     safe_tx_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
@@ -199,12 +216,12 @@ class SafeMultisigTxSerializer(serializers.Serializer):
         if data['gas_token'] == 2:
             raise ValidationError('Gas Token is still not supported')
 
-        safe_service = SafeService()
+        safe_service = SafeServiceProvider()
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
                                                     data['gas_price'], data['gas_token'], data['nonce'])
 
-        owners = [EthereumService().get_signing_address(tx_hash,
+        owners = [EthereumServiceProvider().get_signing_address(tx_hash,
                                                         signature['v'],
                                                         signature['r'],
                                                         signature['s']) for signature in signatures]

@@ -1,7 +1,8 @@
 from django.conf import settings
 
+from safe_relay_service.ether.utils import NULL_ADDRESS
+
 from .abis import load_contract_interface
-from .utils import NULL_ADDRESS
 
 """
 Rinkeby contracts

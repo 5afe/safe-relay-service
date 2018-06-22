@@ -2,8 +2,9 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
+from hexbytes import HexBytes
 
-from ..ethereum_service import EthereumService
+from ..ethereum_service import EthereumServiceProvider
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ GAS_PRICE = settings.SAFE_GAS_PRICE
 class TestHelpers(TestCase):
 
     def setUp(self):
-        self.ethereum_service = EthereumService()
+        self.ethereum_service = EthereumServiceProvider()
         self.w3 = self.ethereum_service.w3
 
     def test_check_tx_with_confirmations(self):
@@ -31,6 +32,20 @@ class TestHelpers(TestCase):
 
         _ = self.ethereum_service.send_eth_to(to=to, gas_price=GAS_PRICE, value=value)
         self.assertTrue(self.ethereum_service.check_tx_with_confirmations(tx_hash, 2))
+
+    def test_estimate_data_gas(self):
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('')), 0)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x00')), 4)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x000204')), 4 + 68 * 2)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x050204')), 68 * 3)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x0502040000')), 68 * 3 + 4 * 2)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x050204000001')), 68 * 4 + 4 * 2)
+        self.assertEqual(self.ethereum_service.estimate_data_gas(HexBytes('0x00050204000001')), 4 + 68 * 4 + 4 * 2)
+
+    def test_provider_singleton(self):
+        ethereum_service1 = EthereumServiceProvider()
+        ethereum_service2 = EthereumServiceProvider()
+        self.assertEqual(ethereum_service1, ethereum_service2)
 
     def test_send_eth(self):
         w3 = self.w3

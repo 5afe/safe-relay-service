@@ -22,7 +22,7 @@ def generate_valid_s():
             return s
 
 
-def generate_random_safe(owners=None, number_owners=3) -> Tuple[str, str, int]:
+def generate_safe(owners=None, number_owners=3, threshold=None, master_copy=None) -> Tuple[str, str, int]:
     s = generate_valid_s()
 
     if not owners:
@@ -31,15 +31,13 @@ def generate_random_safe(owners=None, number_owners=3) -> Tuple[str, str, int]:
             owner, _ = get_eth_address_with_key()
             owners.append(owner)
 
-    threshold = len(owners)
+    threshold = threshold if threshold else len(owners)
 
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
-    return safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
-
-
-def generate_and_deploy_safe(w3, funder, master_copy, owners, threshold) -> str:
-    s = generate_valid_s()
     safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, master_copy=master_copy)
+    return safe_creation
+
+
+def deploy_safe(w3, safe_creation, funder) -> str:
     w3.eth.sendTransaction({
         'from': funder,
         'to': safe_creation.deployer,

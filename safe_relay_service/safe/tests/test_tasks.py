@@ -5,11 +5,11 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from ..ethereum_service import EthereumService
+from ..ethereum_service import EthereumServiceProvider
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
-from .factories import generate_random_safe
+from .factories import generate_safe
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,12 @@ class TestTasks(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.ethereum_service = EthereumService()
+        cls.ethereum_service = EthereumServiceProvider()
         cls.w3 = cls.ethereum_service.w3
 
     def test_balance_in_deployer(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
             to=safe,
@@ -45,7 +46,8 @@ class TestTasks(TestCase):
         self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
     def test_deploy_safe(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
             to=safe,
@@ -95,7 +97,8 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
 
     def test_safe_with_no_funds(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
         # No ether is sent to the deployer is safe is empty
@@ -111,7 +114,8 @@ class TestTasks(TestCase):
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
     def test_check_deployer_funded(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         safe_contract = SafeContract.objects.get(address=safe)
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
@@ -127,7 +131,8 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.deployer_funded_tx_hash)
 
     def test_reorg_before_safe_deploy(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
             to=safe,
@@ -158,7 +163,8 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed)
 
     def test_reorg_after_safe_deployed(self):
-        safe, deployer, payment = generate_random_safe()
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
             to=safe,

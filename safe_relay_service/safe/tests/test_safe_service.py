@@ -4,12 +4,12 @@ from django.conf import settings
 from django.test import TestCase
 from hexbytes import HexBytes
 
-from ..contracts import get_paying_proxy_contract, get_safe_personal_contract
-from ..ethereum_service import EthereumService
-from ..helpers import SafeCreationTx
-from ..safe_service import SafeService
-from ..utils import NULL_ADDRESS
-from .factories import generate_and_deploy_safe, get_eth_address_with_key
+from safe_relay_service.ether.utils import NULL_ADDRESS
+
+from ..contracts import get_safe_personal_contract
+from ..safe_service import SafeServiceProvider
+from .factories import deploy_safe, generate_safe, get_eth_address_with_key
+from .safe_test_case import TestCaseWithSafeContractMixin
 
 logger = logging.getLogger(__name__)
 
@@ -18,28 +18,10 @@ LOG_TITLE_WIDTH = 100
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestCaseWithSafeContract(TestCase):
+class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
     @classmethod
     def setUpTestData(cls):
-        cls.ethereum_service = EthereumService()
-        w3 = cls.ethereum_service.w3
-        cls.w3 = w3
-        cls.safe_personal_contract = get_safe_personal_contract(w3)
-        cls.paying_proxy_contract = get_paying_proxy_contract(w3)
-
-        cls.safe_personal_deployer = w3.eth.accounts[0]
-        tx_hash = cls.safe_personal_contract.constructor().transact({'from': cls.safe_personal_deployer,
-                                                                     'gas': 5125602})
-        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-
-        cls.safe_personal_contract_address = tx_receipt.contractAddress
-        cls.safe_personal_contract = get_safe_personal_contract(w3, cls.safe_personal_contract_address)
-        logger.info("Deployed Safe Master Contract in %s by %s", cls.safe_personal_contract_address, cls.safe_personal_deployer)
-
-
-class TestHelpers(TestCaseWithSafeContract):
-    def setUp(self):
-        self.safe_service = SafeService()
+        cls.prepare_safe_tests()
 
     def test_call_multisig_tx(self):
         # Create Safe
@@ -52,7 +34,9 @@ class TestHelpers(TestCaseWithSafeContract):
         keys = [x[1] for x in owners_with_keys]
         threshold = len(owners_with_keys)
 
-        my_safe_address = generate_and_deploy_safe(w3, funder, self.safe_personal_contract_address, owners, threshold)
+        safe_creation = generate_safe(owners=owners, threshold=threshold,
+                                      master_copy=self.safe_personal_contract_address)
+        my_safe_address = deploy_safe(w3, safe_creation, funder)
 
         # Send something to the safe
         safe_balance = w3.toWei(0.01, 'ether')
@@ -205,3 +189,8 @@ class TestHelpers(TestCaseWithSafeContract):
                                                          '0x' + '2' * 40,
                                                          10789)
         self.assertEqual(expected_hash, tx_hash)
+
+    def test_provider_singleton(self):
+        safe_service1 = SafeServiceProvider()
+        safe_service2 = SafeServiceProvider()
+        self.assertEqual(safe_service1, safe_service2)

@@ -2,13 +2,14 @@ from logging import getLogger
 from typing import List, Tuple
 
 import eth_abi
-from django.conf import settings
 from ethereum.utils import sha3
 from hexbytes import HexBytes
 
+from safe_relay_service.ether.utils import NULL_ADDRESS
+
 from .contracts import get_safe_personal_contract
-from .ethereum_service import EthereumService
-from .utils import NULL_ADDRESS
+from .ethereum_service import EthereumServiceProvider
+from .helpers import SafeCreationTx
 
 logger = getLogger(__name__)
 
@@ -17,19 +18,137 @@ class NotValidMultisigTx(Exception):
     pass
 
 
-class SafeService:
+class SafeServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = super().__new__(cls)
+            from django.conf import settings
+            cls.instance = SafeService(settings.SAFE_TX_SENDER_PRIVATE_KEY,
+                                       settings.SAFE_FUNDER_PRIVATE_KEY,
+                                       settings.SAFE_PERSONAL_CONTRACT_ADDRESS)
         return cls.instance
 
-    def __init__(self):
-        self.ethereum_service = EthereumService()
-        self.w3 = EthereumService().w3
-        self.tx_sender_private_key = settings.SAFE_TX_SENDER_PRIVATE_KEY
+    @classmethod
+    def del_singleton(cls):
+        if hasattr(cls, "instance"):
+            del cls.instance
+
+
+class SafeService:
+    def __init__(self, tx_sender_private_key: str=None, funder_private_key: str=None, master_copy: str=None):
+        self.ethereum_service = EthereumServiceProvider()
+        self.w3 = self.ethereum_service.w3
+        self.tx_sender_private_key = tx_sender_private_key
+        self.master_copy = master_copy
+        self.funder_private_key = funder_private_key
+        if self.funder_private_key:
+            self.funder_address = self.ethereum_service.private_key_to_address(self.funder_private_key)
+        else:
+            self.funder_address = None
+
+    def build_safe_creation_tx(self, s: int, owners: List[str], threshold: int,
+                               master_copy: str=None, gas_price: int=None) -> SafeCreationTx:
+
+        gas_price = gas_price if gas_price else self.ethereum_service.get_fast_gas_price()
+
+        master_copy = master_copy if master_copy else self.master_copy
+
+        safe_creation_tx = SafeCreationTx(w3=self.w3,
+                                          owners=owners,
+                                          threshold=threshold,
+                                          signature_s=s,
+                                          master_copy=master_copy,
+                                          gas_price=gas_price,
+                                          funder=self.funder_address)
+
+        assert safe_creation_tx.contract_creation_tx.nonce == 0
+        return safe_creation_tx
+
+    def deploy_master_contract(self, deployer_account=None, deployer_private_key=None) -> str:
+        """
+        Deploy master contract. Takes deployer_account (if unlocked in the node) or the deployer private key
+        :param deployer_account: Unlocked ethereum account
+        :param deployer_private_key: Private key of an ethereum account
+        :return: deployed contract address
+        """
+        assert deployer_account or deployer_private_key
+
+        safe_personal_contract = get_safe_personal_contract(self.w3)
+        constructor = safe_personal_contract.constructor()
+        gas = 5125602
+
+        if deployer_account:
+            tx_hash = constructor.transact({'from': deployer_account, 'gas': gas})
+        else:
+            deployer_account = self.ethereum_service.private_key_to_address(deployer_private_key)
+            tx = constructor.transact({'gas': gas}).buildTransaction()
+            signed_tx = self.w3.eth.account.signTransaction(tx, private_key=deployer_private_key)
+            tx_hash = self.ethereum_service.send_raw_transaction(signed_tx.rawTransaction)
+
+        tx_receipt = self.ethereum_service.get_transaction_receipt(tx_hash, timeout=60)
+
+        contract_address = tx_receipt.contractAddress
+        logger.info("Deployed Safe Master Contract=%s by %s", contract_address, deployer_account)
+        return contract_address
+
+    def get_contract(self, safe_address):
+        return get_safe_personal_contract(self.w3, address=safe_address)
+
+    def get_threshold(self, safe_address):
+        return self.get_contract(safe_address).functions.getThreshold().call()
+
+    def get_nonce(self, safe_address):
+        return self.get_contract(safe_address).functions.nonce().call()
+
+    def estimate_tx_gas(self, safe_address, to, value, data):
+        estimated_gas = self.w3.eth.estimateGas(
+            {'to': to, 'from': safe_address, 'value': value, 'data': data}
+        )
+
+        return estimated_gas * 2
+
+    def estimate_tx_data_gas(self, safe_address, to, value, data, operation, estimate_tx_gas):
+        paying_proxy_contract = get_safe_personal_contract(self.w3, address=safe_address)
+        threshold = paying_proxy_contract.functions.getThreshold().call()
+        nonce = paying_proxy_contract.functions.nonce().call()
+
+        # Calculate gas for signatures
+        signature_gas = threshold * (1 * 68 + 2 * 32 * 68)
+
+        safe_tx_gas = estimate_tx_gas
+        data_gas = 0
+        gas_price = 1
+        gas_token = NULL_ADDRESS
+        signatures = b''
+        data = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
+            to,
+            value,
+            data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            signatures,
+        ).buildTransaction({
+            'gas': 1,
+            'gasPrice': 1,
+            'nonce': nonce
+        })['data']
+
+        data_gas = signature_gas + self.ethereum_service.estimate_data_gas(data)
+
+        # Add aditional gas costs
+        if data_gas > 65536:
+            data_gas += 64
+        else:
+            data_gas += 128
+
+        data_gas += 32000  # Base tx costs, transfer costs...
+
+        return data_gas
 
     def send_multisig_tx(self,
-                         safe: str,
+                         safe_address: str,
                          to: str,
                          value: int,
                          data: bytes,
@@ -38,12 +157,12 @@ class SafeService:
                          data_gas: int,
                          gas_price: int,
                          gas_token: str,
-                         signatures: List[Tuple[int, int, int]],
+                         signatures: bytes,
                          tx_sender_private_key=None,
                          tx_gas=None,
                          tx_gas_price=None) -> Tuple[str, any]:
         """
-        :param safe:
+        :param safe_address:
         :param to:
         :param value:
         :param data:
@@ -59,15 +178,16 @@ class SafeService:
         :return: tx_hash and tx
         """
 
-        # TODO Calculate gas, calculate gas_price if None
         data = data or b''
         gas_token = gas_token or NULL_ADDRESS
         to = to or NULL_ADDRESS
+
         tx_gas = tx_gas or (safe_tx_gas + data_gas) * 2
+        # Use original tx gas_price if not provided
         tx_gas_price = tx_gas_price or gas_price
         tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
 
-        paying_proxy_contract = get_safe_personal_contract(self.w3, address=safe)
+        paying_proxy_contract = get_safe_personal_contract(self.w3, address=safe_address)
         success = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
             to,
             value,
@@ -111,14 +231,9 @@ class SafeService:
                              operation: int, safe_tx_gas: int, data_gas: int, gas_price: int,
                              gas_token: str, nonce: int) -> HexBytes:
 
-        if not data:
-            data = b''
-
-        if not gas_token:
-            gas_token = NULL_ADDRESS
-
-        if not to:
-            to = NULL_ADDRESS
+        data = data or b''
+        gas_token = gas_token or NULL_ADDRESS
+        to = to or NULL_ADDRESS
 
         data_bytes = (
                 bytes.fromhex('19') +
