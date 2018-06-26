@@ -132,7 +132,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
                                        data=data,
                                        format='json')
             safe_service = SafeServiceProvider()
-            self.assertEqual(request.status_code, status.HTTP_200_OK)
+            self.assertEqual(request.status_code, status.HTTP_201_CREATED)
             safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=request.json()['transactionHash'])
             self.assertEqual(safe_multisig_tx.to, to)
             self.assertEqual(safe_multisig_tx.value, value)

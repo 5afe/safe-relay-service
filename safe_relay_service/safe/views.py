@@ -149,7 +149,7 @@ class SafeMultisigTxView(CreateAPIView):
                 signatures=data['signatures'],
             )
             data = {'transaction_hash': safe_multisig_tx.tx_hash}
-            return Response(status=status.HTTP_200_OK, data=data)
+            return Response(status=status.HTTP_201_CREATED, data=data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
