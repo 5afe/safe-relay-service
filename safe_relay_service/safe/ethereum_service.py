@@ -1,27 +1,35 @@
 from logging import getLogger
 
-from django.conf import settings
 from ethereum.utils import (check_checksum, checksum_encode, ecrecover_to_pub,
                             privtoaddr, sha3)
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 from web3.utils.threads import Timeout
 
-from safe_relay_service.gas_station.gas_station import GasStation
+from safe_relay_service.ether.utils import NULL_ADDRESS
+from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 logger = getLogger(__name__)
 
 
-class EthereumService:
-    NULL_ADDRESS = '0x' + '0' * 40
-
+class EthereumServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = super().__new__(cls)
+            from django.conf import settings
+            cls.instance = EthereumService(settings.ETHEREUM_NODE_URL,
+                                           settings.SAFE_FUNDER_MAX_ETH,
+                                           settings.SAFE_FUNDER_PRIVATE_KEY)
         return cls.instance
 
-    def __init__(self):
-        self.w3 = Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
+
+class EthereumService:
+    NULL_ADDRESS = NULL_ADDRESS
+
+    def __init__(self, ethereum_node_url, max_eth_to_send=0.1, funder_private_key=None):
+        self.ethereum_node_url = ethereum_node_url
+        self.max_eth_to_send = max_eth_to_send
+        self.funder_private_key = funder_private_key
+        self.w3 = Web3(HTTPProvider(self.ethereum_node_url))
         try:
             if self.w3.net.chainId != 1:
                 self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
@@ -29,7 +37,10 @@ class EthereumService:
         except (ConnectionError, FileNotFoundError):
             self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
-        self.gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+        self.gas_station = GasStationProvider()
+
+    def get_fast_gas_price(self):
+        return self.gas_station.get_gas_prices().fast
 
     def get_nonce_for_account(self, address):
         return self.w3.eth.getTransactionCount(address, 'pending')
@@ -37,6 +48,16 @@ class EthereumService:
     @property
     def current_block_number(self):
         return self.w3.eth.blockNumber
+
+    @staticmethod
+    def estimate_data_gas(data: bytes):
+        gas = 0
+        for byte in data:
+            if not byte:
+                gas += 4  # Byte 0 -> 4 Gas
+            else:
+                gas += 68  # Any other byte -> 68 Gas
+        return gas
 
     def get_balance(self, address, block_identifier=None):
         return self.w3.eth.getBalance(address, block_identifier)
@@ -65,9 +86,9 @@ class EthereumService:
 
         assert check_checksum(to)
 
-        assert value < self.w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether')
+        assert value < self.w3.toWei(self.max_eth_to_send, 'ether')
 
-        private_key = settings.SAFE_FUNDER_PRIVATE_KEY
+        private_key = self.funder_private_key
 
         if private_key:
             ethereum_account = self.private_key_to_address(private_key)

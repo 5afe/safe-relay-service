@@ -1,14 +1,15 @@
 import logging
 
 from django.conf import settings
+from django.test import TestCase
 from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
-from hexbytes import HexBytes
+
+from safe_relay_service.ether.utils import NULL_ADDRESS
 
 from ..contracts import get_safe_personal_contract
 from ..helpers import SafeCreationTx
-from ..utils import NULL_ADDRESS
 from .factories import generate_valid_s
-from .test_safe_service import TestCaseWithSafeContract
+from .test_safe_service import TestCaseWithSafeContractMixin
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,10 @@ LOG_TITLE_WIDTH = 100
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestHelpers(TestCaseWithSafeContract):
+class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
+    @classmethod
+    def setUpTestData(cls):
+        cls.prepare_safe_tests()
 
     def test_safe_creation_tx_builder(self):
         logger.info("Test Safe Proxy creation without payment".center(LOG_TITLE_WIDTH, '-'))

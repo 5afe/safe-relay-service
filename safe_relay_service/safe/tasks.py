@@ -9,12 +9,12 @@ from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding)
 
-from .ethereum_service import EthereumService
+from .ethereum_service import EthereumServiceProvider
 from .redis_service import RedisService
 
 logger = get_task_logger(__name__)
 
-ethereum_service = EthereumService()
+ethereum_service = EthereumServiceProvider()
 redis = RedisService().redis
 
 # TODO Control ConnectionError: HTTPConnectionPool for web3
