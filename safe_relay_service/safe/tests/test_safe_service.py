@@ -7,7 +7,7 @@ from hexbytes import HexBytes
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
 from ..contracts import get_safe_personal_contract
-from ..safe_service import SafeServiceProvider
+from ..safe_service import InvalidMasterCopyAddress, SafeServiceProvider
 from .factories import deploy_safe, generate_safe, get_eth_address_with_key
 from .safe_test_case import TestCaseWithSafeContractMixin
 
@@ -106,10 +106,30 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         # Check owners are the same
         contract_owners = my_safe_contract.functions.getOwners().call()
         self.assertEqual(set(contract_owners), set(owners))
-
         self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
 
         tx_gas = (safe_tx_gas + data_gas) * 2
+
+        valid_master_copy_addresses = self.safe_service.valid_master_copy_addresses
+        self.safe_service.valid_master_copy_addresses = []
+        with self.assertRaises(InvalidMasterCopyAddress):
+            self.safe_service.send_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                signatures_packed,
+                tx_sender_private_key=keys[0],
+                tx_gas=tx_gas,
+                tx_gas_price=GAS_PRICE,
+            )
+
+        self.safe_service.valid_master_copy_addresses = valid_master_copy_addresses
         sent_tx_hash, _ = self.safe_service.send_multisig_tx(
             my_safe_address,
             to,

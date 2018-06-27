@@ -24,11 +24,16 @@ class InvalidProxyContract(Exception):
     pass
 
 
+class InvalidMasterCopyAddress(Exception):
+    pass
+
+
 class SafeServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             from django.conf import settings
             cls.instance = SafeService(settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
+                                       settings.SAFE_PERSONAL_VALID_CONTRACT_ADDRESSES,
                                        settings.SAFE_TX_SENDER_PRIVATE_KEY,
                                        settings.SAFE_FUNDER_PRIVATE_KEY)
         return cls.instance
@@ -40,10 +45,12 @@ class SafeServiceProvider:
 
 
 class SafeService:
-    def __init__(self, master_copy_address: str, tx_sender_private_key: str=None, funder_private_key: str=None):
+    def __init__(self, master_copy_address: str, valid_master_copy_addresses: List[str],
+                 tx_sender_private_key: str=None, funder_private_key: str=None):
         self.ethereum_service = EthereumServiceProvider()
         self.w3 = self.ethereum_service.w3
         self.master_copy_address = master_copy_address
+        self.valid_master_copy_addresses = valid_master_copy_addresses
         self.tx_sender_private_key = tx_sender_private_key
         self.funder_private_key = funder_private_key
         if self.funder_private_key:
@@ -117,6 +124,10 @@ class SafeService:
 
         contract_address = tx_receipt.contractAddress
         return contract_address
+
+    def check_master_copy(self, address) -> bool:
+        master_copy_address = self.retrieve_master_copy_address(address)
+        return master_copy_address in self.valid_master_copy_addresses
 
     def check_proxy_code(self, address) -> bool:
         """
@@ -202,6 +213,10 @@ class SafeService:
         # Make sure proxy contract is ours
         if not self.check_proxy_code(safe_address):
             raise InvalidProxyContract(safe_address)
+
+        # Make sure proxy contract is ours
+        if not self.check_master_copy(safe_address):
+            raise InvalidMasterCopyAddress
 
         data = data or b''
         gas_token = gas_token or NULL_ADDRESS

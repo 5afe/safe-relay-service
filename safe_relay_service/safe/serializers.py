@@ -198,11 +198,9 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
             raise ValidationError('Need at least %d signatures' % safe_creation.threshold)
 
         safe_service = SafeServiceProvider()
-
-        if safe_creation.safe.master_copy != safe_service.master_copy_address:
-            raise ValidationError('Safe proxy master-copy={}, '
-                                  'but should be={}'.format(safe_creation.safe.master_copy,
-                                                            settings.SAFE_PERSONAL_CONTRACT_ADDRESS))
+        # TODO check this - if safe_creation.safe.has_valid_master_copy():
+        if safe_creation.safe.address in safe_service.valid_master_copy_addresses:
+            raise ValidationError('Safe proxy master-copy={} not valid')
 
         if not data['to'] and not data['data']:
             raise ValidationError('`data` and `to` cannot both be null')
