@@ -70,7 +70,7 @@ class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
-    def getBalance(self, block_identifier=None):
+    def get_balance(self, block_identifier=None):
         EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
@@ -78,7 +78,7 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, master_copy: str=None):
+    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int):
         """
         Create models for safe tx
         :return:
@@ -86,7 +86,7 @@ class SafeCreationManager(models.Manager):
         """
 
         safe_service = SafeServiceProvider()
-        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, master_copy=master_copy)
+        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
@@ -124,9 +124,6 @@ class SafeCreation(TimeStampedModel):
     s = EthereumBigIntegerField()
     data = models.BinaryField(null=True)
     signed_tx = models.BinaryField(null=True)
-
-    def send_eth_to_deployer(self):
-        pass
 
     def __str__(self):
         return 'Deployer {} - Safe {}'.format(self.deployer, self.safe)

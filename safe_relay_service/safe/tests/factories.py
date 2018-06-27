@@ -1,6 +1,5 @@
 import os
 from logging import getLogger
-from typing import Tuple
 
 from ethereum.transactions import secpk1n
 from faker import Factory as FakerFactory
@@ -22,7 +21,7 @@ def generate_valid_s():
             return s
 
 
-def generate_safe(owners=None, number_owners=3, threshold=None, master_copy=None) -> Tuple[str, str, int]:
+def generate_safe(owners=None, number_owners=3, threshold=None) -> SafeCreation:
     s = generate_valid_s()
 
     if not owners:
@@ -33,7 +32,7 @@ def generate_safe(owners=None, number_owners=3, threshold=None, master_copy=None
 
     threshold = threshold if threshold else len(owners)
 
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, master_copy=master_copy)
+    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
     return safe_creation
 
 

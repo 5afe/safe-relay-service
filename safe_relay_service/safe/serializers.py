@@ -197,7 +197,9 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         if len(signatures) < safe_creation.threshold:
             raise ValidationError('Need at least %d signatures' % safe_creation.threshold)
 
-        if safe_creation.safe.master_copy != settings.SAFE_PERSONAL_CONTRACT_ADDRESS:
+        safe_service = SafeServiceProvider()
+
+        if safe_creation.safe.master_copy != safe_service.master_copy_address:
             raise ValidationError('Safe proxy master-copy={}, '
                                   'but should be={}'.format(safe_creation.safe.master_copy,
                                                             settings.SAFE_PERSONAL_CONTRACT_ADDRESS))
@@ -216,15 +218,14 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         if data['gas_token'] == 2:
             raise ValidationError('Gas Token is still not supported')
 
-        safe_service = SafeServiceProvider()
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
                                                     data['gas_price'], data['gas_token'], data['nonce'])
 
         owners = [EthereumServiceProvider().get_signing_address(tx_hash,
-                                                        signature['v'],
-                                                        signature['r'],
-                                                        signature['s']) for signature in signatures]
+                                                                signature['v'],
+                                                                signature['r'],
+                                                                signature['s']) for signature in signatures]
 
         for owner in owners:
             if owner not in safe_creation.owners:

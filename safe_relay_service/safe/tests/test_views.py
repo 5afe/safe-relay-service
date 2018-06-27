@@ -67,8 +67,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         keys = [x[1] for x in owners_with_keys]
         threshold = len(owners_with_keys)
 
-        safe_creation = generate_safe(owners=owners, threshold=threshold,
-                                      master_copy=self.safe_personal_contract_address)
+        safe_creation = generate_safe(owners=owners, threshold=threshold)
         my_safe_address = deploy_safe(w3, safe_creation, funder)
 
         # Send something to the safe
@@ -125,27 +124,23 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
             "signatures": signatures_json
         }
 
-        SafeServiceProvider.del_singleton()
-        with self.settings(SAFE_PERSONAL_CONTRACT_ADDRESS=self.safe_personal_contract_address,
-                           SAFE_TX_SENDER_PRIVATE_KEY=keys[0]):
-            request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
-                                       data=data,
-                                       format='json')
-            safe_service = SafeServiceProvider()
-            self.assertEqual(request.status_code, status.HTTP_201_CREATED)
-            safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=request.json()['transactionHash'])
-            self.assertEqual(safe_multisig_tx.to, to)
-            self.assertEqual(safe_multisig_tx.value, value)
-            self.assertEqual(safe_multisig_tx.data, tx_data)
-            self.assertEqual(safe_multisig_tx.operation, operation)
-            self.assertEqual(safe_multisig_tx.safe_tx_gas, safe_tx_gas)
-            self.assertEqual(safe_multisig_tx.data_gas, data_gas)
-            self.assertEqual(safe_multisig_tx.gas_price, gas_price)
-            self.assertEqual(safe_multisig_tx.gas_token, gas_token)
-            self.assertEqual(safe_multisig_tx.nonce, nonce)
-            signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-            signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
-            self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data=data,
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_201_CREATED)
+        safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=request.json()['transactionHash'])
+        self.assertEqual(safe_multisig_tx.to, to)
+        self.assertEqual(safe_multisig_tx.value, value)
+        self.assertEqual(safe_multisig_tx.data, tx_data)
+        self.assertEqual(safe_multisig_tx.operation, operation)
+        self.assertEqual(safe_multisig_tx.safe_tx_gas, safe_tx_gas)
+        self.assertEqual(safe_multisig_tx.data_gas, data_gas)
+        self.assertEqual(safe_multisig_tx.gas_price, gas_price)
+        self.assertEqual(safe_multisig_tx.gas_token, gas_token)
+        self.assertEqual(safe_multisig_tx.nonce, nonce)
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
+        self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
 
     def test_safe_multisig_tx_errors(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
@@ -187,7 +182,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
             'operation': 1
         }
 
-        safe_creation = generate_safe(master_copy=self.safe_personal_contract_address)
+        safe_creation = generate_safe()
         my_safe_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0])
 
         request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),

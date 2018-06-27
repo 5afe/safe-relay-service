@@ -13,4 +13,5 @@ class TestCaseWithSafeContractMixin:
         cls.safe_personal_deployer = cls.w3.eth.accounts[0]
         cls.safe_personal_contract_address = cls.safe_service.deploy_master_contract(deployer_account=
                                                                                      cls.safe_personal_deployer)
+        cls.safe_service.master_copy_address = cls.safe_personal_contract_address
         cls.safe_personal_contract = get_safe_personal_contract(cls.w3, cls.safe_personal_contract_address)

@@ -22,9 +22,9 @@ class SafeServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             from django.conf import settings
-            cls.instance = SafeService(settings.SAFE_TX_SENDER_PRIVATE_KEY,
-                                       settings.SAFE_FUNDER_PRIVATE_KEY,
-                                       settings.SAFE_PERSONAL_CONTRACT_ADDRESS)
+            cls.instance = SafeService(settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
+                                       settings.SAFE_TX_SENDER_PRIVATE_KEY,
+                                       settings.SAFE_FUNDER_PRIVATE_KEY)
         return cls.instance
 
     @classmethod
@@ -34,29 +34,26 @@ class SafeServiceProvider:
 
 
 class SafeService:
-    def __init__(self, tx_sender_private_key: str=None, funder_private_key: str=None, master_copy: str=None):
+    def __init__(self, master_copy_address: str, tx_sender_private_key: str=None, funder_private_key: str=None):
         self.ethereum_service = EthereumServiceProvider()
         self.w3 = self.ethereum_service.w3
+        self.master_copy_address = master_copy_address
         self.tx_sender_private_key = tx_sender_private_key
-        self.master_copy = master_copy
         self.funder_private_key = funder_private_key
         if self.funder_private_key:
             self.funder_address = self.ethereum_service.private_key_to_address(self.funder_private_key)
         else:
             self.funder_address = None
 
-    def build_safe_creation_tx(self, s: int, owners: List[str], threshold: int,
-                               master_copy: str=None, gas_price: int=None) -> SafeCreationTx:
+    def build_safe_creation_tx(self, s: int, owners: List[str], threshold: int, gas_price: int=None) -> SafeCreationTx:
 
         gas_price = gas_price if gas_price else self.ethereum_service.get_fast_gas_price()
-
-        master_copy = master_copy if master_copy else self.master_copy
 
         safe_creation_tx = SafeCreationTx(w3=self.w3,
                                           owners=owners,
                                           threshold=threshold,
                                           signature_s=s,
-                                          master_copy=master_copy,
+                                          master_copy=self.master_copy_address,
                                           gas_price=gas_price,
                                           funder=self.funder_address)
 

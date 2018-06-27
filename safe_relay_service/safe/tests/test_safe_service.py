@@ -34,8 +34,7 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         keys = [x[1] for x in owners_with_keys]
         threshold = len(owners_with_keys)
 
-        safe_creation = generate_safe(owners=owners, threshold=threshold,
-                                      master_copy=self.safe_personal_contract_address)
+        safe_creation = generate_safe(owners=owners, threshold=threshold)
         my_safe_address = deploy_safe(w3, safe_creation, funder)
 
         # Send something to the safe
