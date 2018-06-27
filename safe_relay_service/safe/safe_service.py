@@ -7,14 +7,20 @@ from hexbytes import HexBytes
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
-from .contracts import get_safe_personal_contract, get_paying_proxy_deployed_bytecode, get_paying_proxy_contract
+from .contracts import (get_paying_proxy_contract,
+                        get_paying_proxy_deployed_bytecode,
+                        get_safe_personal_contract)
 from .ethereum_service import EthereumServiceProvider
 from .helpers import SafeCreationTx
 
 logger = getLogger(__name__)
 
 
-class NotValidMultisigTx(Exception):
+class InvalidMultisigTx(Exception):
+    pass
+
+
+class InvalidProxyContract(Exception):
     pass
 
 
@@ -126,11 +132,14 @@ class SafeService:
     def get_contract(self, safe_address):
         return get_safe_personal_contract(self.w3, address=safe_address)
 
-    def get_threshold(self, safe_address):
-        return self.get_contract(safe_address).functions.getThreshold().call()
+    def retrieve_master_copy_address(self, safe_address) -> str:
+        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call()
 
-    def get_nonce(self, safe_address):
+    def retrieve_nonce(self, safe_address) -> int:
         return self.get_contract(safe_address).functions.nonce().call()
+
+    def retrieve_threshold(self, safe_address) -> int:
+        return self.get_contract(safe_address).functions.getThreshold().call()
 
     def estimate_tx_gas(self, safe_address, to, value, data):
         estimated_gas = self.w3.eth.estimateGas(
@@ -139,8 +148,9 @@ class SafeService:
 
         return estimated_gas * 2
 
-    def estimate_tx_data_gas(self, safe_address, to, value, data, operation, estimate_tx_gas):
-        paying_proxy_contract = get_safe_personal_contract(self.w3, address=safe_address)
+    def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
+                             operation: int, estimate_tx_gas: int):
+        paying_proxy_contract = self.get_contract(safe_address)
         threshold = paying_proxy_contract.functions.getThreshold().call()
         nonce = paying_proxy_contract.functions.nonce().call()
 
@@ -181,35 +191,17 @@ class SafeService:
         return data_gas
 
     def send_multisig_tx(self,
-                         safe_address: str,
-                         to: str,
-                         value: int,
-                         data: bytes,
-                         operation: int,
-                         safe_tx_gas: int,
-                         data_gas: int,
-                         gas_price: int,
+                         safe_address: str, to: str, value: int, data: bytes,
+                         operation: int, safe_tx_gas: int, data_gas: int, gas_price: int,
                          gas_token: str,
                          signatures: bytes,
                          tx_sender_private_key=None,
                          tx_gas=None,
                          tx_gas_price=None) -> Tuple[str, any]:
-        """
-        :param safe_address:
-        :param to:
-        :param value:
-        :param data:
-        :param operation:
-        :param safe_tx_gas:
-        :param data_gas:
-        :param gas_price:
-        :param gas_token:
-        :param signatures:
-        :param tx_sender_private_key:
-        :param tx_gas:
-        :param tx_gas_price:
-        :return: tx_hash and tx
-        """
+
+        # Make sure proxy contract is ours
+        if not self.check_proxy_code(safe_address):
+            raise InvalidProxyContract(safe_address)
 
         data = data or b''
         gas_token = gas_token or NULL_ADDRESS
@@ -220,8 +212,8 @@ class SafeService:
         tx_gas_price = tx_gas_price or gas_price
         tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
 
-        paying_proxy_contract = get_safe_personal_contract(self.w3, address=safe_address)
-        success = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
+        safe_contract = get_safe_personal_contract(self.w3, address=safe_address)
+        success = safe_contract.functions.execTransactionAndPaySubmitter(
             to,
             value,
             data,
@@ -234,11 +226,11 @@ class SafeService:
         ).call()
 
         if not success:
-            raise NotValidMultisigTx
+            raise InvalidMultisigTx
 
         tx_sender_address = self.ethereum_service.private_key_to_address(tx_sender_private_key)
 
-        tx = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
+        tx = safe_contract.functions.execTransactionAndPaySubmitter(
             to,
             value,
             data,
@@ -260,7 +252,7 @@ class SafeService:
         return self.w3.eth.sendRawTransaction(tx_signed.rawTransaction), tx
 
     @staticmethod
-    def get_hash_for_safe_tx(contract_address: str, to: str, value: int, data: bytes,
+    def get_hash_for_safe_tx(safe_address: str, to: str, value: int, data: bytes,
                              operation: int, safe_tx_gas: int, data_gas: int, gas_price: int,
                              gas_token: str, nonce: int) -> HexBytes:
 
@@ -271,7 +263,7 @@ class SafeService:
         data_bytes = (
                 bytes.fromhex('19') +
                 bytes.fromhex('00') +
-                HexBytes(contract_address) +
+                HexBytes(safe_address) +
                 HexBytes(to) +
                 eth_abi.encode_single('uint256', value) +
                 data +  # Data is always zero-padded to be even on solidity. So, 0x1 becomes 0x01
@@ -292,7 +284,8 @@ class SafeService:
                 return False
         return True
 
-    def signature_split(self, signatures: bytes, pos: int) -> Tuple[int, int, int]:
+    @staticmethod
+    def signature_split(signatures: bytes, pos: int) -> Tuple[int, int, int]:
         """
         :param signatures: signatures in form of {bytes32 r}{bytes32 s}{uint8 v}
         :param pos: position of the signature
@@ -305,13 +298,14 @@ class SafeService:
 
         return v, r, s
 
-    def signatures_to_bytes(self, signatures: List[Tuple[int, int, int]]) -> bytes:
+    @classmethod
+    def signatures_to_bytes(cls, signatures: List[Tuple[int, int, int]]) -> bytes:
         """
         Convert signatures to bytes
         :param signatures: list of v, r, s
         :return: 65 bytes per signature
         """
-        return b''.join([self.signature_to_bytes(vrs) for vrs in signatures])
+        return b''.join([cls.signature_to_bytes(vrs) for vrs in signatures])
 
     @staticmethod
     def signature_to_bytes(vrs: Tuple[int, int, int]) -> bytes:

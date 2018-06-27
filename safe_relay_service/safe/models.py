@@ -70,8 +70,11 @@ class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
+    def check_valid_code(self):
+        return SafeServiceProvider().check_proxy_code(self.address)
+
     def get_balance(self, block_identifier=None):
-        EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
+        return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
         return self.address

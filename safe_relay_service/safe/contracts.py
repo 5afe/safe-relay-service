@@ -1,5 +1,6 @@
 from django.conf import settings
 from hexbytes import HexBytes
+from web3 import Web3
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
@@ -20,7 +21,7 @@ GNOSIS_SAFE_PERSONAL_INTERFACE = load_contract_interface('GnosisSafePersonalEdit
 PAYING_PROXY_INTERFACE = load_contract_interface('PayingProxy.json')
 
 
-def get_safe_personal_contract(w3, address=None):
+def get_safe_personal_contract(w3: Web3, address=None):
     """
     Get Safe Contract. It should be used to access Safe methods on Proxy contracts.
     :param w3: Web3 instance
@@ -33,7 +34,7 @@ def get_safe_personal_contract(w3, address=None):
                            bytecode=GNOSIS_SAFE_PERSONAL_INTERFACE['bytecode'])
 
 
-def get_paying_proxy_contract(w3, address=NULL_ADDRESS):
+def get_paying_proxy_contract(w3: Web3, address=NULL_ADDRESS):
     """
     Get Paying Proxy Contract. This should be used just for contract creation/changing master_copy
     If you want to call Safe methods you should use `get_safe_contract` with the Proxy address,

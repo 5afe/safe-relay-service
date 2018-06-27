@@ -63,8 +63,8 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         data_gas = 300000
         gas_price = 1
         gas_token = NULL_ADDRESS
-        nonce = my_safe_contract.functions.nonce().call()
-        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(contract_address=my_safe_address,
+        nonce = self.safe_service.retrieve_nonce(my_safe_address)
+        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address=my_safe_address,
                                                                        to=to,
                                                                        value=value,
                                                                        data=data,
@@ -137,11 +137,14 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         # in the point of calculation of the payment, so it will be slightly lower
         self.assertTrue(estimated_payment > real_payment > 0)
         self.assertTrue(owner0_new_balance > owner0_balance - tx_gas * GAS_PRICE)
-        self.assertEqual(my_safe_contract.functions.nonce().call(), 1)
+        self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)
 
     def test_check_proxy_code(self):
         proxy_contract_address = self.safe_service.deploy_proxy_contract(deployer_account=self.w3.eth.accounts[0])
         self.assertTrue(self.safe_service.check_proxy_code(proxy_contract_address))
+
+        safe_contract_address = self.safe_service.deploy_master_contract(deployer_account=self.w3.eth.accounts[0])
+        self.assertFalse(self.safe_service.check_proxy_code(safe_contract_address))
 
     def test_hash_safe_multisig_tx(self):
         expected_hash = HexBytes('0x7df475fa56c7e4bd8e4baa7193afed78fd2f9b7f8d827a9b659ce0441bcc0702')
@@ -197,3 +200,18 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         safe_service1 = SafeServiceProvider()
         safe_service2 = SafeServiceProvider()
         self.assertEqual(safe_service1, safe_service2)
+
+    def test_retrieve_master_copy_address(self):
+        proxy_address = self.safe_service.deploy_proxy_contract(deployer_account=self.w3.eth.accounts[0])
+        self.assertEqual(self.safe_service.retrieve_master_copy_address(proxy_address),
+                         self.safe_service.master_copy_address)
+
+    def test_retrieve_nonce(self):
+        safe_creation = generate_safe(number_owners=3, threshold=2)
+        proxy_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0])
+        self.assertEqual(self.safe_service.retrieve_nonce(proxy_address), 0)
+
+    def test_retrieve_threshold(self):
+        safe_creation = generate_safe(number_owners=3, threshold=2)
+        proxy_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0])
+        self.assertEqual(self.safe_service.retrieve_threshold(proxy_address), 2)
