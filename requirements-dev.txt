@@ -1,2 +1,9 @@
 -r requirements.txt
 isort
+ipdb
+pytest==3.6.2
+pytest-django==3.3.2
+pytest-env==0.6.2
+pytest-sugar==0.9.1
+flake8==3.5.0
+coverage==4.5.1

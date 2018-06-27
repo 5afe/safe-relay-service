@@ -10,8 +10,9 @@ APPS_DIR = ROOT_DIR.path('safe_relay_service')
 env = environ.Env()
 
 READ_DOT_ENV_FILE = env.bool('DJANGO_READ_DOT_ENV_FILE', default=False)
-if READ_DOT_ENV_FILE:
-    DOT_ENV_FILE = env('DJANGO_DOT_ENV_FILE', default='.env')
+DOT_ENV_FILE = env('DJANGO_DOT_ENV_FILE', default=None)
+if READ_DOT_ENV_FILE or DOT_ENV_FILE:
+    DOT_ENV_FILE = DOT_ENV_FILE or '.env'
     # OS environment variables take precedence over variables from .env
     env.read_env(str(ROOT_DIR.path(DOT_ENV_FILE)))
 
