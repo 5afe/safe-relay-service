@@ -7,7 +7,7 @@ from hexbytes import HexBytes
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
-from .contracts import get_safe_personal_contract
+from .contracts import get_safe_personal_contract, get_paying_proxy_deployed_bytecode, get_paying_proxy_contract
 from .ethereum_service import EthereumServiceProvider
 from .helpers import SafeCreationTx
 
@@ -86,6 +86,42 @@ class SafeService:
         contract_address = tx_receipt.contractAddress
         logger.info("Deployed Safe Master Contract=%s by %s", contract_address, deployer_account)
         return contract_address
+
+    def deploy_proxy_contract(self, deployer_account=None, deployer_private_key=None) -> str:
+        """
+        Deploy proxy contract. Takes deployer_account (if unlocked in the node) or the deployer private key
+        :param deployer_account: Unlocked ethereum account
+        :param deployer_private_key: Private key of an ethereum account
+        :return: deployed contract address
+        """
+        assert deployer_account or deployer_private_key
+
+        safe_proxy_contract = get_paying_proxy_contract(self.w3)
+        constructor = safe_proxy_contract.constructor(self.master_copy_address, b'', NULL_ADDRESS, NULL_ADDRESS, 0)
+        gas = 5125602
+
+        if deployer_account:
+            tx_hash = constructor.transact({'from': deployer_account, 'gas': gas})
+        else:
+            tx = constructor.transact({'gas': gas}).buildTransaction()
+            signed_tx = self.w3.eth.account.signTransaction(tx, private_key=deployer_private_key)
+            tx_hash = self.ethereum_service.send_raw_transaction(signed_tx.rawTransaction)
+
+        tx_receipt = self.ethereum_service.get_transaction_receipt(tx_hash, timeout=60)
+
+        contract_address = tx_receipt.contractAddress
+        return contract_address
+
+    def check_proxy_code(self, address) -> bool:
+        """
+        Check if proxy is valid
+        :param address: address of the proxy
+        :return: True if proxy is valid, False otherwise
+        """
+        deployed_proxy_code = self.w3.eth.getCode(address)
+        proxy_code = get_paying_proxy_deployed_bytecode()
+
+        return deployed_proxy_code == proxy_code
 
     def get_contract(self, safe_address):
         return get_safe_personal_contract(self.w3, address=safe_address)

@@ -1,4 +1,5 @@
 from django.conf import settings
+from hexbytes import HexBytes
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
@@ -44,3 +45,7 @@ def get_paying_proxy_contract(w3, address=NULL_ADDRESS):
     return w3.eth.contract(address,
                            abi=PAYING_PROXY_INTERFACE['abi'],
                            bytecode=PAYING_PROXY_INTERFACE['bytecode'])
+
+
+def get_paying_proxy_deployed_bytecode() -> bytes:
+    return HexBytes(PAYING_PROXY_INTERFACE['deployedBytecode'])

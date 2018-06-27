@@ -139,6 +139,10 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(owner0_new_balance > owner0_balance - tx_gas * GAS_PRICE)
         self.assertEqual(my_safe_contract.functions.nonce().call(), 1)
 
+    def test_check_proxy_code(self):
+        proxy_contract_address = self.safe_service.deploy_proxy_contract(deployer_account=self.w3.eth.accounts[0])
+        self.assertTrue(self.safe_service.check_proxy_code(proxy_contract_address))
+
     def test_hash_safe_multisig_tx(self):
         expected_hash = HexBytes('0x7df475fa56c7e4bd8e4baa7193afed78fd2f9b7f8d827a9b659ce0441bcc0702')
         tx_hash = self.safe_service.get_hash_for_safe_tx('0x692a70d2e424a56d2c6c27aa97d1a86395877b3a',
