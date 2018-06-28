@@ -163,6 +163,7 @@ class SafeService:
                 data,
                 operation
             ).call({'from': safe_address})
+            raise ValueError
         except ValueError as e:
             data = e.args[0]['data']
             key = list(data.keys())[0]
@@ -171,7 +172,9 @@ class SafeService:
             # 8 - error method id
             # 64 - position
             # 64 - length
-            return int(return_data[138:], 16)
+            estimated_gas = int(return_data[138:], 16)
+            # Add 10k else we will fail in case of nested calls
+            return estimated_gas + 10000
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
                              operation: int, estimate_tx_gas: int):
