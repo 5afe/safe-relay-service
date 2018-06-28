@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List
+from hexbytes import HexBytes
 
 import ethereum.utils
 from django.contrib.postgres.fields import ArrayField
@@ -266,3 +267,6 @@ class SafeMultisigTx(TimeStampedModel):
     nonce = models.PositiveIntegerField()
     tx_hash = models.CharField(max_length=64, unique=True)
     tx_mined = models.BooleanField(default=False)
+
+    def get_formated_tx_hash(self):
+        return HexBytes(self.tx_hash).hex()
