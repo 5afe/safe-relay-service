@@ -143,6 +143,9 @@ class SafeService:
     def get_contract(self, safe_address):
         return get_safe_personal_contract(self.w3, address=safe_address)
 
+    def get_gas_token(self):
+        return NULL_ADDRESS
+
     def retrieve_master_copy_address(self, safe_address) -> str:
         return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call()
 

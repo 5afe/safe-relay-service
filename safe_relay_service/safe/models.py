@@ -1,9 +1,9 @@
 from typing import Dict, Iterable, List
-from hexbytes import HexBytes
 
 import ethereum.utils
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumServiceProvider

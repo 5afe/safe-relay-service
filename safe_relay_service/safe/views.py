@@ -173,6 +173,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         if serializer.is_valid():
             data = serializer.validated_data
             safe_service = SafeServiceProvider()
+            gas_token = safe_service.get_gas_token()
             safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
                                                                  data['operation'], safe_tx_gas)
@@ -181,7 +182,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,
                              'gas_price': gas_price,
-                             'gas_token': None}
+                             'gas_token': gas_token}
             return Response(status=status.HTTP_200_OK, data=response_data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

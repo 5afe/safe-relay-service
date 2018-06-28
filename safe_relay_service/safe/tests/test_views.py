@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 
 from safe_relay_service.ether.tests.factories import (get_eth_address_with_invalid_checksum,
                                                       get_eth_address_with_key)
+from safe_relay_service.ether.utils import NULL_ADDRESS
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..safe_service import SafeServiceProvider
@@ -194,6 +195,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(response['safeTxGas'] > 22000)
         self.assertTrue(response['dataGas'] > 0)
         self.assertTrue(response['gasPrice'] > 0)
+        self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
     def test_safe_signal(self):
         safe_address, _ = get_eth_address_with_key()
