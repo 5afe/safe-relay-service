@@ -96,10 +96,11 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         # {bytes32 r}{bytes32 s}{uint8 v} = 65 bytes
         self.assertEqual(len(signatures_packed), 65 * len(owners))
 
+        # Recover key is now a private function
         # Make sure the contract retrieves the same owners
-        for i, owner in enumerate(owners):
-            recovered_owner = my_safe_contract.functions.recoverKey(safe_multisig_tx_hash, signatures_packed, i).call()
-            self.assertEqual(owner, recovered_owner)
+        # for i, owner in enumerate(owners):
+        #    recovered_owner = my_safe_contract.functions.recoverKey(safe_multisig_tx_hash, signatures_packed, i).call()
+        #    self.assertEqual(owner, recovered_owner)
 
         self.assertTrue(self.safe_service.check_hash(safe_multisig_tx_hash, signatures_packed, owners))
 
