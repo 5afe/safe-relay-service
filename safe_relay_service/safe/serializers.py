@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Dict, Tuple
 
-from django.conf import settings
 from ethereum.transactions import secpk1n
 from ethereum.utils import checksum_encode
 from hexbytes import HexBytes
@@ -53,10 +52,13 @@ class EthereumAddressField(serializers.Field):
 
 class HexadecimalField(serializers.Field):
     def to_representation(self, obj):
-        return obj
+        if obj == b'':
+            return '0x'
+        else:
+            return obj.hex()
 
     def to_internal_value(self, data):
-        if not data:
+        if not data or data == '0x':
             return HexBytes('')
         try:
             return HexBytes(data)
