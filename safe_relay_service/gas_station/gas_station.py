@@ -3,22 +3,43 @@ from typing import Dict, Iterable
 
 import numpy as np
 import requests
+from django.conf import settings
 from django.core.cache import cache
 from web3 import HTTPProvider, Web3
+from web3.auto import w3
 from web3.middleware import geth_poa_middleware
 
 from .models import GasPrice
 
 
+class GasStationProvider:
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+            w3 = gas_station.w3
+            if not w3.net.chainId:  # Ganache
+                gas_station = GasStationMock()
+            cls.instance = gas_station
+        return cls.instance
+
+
 class GasStation:
     def __init__(self,
-                 http_provider_uri='http://localhost:8545',
+                 http_provider_uri=None,
                  number_of_blocks: int=200,
                  cache_timeout_seconds=10 * 60):
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
-        self.w3 = Web3(HTTPProvider(http_provider_uri))
-        self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+        if not http_provider_uri:
+            self.w3 = w3
+        else:
+            self.w3 = Web3(HTTPProvider(http_provider_uri))
+        try:
+            if self.w3.net.chainId != 1:
+                self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+            # For tests using dummy connections (like IPC)
+        except (ConnectionError, FileNotFoundError):
+            self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
 
@@ -45,8 +66,7 @@ class GasStation:
         return {"jsonrpc": "2.0",
                 "method": "eth_getBlockByNumber",
                 "params": [block_number_hex, full_transactions],
-                "id": 1
-                }
+                "id": 1}
 
     def _do_request(self, rpc_request):
         return self.http_session.post(self.http_provider_uri, json=rpc_request).json()
@@ -87,22 +107,19 @@ class GasStation:
         gas_prices = self.get_tx_gas_prices(block_numbers)
 
         np_gas_prices = np.array(gas_prices)
-
         lowest = np_gas_prices.min()
         safe_low = math.ceil(np.percentile(np_gas_prices, 30))
         standard = math.ceil(np.percentile(np_gas_prices, 50))
         fast = math.ceil(np.percentile(np_gas_prices, 75))
         fastest = np_gas_prices.max()
 
-        gas_price = GasPrice(lowest=lowest,
-                             safe_low=safe_low,
-                             standard=standard,
-                             fast=fast,
-                             fastest=fastest)
+        gas_price = GasPrice.objects.create(lowest=lowest,
+                                            safe_low=safe_low,
+                                            standard=standard,
+                                            fast=fast,
+                                            fastest=fastest)
 
-        gas_price.save()
         self._store_gas_price_in_cache(gas_price)
-
         return gas_price
 
     def get_gas_prices(self) -> GasPrice:
@@ -116,3 +133,12 @@ class GasStation:
                 gas_price = self.calculate_gas_prices()
 
         return gas_price
+
+
+class GasStationMock(GasStation):
+    def calculate_gas_prices(self) -> GasPrice:
+        return GasPrice(lowest=1,
+                        safe_low=1,
+                        standard=1,
+                        fast=1,
+                        fastest=1)

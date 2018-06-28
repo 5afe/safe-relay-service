@@ -13,7 +13,7 @@ schema_view = get_swagger_view(title='Gnosis SAFE API')
 urlpatterns = [
     url(r'^$', schema_view),
     url(settings.ADMIN_URL, admin.site.urls),
-    url(r'^api/v1/', include('safe.urls', namespace='v1')),
+    url(r'^api/v1/', include('safe_relay_service.safe.urls', namespace='v1')),
     url(r'^check/', lambda request: HttpResponse("Ok"), name='check'),
 ]
 

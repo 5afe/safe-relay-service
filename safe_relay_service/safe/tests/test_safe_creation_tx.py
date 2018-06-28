@@ -2,16 +2,14 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
-from eth_account.internal.transactions import (encode_transaction,
-                                               serializable_unsigned_transaction_from_dict)
 from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
-from web3 import HTTPProvider, Web3
 
-from ..contracts import get_paying_proxy_contract, get_safe_contract
-from ..helpers import (SafeCreationTxBuilder, check_tx_with_confirmations,
-                       send_eth_to)
-from ..utils import NULL_ADDRESS
+from safe_relay_service.ether.utils import NULL_ADDRESS
+
+from ..contracts import get_safe_personal_contract
+from ..safe_creation_tx import SafeCreationTx
 from .factories import generate_valid_s
+from .test_safe_service import TestCaseWithSafeContractMixin
 
 logger = logging.getLogger(__name__)
 
@@ -20,57 +18,10 @@ LOG_TITLE_WIDTH = 100
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestHelpers(TestCase):
-
-    @staticmethod
-    def _get_web3_provider():
-        return Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
+class TestSafeCreationTx(TestCase, TestCaseWithSafeContractMixin):
     @classmethod
     def setUpTestData(cls):
-        w3 = cls._get_web3_provider()
-        cls.gnosis_safe_contract, cls.paying_proxy_contract = get_safe_contract(w3), get_paying_proxy_contract(w3)
-
-        tx_hash = cls.gnosis_safe_contract.constructor().transact({'from': w3.eth.accounts[0], 'gas': 3125602})
-        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-        cls.safe_contract_address = tx_receipt.contractAddress
-        cls.safe_contract_deployer = w3.eth.accounts[0]
-        logger.info("Deployed Safe Master Contract in %s by %s", cls.safe_contract_address, cls.safe_contract_deployer)
-
-    def setUp(self):
-        self.w3 = self._get_web3_provider()
-
-    def test_send_eth(self):
-        w3 = self.w3
-
-        to = w3.eth.accounts[1]
-
-        balance = w3.eth.getBalance(to)
-        value = w3.toWei(settings.SAFE_FUNDER_MAX_ETH, 'ether') // 2
-
-        send_eth_to(w3,
-                    to=to,
-                    gas_price=GAS_PRICE,
-                    value=value)
-
-        new_balance = w3.eth.getBalance(to)
-
-        self.assertTrue(new_balance == (balance + value))
-
-    def test_check_tx_with_confirmations(self):
-        logger.info("Test Check Tx with confirmations".center(LOG_TITLE_WIDTH, '-'))
-        w3 = self.w3
-        value = 1
-        to = w3.eth.accounts[-1]
-
-        tx_hash = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
-
-        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertFalse(check_tx_with_confirmations(w3, tx_hash, 2))
-
-        _ = send_eth_to(w3, to=to, gas_price=GAS_PRICE, value=value)
-        self.assertTrue(check_tx_with_confirmations(w3, tx_hash, 2))
+        cls.prepare_safe_tests()
 
     def test_safe_creation_tx_builder(self):
         logger.info("Test Safe Proxy creation without payment".center(LOG_TITLE_WIDTH, '-'))
@@ -83,13 +34,13 @@ class TestHelpers(TestCase):
         threshold = len(owners) - 1
         gas_price = GAS_PRICE
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=NULL_ADDRESS)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_personal_contract_address,
+                                      gas_price=gas_price,
+                                      funder=NULL_ADDRESS)
 
         logger.info("Send %d gwei to deployer %s",
                     w3.fromWei(safe_builder.payment, 'gwei'),
@@ -106,7 +57,7 @@ class TestHelpers(TestCase):
         tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
         self.assertEqual(tx_receipt.contractAddress, safe_builder.safe_address)
 
-        deployed_safe_proxy_contract = get_safe_contract(w3, tx_receipt.contractAddress)
+        deployed_safe_proxy_contract = get_safe_personal_contract(w3, tx_receipt.contractAddress)
 
         logger.info("Deployer account has still %d gwei left (will be lost)",
                     w3.fromWei(w3.eth.getBalance(safe_builder.deployer_address), 'gwei'))
@@ -126,22 +77,22 @@ class TestHelpers(TestCase):
         user_external_account = w3.eth.accounts[6]
         gas_price = GAS_PRICE
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=funder)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_personal_contract_address,
+                                      gas_price=gas_price,
+                                      funder=funder)
 
-        ether = 10
+        ether = 0.01
         logger.info("Send %d ether to safe %s", ether, safe_builder.deployer_address)
         w3.eth.sendTransaction({
             'from': user_external_account,
             'to': safe_builder.safe_address,
             'value': w3.toWei(ether, 'ether')
         })
-        self.assertEqual(w3.eth.getBalance(safe_builder.safe_address), w3.toWei(10, 'ether'))
+        self.assertEqual(w3.eth.getBalance(safe_builder.safe_address), w3.toWei(ether, 'ether'))
 
         ether = safe_builder.payment
         logger.info("Send %d gwei to deployer %s", w3.fromWei(ether, 'gwei'), safe_builder.deployer_address)
@@ -165,7 +116,7 @@ class TestHelpers(TestCase):
         logger.info("Deployer account has still %d gwei left (will be lost)",
                     w3.fromWei(w3.eth.getBalance(safe_builder.deployer_address), 'gwei'))
 
-        deployed_safe_proxy_contract = get_safe_contract(w3, tx_receipt.contractAddress)
+        deployed_safe_proxy_contract = get_safe_personal_contract(w3, tx_receipt.contractAddress)
 
         self.assertEqual(deployed_safe_proxy_contract.functions.getThreshold().call(), threshold)
         self.assertEqual(deployed_safe_proxy_contract.functions.getOwners().call(), owners)
@@ -180,13 +131,13 @@ class TestHelpers(TestCase):
             threshold = len(owners)
             gas_price = w3.toWei(15, 'gwei')
 
-            safe_builder = SafeCreationTxBuilder(w3=w3,
-                                                 owners=owners,
-                                                 threshold=threshold,
-                                                 signature_s=s,
-                                                 master_copy=self.safe_contract_address,
-                                                 gas_price=gas_price,
-                                                 funder=None)
+            safe_builder = SafeCreationTx(w3=w3,
+                                          owners=owners,
+                                          threshold=threshold,
+                                          signature_s=s,
+                                          master_copy=self.safe_personal_contract_address,
+                                          gas_price=gas_price,
+                                          funder=None)
 
             w3.eth.sendTransaction({
                 'from': w3.eth.accounts[0],
@@ -213,24 +164,22 @@ class TestHelpers(TestCase):
 
         s = generate_valid_s()
 
-        safe_builder = SafeCreationTxBuilder(w3=w3,
-                                             owners=owners,
-                                             threshold=threshold,
-                                             signature_s=s,
-                                             master_copy=self.safe_contract_address,
-                                             gas_price=gas_price,
-                                             funder=funder)
+        safe_builder = SafeCreationTx(w3=w3,
+                                      owners=owners,
+                                      threshold=threshold,
+                                      signature_s=s,
+                                      master_copy=self.safe_personal_contract_address,
+                                      gas_price=gas_price,
+                                      funder=funder)
 
         web3_transaction = safe_builder.contract_creation_tx_dict
 
         # Signing transaction
         v, r = safe_builder.v, safe_builder.r
-        unsigned_contract_creation_tx = serializable_unsigned_transaction_from_dict(web3_transaction)
-        # Signing transaction. Can be send with `w3.eth.sendRawTransaction`
-        rlp_encoded_transaction = encode_transaction(unsigned_contract_creation_tx, vrs=(v, r, s))
-        # transaction_hash = sha3(rlp_encoded_transaction)
-        # self.raw_tx = rlp_encoded_transaction
-        address_64_encoded = ecrecover_to_pub(unsigned_contract_creation_tx.hash(), v, r, s)
+
+        rlp_encoded_transaction, hash = SafeCreationTx._sign_web3_transaction(web3_transaction, v, r, s)
+
+        address_64_encoded = ecrecover_to_pub(hash, v, r, s)
         address_bytes = sha3(address_64_encoded)[-20:]
         deployer_address = checksum_encode(address_bytes)
 

@@ -1,4 +1,4 @@
-version: '3.6'
+version: '3.5'
 
 volumes:
   nginx-shared:
@@ -24,10 +24,10 @@ services:
       dockerfile: docker/web/Dockerfile
     env_file:
       - .env
-    links:
-      - db
     depends_on:
       - db
+      - redis
+      - ganache
     working_dir: /app
     ports:
       - "27017"
@@ -46,13 +46,19 @@ services:
       dockerfile: docker/web/Dockerfile
     env_file:
       - .env
-    links:
-      - redis
     depends_on:
       - db
       - redis
+      - ganache
     command: docker/web/celery/worker/run.sh
 
   scheduler:
     <<: *worker
     command: docker/web/celery/scheduler/run.sh
+
+  ganache:
+    build:
+      context: .
+      dockerfile: docker/ganache/Dockerfile
+    ports:
+      - "8545:8545"

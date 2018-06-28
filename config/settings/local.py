@@ -26,11 +26,6 @@ CACHES = {
     }
 }
 
-# TEMPLATES
-# ------------------------------------------------------------------------------
-# https://docs.djangoproject.com/en/dev/ref/settings/#templates
-TEMPLATES[0]['OPTIONS']['debug'] = DEBUG  # noqa F405
-
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
@@ -84,4 +79,4 @@ if env.bool('USE_DOCKER', default=False):
 SAFE_GAS_PRICE = 1
 SAFE_FUNDER_PRIVATE_KEY = '4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
 SAFE_FUNDING_CONFIRMATIONS = 0
-SAFE_PERSONAL_CONTRACT_ADDRESS = '0xEc7C75C1548765AB51A165873b0B1b71663c1266'
+SAFE_PERSONAL_CONTRACT_ADDRESS = '0x2aaB3573eCFD2950a30B75B6f3651b84F4e130da'

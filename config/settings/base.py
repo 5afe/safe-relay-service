@@ -10,9 +10,11 @@ APPS_DIR = ROOT_DIR.path('safe_relay_service')
 env = environ.Env()
 
 READ_DOT_ENV_FILE = env.bool('DJANGO_READ_DOT_ENV_FILE', default=False)
-if READ_DOT_ENV_FILE:
+DOT_ENV_FILE = env('DJANGO_DOT_ENV_FILE', default=None)
+if READ_DOT_ENV_FILE or DOT_ENV_FILE:
+    DOT_ENV_FILE = DOT_ENV_FILE or '.env'
     # OS environment variables take precedence over variables from .env
-    env.read_env(str(ROOT_DIR.path('.env')))
+    env.read_env(str(ROOT_DIR.path(DOT_ENV_FILE)))
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -240,6 +242,10 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'INFO',
         },
+        'celery.worker.strategy': {
+            'handlers': ['console'],
+            'level': 'INFO' if DEBUG else 'WARNING',
+        },
         'django.request': {
             'handlers': ['mail_admins'],
             'level': 'ERROR',
@@ -264,15 +270,17 @@ GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
 
 # Safe
 # ------------------------------------------------------------------------------
-# If not GAS_PRICE set, gas_price is taken from gas_station
 SAFE_FUNDER_PRIVATE_KEY = env('SAFE_FUNDER_PRIVATE_KEY', default=None)
 # Maximum ether (no wei) for a single transaction (security limit)
 SAFE_FUNDER_MAX_ETH = env.int('SAFE_FUNDER_MAX_ETH', default=0.1)
-SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=6)
+SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  # Set to at least 3
 # Master Copy Address of Safe Personal Edition Contract
 SAFE_PERSONAL_CONTRACT_ADDRESS = env('SAFE_PERSONAL_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
+SAFE_PERSONAL_VALID_CONTRACT_ADDRESSES = env.list('SAFE_PERSONAL_VALID_CONTRACT_ADDRESSES',
+                                                  default=[SAFE_PERSONAL_CONTRACT_ADDRESS])
 # If SAFE_GAS_PRICE is None, GasStation will be used
 SAFE_GAS_PRICE = env.int('SAFE_GAS_PRICE', default=None)
+SAFE_TX_SENDER_PRIVATE_KEY = env('SAFE_TX_SENDER_PRIVATE_KEY', default=None)
 
 SAFE_CHECK_DEPLOYER_FUNDED_DELAY = env.int('SAFE_CHECK_DEPLOYER_FUNDED_DELAY', default=1 * 30)
 SAFE_CHECK_DEPLOYER_FUNDED_RETRIES = env.int('SAFE_CHECK_DEPLOYER_FUNDED_RETRIES', default=10)

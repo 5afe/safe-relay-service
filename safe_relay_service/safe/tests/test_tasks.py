@@ -1,13 +1,15 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.test import TestCase
-from web3 import HTTPProvider, Web3
+from django.utils import timezone
 
-from ..helpers import create_safe_tx
-from ..models import SafeFunding
-from ..tasks import deploy_safes_task, fund_deployer_task, send_eth_to
-from .factories import generate_valid_s
+from ..ethereum_service import EthereumServiceProvider
+from ..models import SafeContract, SafeFunding
+from ..tasks import (check_deployer_funded_task, deploy_safes_task,
+                     fund_deployer_task)
+from .factories import generate_safe
 
 logger = logging.getLogger(__name__)
 
@@ -16,50 +18,63 @@ GAS_PRICE = settings.SAFE_GAS_PRICE
 
 class TestTasks(TestCase):
 
-    @staticmethod
-    def _get_web3_provider():
-        return Web3(HTTPProvider(settings.ETHEREUM_NODE_URL))
-
     @classmethod
     def setUpTestData(cls):
-        w3 = cls._get_web3_provider()
-        cls.w3 = w3
+        cls.ethereum_service = EthereumServiceProvider()
+        cls.w3 = cls.ethereum_service.w3
 
-    def test_tasks(self):
-        w3 = self.w3
-        s = generate_valid_s()
-        owners = w3.eth.accounts[2:6]
-        threshold = len(owners) - 1
+    def test_balance_in_deployer(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        s = create_safe_tx(s, owners, threshold)
-        safe, deployer, payment = s.data['safe'], s.data['tx']['from'], int(s.data['payment'])
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
 
-        send_eth_to(w3,
-                    to=safe,
-                    gas_price=GAS_PRICE,
-                    value=payment)
+        # If deployer has balance already no ether is sent to the account
+        deployer_payment = 1
+        self.ethereum_service.send_eth_to(
+            to=deployer,
+            gas_price=GAS_PRICE,
+            value=deployer_payment)
 
-        fund_deployer_task.delay(safe, deployer, payment)
+        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
+
+        fund_deployer_task.delay(safe, retry=False).get()
+
+        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
+
+    def test_deploy_safe(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
+
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
+
+        fund_deployer_task.delay(safe).get()
 
         safe_funding = SafeFunding.objects.get(safe=safe)
 
         self.assertTrue(safe_funding.deployer_funded)
         self.assertTrue(safe_funding.safe_funded)
         self.assertFalse(safe_funding.safe_deployed)
-        self.assertTrue('' == safe_funding.safe_deployed_tx_hash)
+        self.assertIsNone(safe_funding.safe_deployed_tx_hash)
 
         # Safe code is not deployed
         self.assertEqual(self.w3.eth.getCode(safe), b'\x00')
 
         # This task will check safes with deployer funded and confirmed and send safe raw contract creation tx
-        deploy_safes_task.delay()
+        deploy_safes_task.delay().get()
 
         safe_funding.refresh_from_db()
         self.assertTrue(safe_funding.safe_deployed_tx_hash)
         self.assertFalse(safe_funding.safe_deployed)
 
         # This time task will check the tx_hash for the safe
-        deploy_safes_task.delay()
+        deploy_safes_task.delay().get()
 
         safe_funding.refresh_from_db()
         self.assertTrue(safe_funding.safe_deployed_tx_hash)
@@ -67,3 +82,123 @@ class TestTasks(TestCase):
 
         # Safe code is deployed
         self.assertTrue(len(self.w3.eth.getCode(safe)) > 10)
+
+        # Nothing happens if safe is funded
+        fund_deployer_task.delay(safe).get()
+
+        # Check deployer tx is checked again
+        old_deployer_tx_hash = safe_funding.deployer_funded_tx_hash
+        safe_funding.deployer_funded = False
+        safe_funding.save()
+        fund_deployer_task.delay(safe).get()
+
+        safe_funding.refresh_from_db()
+        self.assertEqual(old_deployer_tx_hash, safe_funding.deployer_funded_tx_hash)
+        self.assertTrue(safe_funding.deployer_funded)
+
+    def test_safe_with_no_funds(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
+
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+        # No ether is sent to the deployer is safe is empty
+        fund_deployer_task.delay(safe, retry=False).get()
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+
+        # No ether is sent to the deployer is safe has less balance than needed
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment - 1)
+        fund_deployer_task.delay(safe, retry=False).get()
+        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+
+    def test_check_deployer_funded(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
+
+        safe_contract = SafeContract.objects.get(address=safe)
+        safe_funding = SafeFunding.objects.create(safe=safe_contract)
+
+        safe_funding.safe_funded = True
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.save()
+
+        # If tx hash is not found should be deleted from database
+        check_deployer_funded_task.delay(safe, retry=False).get()
+
+        safe_funding.refresh_from_db()
+        self.assertFalse(safe_funding.deployer_funded_tx_hash)
+
+    def test_reorg_before_safe_deploy(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
+
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
+
+        fund_deployer_task.delay(safe).get()
+        check_deployer_funded_task.delay(safe).get()
+
+        safe_funding = SafeFunding.objects.get(safe=safe)
+
+        self.assertTrue(safe_funding.safe_funded)
+        self.assertTrue(safe_funding.deployer_funded_tx_hash)
+        self.assertTrue(safe_funding.deployer_funded)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.save()
+
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+
+        # Safe is not deployed if deployer tx is not valid. Deployer tx must be deleted
+        self.assertTrue(safe_funding.safe_funded)
+        self.assertFalse(safe_funding.deployer_funded_tx_hash)
+        self.assertFalse(safe_funding.deployer_funded)
+        self.assertFalse(safe_funding.safe_deployed)
+
+    def test_reorg_after_safe_deployed(self):
+        safe_creation = generate_safe()
+        safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
+
+        self.ethereum_service.send_eth_to(
+            to=safe,
+            gas_price=GAS_PRICE,
+            value=payment)
+
+        fund_deployer_task.delay(safe).get()
+        check_deployer_funded_task.delay(safe).get()
+        deploy_safes_task.delay().get()
+
+        safe_funding = SafeFunding.objects.get(safe=safe)
+
+        self.assertTrue(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # Set an invalid tx
+        safe_funding.safe_deployed_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.save()
+
+        # If tx is not found before 10 minutes, nothing should happen
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+        self.assertTrue(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # If tx is not found after 10 minutes, safe will be marked to deploy again
+        SafeFunding.objects.update(modified=timezone.now() - timedelta(minutes=11))
+        deploy_safes_task.delay().get()
+
+        safe_funding.refresh_from_db()
+        self.assertFalse(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # Raises ValueError because of nonce error when trying to deploy again the contract
+        with self.assertRaises(ValueError):
+            deploy_safes_task.delay().get()
