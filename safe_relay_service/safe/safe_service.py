@@ -155,12 +155,23 @@ class SafeService:
     def retrieve_threshold(self, safe_address) -> int:
         return self.get_contract(safe_address).functions.getThreshold().call()
 
-    def estimate_tx_gas(self, safe_address, to, value, data):
-        estimated_gas = self.w3.eth.estimateGas(
-            {'to': to, 'from': safe_address, 'value': value, 'data': data}
-        )
-
-        return estimated_gas * 2
+    def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
+        try:
+            self.get_contract(safe_address).functions.requiredTxGas(
+                to,
+                value,
+                data,
+                operation
+            ).call({'from': safe_address})
+        except ValueError as e:
+            data = e.args[0]['data']
+            key = list(data.keys())[0]
+            return_data = data[key]['return']
+            # 2 - 0x
+            # 8 - error method id
+            # 64 - position
+            # 64 - length
+            return int(return_data[138:], 16)
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
                              operation: int, estimate_tx_gas: int):

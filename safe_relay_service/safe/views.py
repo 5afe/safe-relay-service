@@ -174,7 +174,8 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             data = serializer.validated_data
             safe_service = SafeServiceProvider()
             gas_token = safe_service.get_gas_token()
-            safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'])
+            safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
+                                                       data['operation'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
                                                                  data['operation'], safe_tx_gas)
             gas_price = safe_service.ethereum_service.get_fast_gas_price()

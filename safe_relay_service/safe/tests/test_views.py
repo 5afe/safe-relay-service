@@ -192,7 +192,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
                                    format='json')
         self.assertEqual(request.status_code, status.HTTP_200_OK)
         response = request.json()
-        self.assertTrue(response['safeTxGas'] > 22000)
+        self.assertTrue(response['safeTxGas'] > 0)
         self.assertTrue(response['dataGas'] > 0)
         self.assertTrue(response['gasPrice'] > 0)
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
