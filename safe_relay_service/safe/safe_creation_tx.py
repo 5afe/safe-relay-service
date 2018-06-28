@@ -35,7 +35,7 @@ class SafeCreationTx:
         self.gnosis_safe_contract = get_safe_personal_contract(w3, master_copy)
         self.paying_proxy_contract = get_paying_proxy_contract(w3)
 
-        safe_tx = self._get_safe_tx(owners, threshold)
+        safe_tx = self.get_initial_setup_safe_tx(owners, threshold)
         encoded_data = safe_tx['data']
 
         self.gas = self._calculate_gas(owners, encoded_data)
@@ -90,7 +90,7 @@ class SafeCreationTx:
         gas_per_owner = 18020  # Magic number calculated by testing and averaging owners
         return base_gas + data_gas + 270000 + len(owners) * gas_per_owner
 
-    def _get_safe_tx(self, owners: List[str], threshold: int) -> Dict[any, any]:
+    def get_initial_setup_safe_tx(self, owners: List[str], threshold: int) -> Dict[any, any]:
         return self.gnosis_safe_contract.functions.setup(
             owners,
             threshold,

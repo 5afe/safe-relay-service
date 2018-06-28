@@ -7,7 +7,7 @@ from ethereum.utils import checksum_encode, ecrecover_to_pub, sha3
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
 from ..contracts import get_safe_personal_contract
-from ..helpers import SafeCreationTx
+from ..safe_creation_tx import SafeCreationTx
 from .factories import generate_valid_s
 from .test_safe_service import TestCaseWithSafeContractMixin
 
@@ -18,7 +18,7 @@ LOG_TITLE_WIDTH = 100
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
+class TestSafeCreationTx(TestCase, TestCaseWithSafeContractMixin):
     @classmethod
     def setUpTestData(cls):
         cls.prepare_safe_tests()

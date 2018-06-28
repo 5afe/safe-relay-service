@@ -11,7 +11,7 @@ from .contracts import (get_paying_proxy_contract,
                         get_paying_proxy_deployed_bytecode,
                         get_safe_personal_contract)
 from .ethereum_service import EthereumServiceProvider
-from .helpers import SafeCreationTx
+from .safe_creation_tx import SafeCreationTx
 
 logger = getLogger(__name__)
 
