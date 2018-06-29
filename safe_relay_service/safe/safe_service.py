@@ -157,27 +157,35 @@ class SafeService:
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
         data = data or b''
+        base_gas = 10000
         try:
-            self.get_contract(safe_address).functions.requiredTxGas(
+            tx = self.get_contract(safe_address).functions.requiredTxGas(
                 to,
                 value,
                 data,
                 operation
-            ).call({'from': safe_address})
-            raise ValueError
+            ).buildTransaction({
+                'from': safe_address,
+                'gas': 900000
+            })
+            result = self.w3.eth.call(tx).hex()
+            estimated_gas = int(result[138:], 16)
+            return estimated_gas + base_gas
         except ValueError as e:
+            # Ganache-Cli
             data = e.args[0]['data']
             key = list(data.keys())[0]
-            return_data = data[key]['return']
-            if return_data == '0x0':
+            result = data[key]['return']
+            if result == '0x0':
                 raise e
-            # 2 - 0x
-            # 8 - error method id
-            # 64 - position
-            # 64 - length
-            estimated_gas = int(return_data[138:], 16)
-            # Add 10k else we will fail in case of nested calls
-            return estimated_gas + 10000
+            else:
+                # 2 - 0x
+                # 8 - error method id
+                # 64 - position
+                # 64 - length
+                estimated_gas = int(result[138:], 16)
+                # Add 10k else we will fail in case of nested calls
+                return estimated_gas + base_gas
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
                              operation: int, estimate_tx_gas: int):
