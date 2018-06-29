@@ -156,6 +156,7 @@ class SafeService:
         return self.get_contract(safe_address).functions.getThreshold().call()
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
+        data = data or b''
         try:
             self.get_contract(safe_address).functions.requiredTxGas(
                 to,
@@ -168,6 +169,8 @@ class SafeService:
             data = e.args[0]['data']
             key = list(data.keys())[0]
             return_data = data[key]['return']
+            if return_data == '0x0':
+                raise e
             # 2 - 0x
             # 8 - error method id
             # 64 - position
@@ -178,6 +181,7 @@ class SafeService:
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
                              operation: int, estimate_tx_gas: int):
+        data = data or b''
         paying_proxy_contract = self.get_contract(safe_address)
         threshold = paying_proxy_contract.functions.getThreshold().call()
         nonce = paying_proxy_contract.functions.nonce().call()
