@@ -172,7 +172,8 @@ class SafeService:
             estimated_gas = int(result[138:], 16)
             return estimated_gas + base_gas
         except ValueError as e:
-            # Ganache-Cli
+            # Ganache-Cli with no `--noVMErrorsOnRPCResponse` flag enabled
+            logger.warning('You should use `--noVMErrorsOnRPCResponse` flag with Ganache-cli')
             data = e.args[0]['data']
             key = list(data.keys())[0]
             result = data[key]['return']
