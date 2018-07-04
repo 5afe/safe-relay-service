@@ -14,6 +14,7 @@ RUN set -ex \
 		build-essential \
 		libssl-dev \
 		libgmp-dev \
+		pkg-config \
 		" \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \
