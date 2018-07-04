@@ -157,6 +157,7 @@ class SafeService:
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
         data = data or b''
+        # Add 10k else we will fail in case of nested calls
         base_gas = 10000
         try:
             tx = self.get_contract(safe_address).functions.requiredTxGas(
@@ -169,23 +170,26 @@ class SafeService:
                 'gas': 900000
             })
             result = self.w3.eth.call(tx).hex()
-            estimated_gas = int(result[138:], 16)
+            # 2 - 0x
+            # 8 - error method id
+            # 64 - position
+            # 64 - length
+            estimated_gas_hex = result[138:]
+            assert len(estimated_gas_hex) == 64
+            estimated_gas = int(estimated_gas_hex, 16)
             return estimated_gas + base_gas
         except ValueError as e:
-            # Ganache-Cli with no `--noVMErrorsOnRPCResponse` flag enabled
-            logger.warning('You should use `--noVMErrorsOnRPCResponse` flag with Ganache-cli')
             data = e.args[0]['data']
             key = list(data.keys())[0]
             result = data[key]['return']
             if result == '0x0':
                 raise e
             else:
-                # 2 - 0x
-                # 8 - error method id
-                # 64 - position
-                # 64 - length
-                estimated_gas = int(result[138:], 16)
-                # Add 10k else we will fail in case of nested calls
+                # Ganache-Cli with no `--noVMErrorsOnRPCResponse` flag enabled
+                logger.warning('You should use `--noVMErrorsOnRPCResponse` flag with Ganache-cli')
+                estimated_gas_hex = result[138:]
+                assert len(estimated_gas_hex) == 64
+                estimated_gas = int(estimated_gas_hex, 16)
                 return estimated_gas + base_gas
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
@@ -203,7 +207,7 @@ class SafeService:
         gas_price = 1
         gas_token = NULL_ADDRESS
         signatures = b''
-        data = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
+        data = HexBytes(paying_proxy_contract.functions.execTransactionAndPaySubmitter(
             to,
             value,
             data,
@@ -217,7 +221,7 @@ class SafeService:
             'gas': 1,
             'gasPrice': 1,
             'nonce': nonce
-        })['data']
+        })['data'])
 
         data_gas = signature_gas + self.ethereum_service.estimate_data_gas(data)
 
