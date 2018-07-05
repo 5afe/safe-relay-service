@@ -20,7 +20,7 @@ class GasStationProvider:
         if not hasattr(cls, 'instance'):
             gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
             w3 = gas_station.w3
-            if w3.isConnected() and not w3.net.chainId:  # Ganache
+            if w3.isConnected() and not w3.net.version:  # Ganache
                 logger.warning('Using mock Gas Station because no chainId was detected')
                 gas_station = GasStationMock()
             cls.instance = gas_station
