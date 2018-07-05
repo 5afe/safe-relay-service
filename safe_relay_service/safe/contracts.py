@@ -7,10 +7,10 @@ from safe_relay_service.ether.utils import NULL_ADDRESS
 from .abis import load_contract_interface
 
 """
-Rinkeby contracts
+Rinkeby contracts https://github.com/gnosis/safe-contracts/releases/tag/v0.0.1
 -----------------
 ProxyFactory: 0x075794c3797bb4cfea74a75d1aae636036af37cd
-GnosisSafePersonalEdition: 0x2aaB3573eCFD2950a30B75B6f3651b84F4e130da
+GnosisSafePersonalEdition: 0x44E7f5855A77FE1793A96BE8a1c9C3Eaf47E9D09
 GnosisSafeTeamEdition: 0x607c2ea232621ad2221201511f7982d870f1afe5
 DailyLimitModule: 0xac94a500b707fd5c4cdb89777f29b3b28bde2f0c
 CreateAndAddModules: 0x8513246e65c474ad05e88ae8ca7c5a6b04246550
