@@ -180,7 +180,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         data = {
             'to': to,
             'value': 10,
-            'data': b'',
+            'data': '0x',
             'operation': 1
         }
 
@@ -196,6 +196,18 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
+
+        to, _ = get_eth_address_with_key()
+        data = {
+            'to': to,
+            'value': 100,
+            'data': None,
+            'operation': 0
+        }
+        request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                   data=data,
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_200_OK)
 
     def test_safe_signal(self):
         safe_address, _ = get_eth_address_with_key()

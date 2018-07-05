@@ -1,4 +1,4 @@
-FROM python:3-slim-stretch
+FROM python:3.6-slim-stretch
 
 ENV PYTHONUNBUFFERED 1
 WORKDIR /app
@@ -13,6 +13,8 @@ RUN set -ex \
 	&& buildDeps=" \
 		build-essential \
 		libssl-dev \
+		libgmp-dev \
+		pkg-config \
 		" \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \

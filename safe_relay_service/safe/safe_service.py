@@ -156,28 +156,45 @@ class SafeService:
         return self.get_contract(safe_address).functions.getThreshold().call()
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
+        data = data or b''
+        # Add 10k else we will fail in case of nested calls
+        base_gas = 10000
         try:
-            self.get_contract(safe_address).functions.requiredTxGas(
+            tx = self.get_contract(safe_address).functions.requiredTxGas(
                 to,
                 value,
                 data,
                 operation
-            ).call({'from': safe_address})
-            raise ValueError
-        except ValueError as e:
-            data = e.args[0]['data']
-            key = list(data.keys())[0]
-            return_data = data[key]['return']
+            ).buildTransaction({
+                'from': safe_address,
+                'gas': 900000
+            })
+            result = self.w3.eth.call(tx).hex()
             # 2 - 0x
             # 8 - error method id
             # 64 - position
             # 64 - length
-            estimated_gas = int(return_data[138:], 16)
-            # Add 10k else we will fail in case of nested calls
-            return estimated_gas + 10000
+            estimated_gas_hex = result[138:]
+            assert len(estimated_gas_hex) == 64
+            estimated_gas = int(estimated_gas_hex, 16)
+            return estimated_gas + base_gas
+        except ValueError as e:
+            data = e.args[0]['data']
+            key = list(data.keys())[0]
+            result = data[key]['return']
+            if result == '0x0':
+                raise e
+            else:
+                # Ganache-Cli with no `--noVMErrorsOnRPCResponse` flag enabled
+                logger.warning('You should use `--noVMErrorsOnRPCResponse` flag with Ganache-cli')
+                estimated_gas_hex = result[138:]
+                assert len(estimated_gas_hex) == 64
+                estimated_gas = int(estimated_gas_hex, 16)
+                return estimated_gas + base_gas
 
     def estimate_tx_data_gas(self, safe_address: str, to: str, value: int, data: bytes,
                              operation: int, estimate_tx_gas: int):
+        data = data or b''
         paying_proxy_contract = self.get_contract(safe_address)
         threshold = paying_proxy_contract.functions.getThreshold().call()
         nonce = paying_proxy_contract.functions.nonce().call()
@@ -190,7 +207,7 @@ class SafeService:
         gas_price = 1
         gas_token = NULL_ADDRESS
         signatures = b''
-        data = paying_proxy_contract.functions.execTransactionAndPaySubmitter(
+        data = HexBytes(paying_proxy_contract.functions.execTransactionAndPaySubmitter(
             to,
             value,
             data,
@@ -204,7 +221,7 @@ class SafeService:
             'gas': 1,
             'gasPrice': 1,
             'nonce': nonce
-        })['data']
+        })['data'])
 
         data_gas = signature_gas + self.ethereum_service.estimate_data_gas(data)
 

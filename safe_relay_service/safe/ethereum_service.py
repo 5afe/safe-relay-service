@@ -2,6 +2,7 @@ from logging import getLogger
 
 from ethereum.utils import (check_checksum, checksum_encode, ecrecover_to_pub,
                             privtoaddr, sha3)
+from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 from web3.utils.threads import Timeout
@@ -51,6 +52,9 @@ class EthereumService:
 
     @staticmethod
     def estimate_data_gas(data: bytes):
+        if isinstance(data, str):
+            data = HexBytes(data)
+
         gas = 0
         for byte in data:
             if not byte:

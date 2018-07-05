@@ -167,6 +167,29 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         safe_contract_address = self.safe_service.deploy_master_contract(deployer_account=self.w3.eth.accounts[0])
         self.assertFalse(self.safe_service.check_proxy_code(safe_contract_address))
 
+    def test_estimate_tx_data_gas(self):
+        safe_address = self.safe_service.deploy_proxy_contract(deployer_account=self.w3.eth.accounts[0])
+        to, _ = get_eth_address_with_key()
+        value = int('abc', 16)
+        data = HexBytes('0xabcdef')
+        operation = 1
+        estimate_tx_gas = int('ccdd', 16)
+        data_gas = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation, estimate_tx_gas)
+        self.assertGreater(data_gas, 0)
+
+        data = HexBytes('0xabcdefbb')  # A byte that was 00 now is bb, so -4 + 68
+        data_gas2 = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation, estimate_tx_gas)
+        self.assertEqual(data_gas2, data_gas + 68 - 4)
+
+    def test_estimate_tx_gas(self):
+        safe_address = self.safe_service.deploy_proxy_contract(deployer_account=self.w3.eth.accounts[0])
+        to, _ = get_eth_address_with_key()
+        value = int('abc', 16)
+        data = HexBytes('0xabcdef')
+        operation = 1
+        data_gas = self.safe_service.estimate_tx_gas(safe_address, to, value, data, operation)
+        self.assertGreater(data_gas, 0)
+
     def test_hash_safe_multisig_tx(self):
         expected_hash = HexBytes('0x7df475fa56c7e4bd8e4baa7193afed78fd2f9b7f8d827a9b659ce0441bcc0702')
         tx_hash = self.safe_service.get_hash_for_safe_tx('0x692a70d2e424a56d2c6c27aa97d1a86395877b3a',

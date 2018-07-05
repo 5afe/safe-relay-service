@@ -52,14 +52,14 @@ class EthereumAddressField(serializers.Field):
 
 class HexadecimalField(serializers.Field):
     def to_representation(self, obj):
-        if obj == b'':
+        if not obj:
             return '0x'
         else:
             return obj.hex()
 
     def to_internal_value(self, data):
         if not data or data == '0x':
-            return HexBytes('')
+            return None
         try:
             return HexBytes(data)
         except ValueError:
