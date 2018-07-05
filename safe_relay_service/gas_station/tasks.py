@@ -10,5 +10,5 @@ logger = get_task_logger(__name__)
 @app.shared_task(bind=True)
 def calculate_gas_prices(self) -> GasPrice:
     logger.info('Starting Gas Price Calculation')
-    gas_price = GasStationProvider()
+    gas_price = GasStationProvider().calculate_gas_prices()
     logger.info(gas_price)
