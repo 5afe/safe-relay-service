@@ -72,7 +72,7 @@ class HexadecimalField(serializers.Field):
 class SignatureSerializer(serializers.Serializer):
     v = serializers.IntegerField(min_value=0, max_value=30)
     r = serializers.IntegerField(min_value=1, max_value=secpk1n)
-    s = serializers.IntegerField(min_value=1, max_value=secpk1n)
+    s = serializers.IntegerField(min_value=1, max_value=2 ** 252 - 1)
 
 
 class SignatureResponseSerializer(serializers.Serializer):
@@ -131,7 +131,7 @@ class SignedMessageSerializer(serializers.Serializer):
 
 
 class SafeCreationSerializer(serializers.Serializer):
-    s = serializers.IntegerField(min_value=1, max_value=secpk1n - 1)
+    s = serializers.IntegerField(min_value=1, max_value=2 ** 252 - 1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
 

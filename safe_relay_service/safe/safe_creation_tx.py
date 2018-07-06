@@ -139,11 +139,15 @@ class SafeCreationTx:
     def _generate_valid_transaction(self, gas_price: int, gas: int, data: str, s: int, nonce: int=0) -> Tuple[
                                                                                                         Transaction,
                                                                                                         int, int]:
+        zero_address = HexBytes('0x' + '0' * 40)
+        f_address = HexBytes('0x' + 'f' * 40)
         for _ in range(100):
             try:
                 v, r = self.find_valid_random_signature(s)
                 contract_creation_tx = Transaction(nonce, gas_price, gas, b'', 0, HexBytes(data), v=v, r=r, s=s)
-                contract_creation_tx.sender
+                sender = contract_creation_tx.sender
+                if sender in (zero_address, f_address):
+                    raise InvalidTransaction
                 return contract_creation_tx, v, r
             except InvalidTransaction:
                 pass
