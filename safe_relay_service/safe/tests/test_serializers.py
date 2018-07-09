@@ -24,22 +24,22 @@ class TestSerializers(TestCase):
         invalid_checksumed_address = '0xb299182d99e65703f0076e4812653aab85fca0f0'
 
         owners = [owner1, owner2, owner3]
-        data = {'s': secpk1n - 5,
+        data = {'s': secpk1n // 2,
                 'owners': owners,
                 'threshold': len(owners)}
         self.assertTrue(SafeCreationSerializer(data=data).is_valid())
 
-        data = {'s': secpk1n - 5,
+        data = {'s': secpk1n // 2,
                 'owners': owners,
                 'threshold': len(owners) + 1}
         self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
-        data = {'s': secpk1n - 5,
+        data = {'s': secpk1n // 2,
                 'owners': owners + [invalid_checksumed_address],
                 'threshold': len(owners)}
         self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
-        data = {'s': secpk1n - 5,
+        data = {'s': secpk1n // 2,
                 'owners': [],
                 'threshold': len(owners)}
         self.assertFalse(SafeCreationSerializer(data=data).is_valid())

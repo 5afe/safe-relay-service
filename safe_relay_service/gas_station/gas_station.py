@@ -18,12 +18,11 @@ logger = getLogger(__name__)
 class GasStationProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
-            w3 = gas_station.w3
+            cls.instance = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+            w3 = cls.instance.w3
             if w3.isConnected() and int(w3.net.version) > 1000:  # Ganache
                 logger.warning('Using mock Gas Station because no chainId was detected')
-                gas_station = GasStationMock()
-            cls.instance = gas_station
+                cls.instance = GasStationMock()
         return cls.instance
 
 
