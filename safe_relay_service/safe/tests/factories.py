@@ -16,8 +16,8 @@ logger = getLogger(__name__)
 
 def generate_valid_s():
     while True:
-        s = int(os.urandom(31).hex(), 16)
-        if s <= (secpk1n - 1):
+        s = int(os.urandom(30).hex(), 16)
+        if s <= (secpk1n // 2):
             return s
 
 
