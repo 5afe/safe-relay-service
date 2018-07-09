@@ -43,6 +43,7 @@ class EthereumAddressField(models.CharField):
 
 
 class EthereumBigIntegerField(models.CharField):
+    description = "Ethereum big integer (encoded as char)"
 
     def __init__(self, *args, **kwargs):
         kwargs['max_length'] = 64
@@ -159,10 +160,10 @@ class SafeFunding(TimeStampedModel):
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
     deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
-    deployer_funded_tx_hash = models.CharField(max_length=64, unique=True, blank=True, null=True)
+    deployer_funded_tx_hash = models.CharField(max_length=66, unique=True, blank=True, null=True)
     safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_hash is mined
     # We could use SafeCreation.tx_hash, but we would run into troubles because of Ganache
-    safe_deployed_tx_hash = models.CharField(max_length=64, unique=True, blank=True, null=True)
+    safe_deployed_tx_hash = models.CharField(max_length=66, unique=True, blank=True, null=True)
 
     def is_all_funded(self):
         return self.safe_funded and self.deployer_funded
