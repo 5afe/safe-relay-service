@@ -28,6 +28,10 @@ class InvalidMasterCopyAddress(Exception):
     pass
 
 
+class SafeGasEstimationError(Exception):
+    pass
+
+
 class SafeServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
@@ -167,7 +171,7 @@ class SafeService:
                 operation
             ).buildTransaction({
                 'from': safe_address,
-                'gas': 900000
+                'gas': 5000000
             })
             result = self.w3.eth.call(tx).hex()
             # 2 - 0x
@@ -175,7 +179,12 @@ class SafeService:
             # 64 - position
             # 64 - length
             estimated_gas_hex = result[138:]
-            assert len(estimated_gas_hex) == 64
+
+            # Estimated gas in hex must be 64
+            if len(estimated_gas_hex) != 64:
+                logger.warning('Error estimating gas, returned value is %s', result)
+                raise SafeGasEstimationError(result)
+
             estimated_gas = int(estimated_gas_hex, 16)
             return estimated_gas + base_gas
         except ValueError as e:
