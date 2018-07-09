@@ -43,7 +43,6 @@ class EthereumAddressField(models.CharField):
 
 
 class EthereumBigIntegerField(models.CharField):
-
     def __init__(self, *args, **kwargs):
         kwargs['max_length'] = 64
         super().__init__(*args, **kwargs)
@@ -65,6 +64,40 @@ class EthereumBigIntegerField(models.CharField):
             return value
         else:
             return hex(int(value))[2:]
+
+
+class HexField(models.CharField):
+    """
+    Field to store hex values (without 0x). Returns hex with 0x prefix.
+
+    On Database side a CharField is used.
+    """
+    description = "Saves a hex value into an CharField"
+
+    def __init__(self, *args, **kwargs):
+        kwargs['max_length'] = 64
+        super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        del kwargs['max_length']
+        return name, path, args, kwargs
+
+    def from_db_value(self, value, expression, connection):
+        return self.to_python(value)
+
+    def to_python(self, value):
+        return value if value is None else HexBytes(value).hex()
+
+    def get_prep_value(self, value):
+        if value is None:
+            return value
+        elif isinstance(value, bytes):
+            return value.hex()
+        elif isinstance(value, HexBytes):
+            return value.hex()[2:]
+        else:  # str
+            return HexBytes(value).hex()[2:]
 
 
 class SafeContract(TimeStampedModel):
@@ -122,7 +155,7 @@ class SafeCreation(TimeStampedModel):
     owners = ArrayField(EthereumAddressField())
     threshold = models.PositiveSmallIntegerField()
     payment = models.BigIntegerField()
-    tx_hash = models.CharField(max_length=64, unique=True)
+    tx_hash = HexField(unique=True)
     gas = models.PositiveIntegerField()
     gas_price = models.BigIntegerField()
     value = models.BigIntegerField()
@@ -159,10 +192,10 @@ class SafeFunding(TimeStampedModel):
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
     deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
-    deployer_funded_tx_hash = models.CharField(max_length=64, unique=True, blank=True, null=True)
+    deployer_funded_tx_hash = HexField(unique=True, blank=True, null=True)
     safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_hash is mined
     # We could use SafeCreation.tx_hash, but we would run into troubles because of Ganache
-    safe_deployed_tx_hash = models.CharField(max_length=64, unique=True, blank=True, null=True)
+    safe_deployed_tx_hash = HexField(unique=True, blank=True, null=True)
 
     def is_all_funded(self):
         return self.safe_funded and self.deployer_funded
@@ -265,7 +298,7 @@ class SafeMultisigTx(TimeStampedModel):
     signatures = models.BinaryField()
     gas = models.PositiveIntegerField()  # Gas for the tx that executes the multisig tx
     nonce = models.PositiveIntegerField()
-    tx_hash = models.CharField(max_length=64, unique=True)
+    tx_hash = HexField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
     def get_formated_tx_hash(self):
