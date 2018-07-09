@@ -13,4 +13,5 @@ class GasStationView(APIView):
 
     def get(self, request, format=None):
         gas_prices = self.gas_station.get_gas_prices()
-        return Response(GasPriceSerializer(gas_prices).data)
+        serializer = GasPriceSerializer(gas_prices)
+        return Response(serializer.data)

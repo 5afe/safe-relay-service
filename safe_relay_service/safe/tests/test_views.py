@@ -29,6 +29,10 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         request = self.client.get(reverse('v1:about'))
         self.assertEqual(request.status_code, status.HTTP_200_OK)
 
+    def test_gas_station(self):
+        request = self.client.get(reverse('v1:gas-station'))
+        self.assertEqual(request.status_code, status.HTTP_200_OK)
+
     def test_safe_creation(self):
         s = generate_valid_s()
         owner1, _ = get_eth_address_with_key()
