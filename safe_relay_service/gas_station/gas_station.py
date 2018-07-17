@@ -7,7 +7,6 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 from web3 import HTTPProvider, Web3
-from web3.auto import w3
 from web3.middleware import geth_poa_middleware
 
 from .models import GasPrice
@@ -32,17 +31,14 @@ class GasStationProvider:
 
 class GasStation:
     def __init__(self,
-                 http_provider_uri=None,
+                 http_provider_uri,
                  number_of_blocks: int=200,
                  cache_timeout_seconds=10 * 60):
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
-        if not http_provider_uri:
-            self.w3 = w3
-        else:
-            self.w3 = Web3(HTTPProvider(http_provider_uri))
+        self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
             if self.w3.net.chainId != 1:
                 self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
