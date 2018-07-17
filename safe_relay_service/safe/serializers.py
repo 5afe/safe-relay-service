@@ -215,7 +215,7 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         elif not data['to']:
             raise ValidationError('Operation is not create, but `to` was not provided')
 
-        if data['gas_token'] == 2:
+        if data.get('gas_token'):
             raise ValidationError('Gas Token is still not supported')
 
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
