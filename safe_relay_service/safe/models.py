@@ -279,7 +279,7 @@ class SafeMultisigTxManager(models.Manager):
             nonce=nonce,
             signatures=signatures_packed,
             gas=tx['gas'],
-            tx_hash=tx_hash.hex()[2:],
+            tx_hash=tx_hash.hex(),
             tx_mined=False
         )
 

@@ -19,7 +19,7 @@ redis = RedisService().redis
 
 # TODO Control ConnectionError: HTTPConnectionPool for web3
 
-# Lock timeout of 2 minutes (just in the case that the application hangs to avoid a deadlock)
+# Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
 
 
@@ -30,6 +30,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
     is called to check that that tx is mined
     :param safe_address: safe account
+    :param retry: if True, retries are allowed, otherwise don't retry
     """
 
     safe_contract = SafeContract.objects.get(address=safe_address)
@@ -85,7 +86,12 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                                 deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price, payment)
                     if tx_hash:
-                        tx_hash = tx_hash.hex()[2:]
+                        tx_hash = tx_hash.hex()
+                        logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',
+                                    safe_address,
+                                    payment,
+                                    deployer_address,
+                                    tx_hash)
                         safe_funding.deployer_funded_tx_hash = tx_hash
                         safe_funding.save()
                         logger.debug('Safe %s deployer has just been funded. tx_hash=%s', safe_address,
@@ -108,6 +114,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
     lock = redis.lock("tasks:check_deployer_funded_task:%s" % safe_address, timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
+        logger.info('check_deployer_funded_task is locked for safe=%s', safe_address)
         return
     try:
         logger.debug('Starting check deployer funded task for safe %s', safe_address)
@@ -150,7 +157,6 @@ def deploy_safes_task() -> None:
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
         return
-
     try:
         logger.debug('Starting deploy safes task')
 
@@ -186,7 +192,7 @@ def deploy_safes_task() -> None:
                 if ethereum_service.get_transaction_receipt(safe_funding.deployer_funded_tx_hash):
                     tx_hash = ethereum_service.send_raw_transaction(safe_creation.signed_tx)
                     if tx_hash:
-                        tx_hash = tx_hash.hex()[2:]
+                        tx_hash = tx_hash.hex()
                         logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
                                     safe_contract.address,
                                     tx_hash)
