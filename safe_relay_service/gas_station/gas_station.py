@@ -31,7 +31,7 @@ class GasStationProvider:
 
 class GasStation:
     def __init__(self,
-                 http_provider_uri,
+                 http_provider_uri='http://localhost:8545',
                  number_of_blocks: int=200,
                  cache_timeout_seconds=10 * 60):
         self.http_provider_uri = http_provider_uri
