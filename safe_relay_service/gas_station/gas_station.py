@@ -7,12 +7,15 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 from web3 import HTTPProvider, Web3
-from web3.auto import w3
 from web3.middleware import geth_poa_middleware
 
 from .models import GasPrice
 
 logger = getLogger(__name__)
+
+
+class NoBlocksFound(Exception):
+    pass
 
 
 class GasStationProvider:
@@ -28,23 +31,20 @@ class GasStationProvider:
 
 class GasStation:
     def __init__(self,
-                 http_provider_uri=None,
+                 http_provider_uri='http://localhost:8545',
                  number_of_blocks: int=200,
                  cache_timeout_seconds=10 * 60):
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
-        if not http_provider_uri:
-            self.w3 = w3
-        else:
-            self.w3 = Web3(HTTPProvider(http_provider_uri))
+        self.number_of_blocks = number_of_blocks
+        self.cache_timeout = cache_timeout_seconds
+        self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
             if self.w3.net.chainId != 1:
                 self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
             # For tests using dummy connections (like IPC)
         except (ConnectionError, FileNotFoundError):
             self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-        self.number_of_blocks = number_of_blocks
-        self.cache_timeout = cache_timeout_seconds
 
     def _get_block_cache_key(self, block_number):
         return 'block:%d' % block_number
@@ -69,7 +69,7 @@ class GasStation:
         return {"jsonrpc": "2.0",
                 "method": "eth_getBlockByNumber",
                 "params": [block_number_hex, full_transactions],
-                "id": 1}
+                "id": block_number}
 
     def _do_request(self, rpc_request):
         return self.http_session.post(self.http_provider_uri, json=rpc_request).json()
@@ -88,14 +88,19 @@ class GasStation:
         rpc_request = [self._build_block_request(block_number, full_transactions=True)
                        for block_number in not_cached_block_numbers]
 
-        requested_blocks = [rpc_response['result'] for rpc_response in self._do_request(rpc_request)]
+        requested_blocks = []
+        for rpc_response in self._do_request(rpc_request):
+            block = rpc_response['result']
+            if block:
+                requested_blocks.append(block)
+                block_number = int(block['number'], 16)
+                self._store_block_in_cache(block_number, block)
+            else:
+                block_number = rpc_response['id']
+                logger.warning('Cannot find block-number=%d, a reorg happened', block_number)
 
         gas_prices = []
-
         for block in requested_blocks + cached_blocks:
-            block_number = int(block['number'], 16)
-            self._store_block_in_cache(block_number, block)
-
             for transaction in block['transactions']:
                 gas_price = int(transaction['gasPrice'], 16)
                 # Don't include miner transactions (0 gasPrice)
@@ -109,21 +114,24 @@ class GasStation:
         block_numbers = range(current_block_number - self.number_of_blocks, current_block_number)
         gas_prices = self.get_tx_gas_prices(block_numbers)
 
-        np_gas_prices = np.array(gas_prices)
-        lowest = np_gas_prices.min()
-        safe_low = math.ceil(np.percentile(np_gas_prices, 30))
-        standard = math.ceil(np.percentile(np_gas_prices, 50))
-        fast = math.ceil(np.percentile(np_gas_prices, 75))
-        fastest = np_gas_prices.max()
+        if not gas_prices:
+            raise NoBlocksFound
+        else:
+            np_gas_prices = np.array(gas_prices)
+            lowest = np_gas_prices.min()
+            safe_low = math.ceil(np.percentile(np_gas_prices, 30))
+            standard = math.ceil(np.percentile(np_gas_prices, 50))
+            fast = math.ceil(np.percentile(np_gas_prices, 75))
+            fastest = np_gas_prices.max()
 
-        gas_price = GasPrice.objects.create(lowest=lowest,
-                                            safe_low=safe_low,
-                                            standard=standard,
-                                            fast=fast,
-                                            fastest=fastest)
+            gas_price = GasPrice.objects.create(lowest=lowest,
+                                                safe_low=safe_low,
+                                                standard=standard,
+                                                fast=fast,
+                                                fastest=fastest)
 
-        self._store_gas_price_in_cache(gas_price)
-        return gas_price
+            self._store_gas_price_in_cache(gas_price)
+            return gas_price
 
     def get_gas_prices(self) -> GasPrice:
         gas_price = self._get_gas_price_from_cache()

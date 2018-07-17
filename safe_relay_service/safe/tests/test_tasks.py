@@ -121,7 +121,7 @@ class TestTasks(TestCase):
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
 
         safe_funding.safe_funded = True
-        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()
         safe_funding.save()
 
         # If tx hash is not found should be deleted from database
@@ -149,7 +149,7 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
         self.assertFalse(safe_funding.safe_deployed)
 
-        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()
         safe_funding.save()
 
         deploy_safes_task.delay().get()
@@ -181,7 +181,7 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed)
 
         # Set an invalid tx
-        safe_funding.safe_deployed_tx_hash = self.w3.sha3(0).hex()[2:]
+        safe_funding.safe_deployed_tx_hash = self.w3.sha3(0).hex()
         safe_funding.save()
 
         # If tx is not found before 10 minutes, nothing should happen

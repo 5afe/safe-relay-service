@@ -215,7 +215,7 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         elif not data['to']:
             raise ValidationError('Operation is not create, but `to` was not provided')
 
-        if data['gas_token'] == 2:
+        if data.get('gas_token'):
             raise ValidationError('Gas Token is still not supported')
 
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
@@ -227,9 +227,10 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
                                                                 signature['r'],
                                                                 signature['s']) for signature in signatures]
 
-        for owner in owners:
-            if owner not in safe_creation.owners:
-                raise ValidationError('Owner=%s is not a member of the safe' % owner)
+        # FIXME Check owners in blockchain instead of DB
+        # for owner in owners:
+        #    if owner not in safe_creation.owners:
+        #        raise ValidationError('Owner=%s is not a member of the safe' % owner)
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         if not safe_service.check_hash(tx_hash, safe_service.signatures_to_bytes(signature_pairs), owners):
