@@ -1,6 +1,7 @@
 from django.conf import settings
 from hexbytes import HexBytes
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
