@@ -135,21 +135,25 @@ class SafeMultisigTxView(CreateAPIView):
 
         if serializer.is_valid():
             data = serializer.validated_data
-            safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
-                safe=data['safe'],
-                to=data['to'],
-                value=data['value'],
-                data=data['data'],
-                operation=data['operation'],
-                safe_tx_gas=data['safe_tx_gas'],
-                data_gas=data['data_gas'],
-                gas_price=data['gas_price'],
-                gas_token=data['gas_token'],
-                nonce=data['nonce'],
-                signatures=data['signatures'],
-            )
-            data = {'transaction_hash': safe_multisig_tx.get_formated_tx_hash()}
-            return Response(status=status.HTTP_201_CREATED, data=data)
+            try:
+                safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
+                    safe_address=data['safe'],
+                    to=data['to'],
+                    value=data['value'],
+                    data=data['data'],
+                    operation=data['operation'],
+                    safe_tx_gas=data['safe_tx_gas'],
+                    data_gas=data['data_gas'],
+                    gas_price=data['gas_price'],
+                    gas_token=data['gas_token'],
+                    nonce=data['nonce'],
+                    signatures=data['signatures'],
+                )
+                data = {'transaction_hash': safe_multisig_tx.get_formated_tx_hash()}
+                return Response(status=status.HTTP_201_CREATED, data=data)
+            except SafeMultisigTx.objects.SafeMultisigTxExists:
+                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                data='Safe Multisig Tx with that nonce already exists')
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 

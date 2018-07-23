@@ -245,8 +245,14 @@ class SafeService:
         return data_gas
 
     def send_multisig_tx(self,
-                         safe_address: str, to: str, value: int, data: bytes,
-                         operation: int, safe_tx_gas: int, data_gas: int, gas_price: int,
+                         safe_address: str,
+                         to: str,
+                         value: int,
+                         data: bytes,
+                         operation: int,
+                         safe_tx_gas: int,
+                         data_gas: int,
+                         gas_price: int,
                          gas_token: str,
                          signatures: bytes,
                          tx_sender_private_key=None,
@@ -257,7 +263,7 @@ class SafeService:
         if not self.check_proxy_code(safe_address):
             raise InvalidProxyContract(safe_address)
 
-        # Make sure proxy contract is ours
+        # Make sure master copy is updated
         if not self.check_master_copy(safe_address):
             raise InvalidMasterCopyAddress
 
@@ -266,7 +272,8 @@ class SafeService:
         to = to or NULL_ADDRESS
 
         tx_gas = tx_gas or (safe_tx_gas + data_gas) * 2
-        # Use original tx gas_price if not provided
+
+        # Use wrapped tx gas_price if not provided
         tx_gas_price = tx_gas_price or gas_price
         tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
 
@@ -281,7 +288,7 @@ class SafeService:
             gas_price,
             gas_token,
             signatures,
-        ).call()
+        ).call(block_identifier='pending')
 
         if not success:
             raise InvalidMultisigTx

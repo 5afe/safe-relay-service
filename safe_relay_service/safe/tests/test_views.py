@@ -66,6 +66,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         w3 = safe_service.w3
         funder = w3.eth.accounts[0]
         owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
+
         # Signatures must be sorted!
         owners_with_keys.sort(key=lambda x: x[0].lower())
         owners = [x[0] for x in owners_with_keys]
@@ -147,6 +148,13 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
         self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
+
+        # Send the same tx again
+        request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                   data=data,
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertTrue('exists' in request.body)
 
     def test_safe_multisig_tx_errors(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
