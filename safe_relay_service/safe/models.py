@@ -307,5 +307,8 @@ class SafeMultisigTx(TimeStampedModel):
     tx_hash = HexField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
+    class Meta:
+        unique_together = (('safe', 'nonce'),)
+
     def get_formated_tx_hash(self):
         return HexBytes(self.tx_hash).hex()
