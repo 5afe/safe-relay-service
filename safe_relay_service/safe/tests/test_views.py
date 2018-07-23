@@ -154,7 +154,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
                                    data=data,
                                    format='json')
         self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        self.assertTrue('exists' in request.body)
+        self.assertTrue('exists' in request.data)
 
     def test_safe_multisig_tx_errors(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
