@@ -151,13 +151,14 @@ class SafeService:
         return NULL_ADDRESS
 
     def retrieve_master_copy_address(self, safe_address) -> str:
-        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call()
+        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call(
+            block_identifier='pending')
 
     def retrieve_nonce(self, safe_address) -> int:
-        return self.get_contract(safe_address).functions.nonce().call()
+        return self.get_contract(safe_address).functions.nonce().call(block_identifier='pending')
 
     def retrieve_threshold(self, safe_address) -> int:
-        return self.get_contract(safe_address).functions.getThreshold().call()
+        return self.get_contract(safe_address).functions.getThreshold().call(block_identifier='pending')
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
         data = data or b''
@@ -173,7 +174,7 @@ class SafeService:
                 'from': safe_address,
                 'gas': 5000000
             })
-            result = self.w3.eth.call(tx).hex()
+            result = self.w3.eth.call(tx, block_identifier='pending').hex()
             # 2 - 0x
             # 8 - error method id
             # 64 - position
@@ -205,8 +206,8 @@ class SafeService:
                              operation: int, estimate_tx_gas: int):
         data = data or b''
         paying_proxy_contract = self.get_contract(safe_address)
-        threshold = paying_proxy_contract.functions.getThreshold().call()
-        nonce = paying_proxy_contract.functions.nonce().call()
+        threshold = self.retrieve_threshold(safe_address)
+        nonce = self.retrieve_nonce(safe_address)
 
         # Calculate gas for signatures
         signature_gas = threshold * (1 * 68 + 2 * 32 * 68)
