@@ -5,18 +5,38 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, exception_handler
 
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding, SafeMultisigTx)
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
-from .safe_service import SafeServiceProvider
+from .safe_service import SafeServiceException, SafeServiceProvider
 from .serializers import (SafeCreationSerializer, SafeFundingSerializer,
                           SafeMultisigEstimateTxSerializer,
                           SafeMultisigTxSerializer,
                           SafeTransactionCreationResponseSerializer)
+
+
+def custom_exception_handler(exc, context):
+    # Call REST framework's default exception handler first,
+    # to get the standard error response.
+    response = exception_handler(exc, context)
+
+    # Now add the HTTP status code to the response.
+    if not response:
+        if isinstance(exc, SafeServiceException):
+            response = Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            response = Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if str(exc):
+            exception_str = '{}: {}'.format(exc.__class__.__name__, exc)
+        else:
+            exception_str = exc.__class__.__name__
+        response.data = {'exception':  exception_str}
+
+    return response
 
 
 class AboutView(APIView):
@@ -80,7 +100,7 @@ class SafeCreationView(CreateAPIView):
                 },
                 'payment': safe_creation.payment
             })
-            assert safe_transaction_response_data.is_valid()
+            safe_transaction_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)
         else:
             http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \

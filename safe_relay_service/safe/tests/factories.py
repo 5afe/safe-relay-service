@@ -37,11 +37,13 @@ def generate_safe(owners=None, number_owners=3, threshold=None) -> SafeCreation:
 
 
 def deploy_safe(w3, safe_creation, funder) -> str:
-    w3.eth.sendTransaction({
-        'from': funder,
-        'to': safe_creation.deployer,
-        'value': safe_creation.payment
-    })
+    w3.eth.waitForTransactionReceipt(
+        w3.eth.sendTransaction({
+            'from': funder,
+            'to': safe_creation.deployer,
+            'value': safe_creation.payment
+        })
+    )
 
     w3.eth.sendTransaction({
         'from': funder,

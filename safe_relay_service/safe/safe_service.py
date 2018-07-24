@@ -16,23 +16,27 @@ from .safe_creation_tx import SafeCreationTx
 logger = getLogger(__name__)
 
 
-class InvalidMultisigTx(Exception):
+class SafeServiceException(Exception):
     pass
 
 
-class NotEnoughFundsForMultisigTx(Exception):
+class InvalidMultisigTx(SafeServiceException):
     pass
 
 
-class InvalidProxyContract(Exception):
+class NotEnoughFundsForMultisigTx(SafeServiceException):
     pass
 
 
-class InvalidMasterCopyAddress(Exception):
+class InvalidProxyContract(SafeServiceException):
     pass
 
 
-class SafeGasEstimationError(Exception):
+class InvalidMasterCopyAddress(SafeServiceException):
+    pass
+
+
+class SafeGasEstimationError(SafeServiceException):
     pass
 
 
