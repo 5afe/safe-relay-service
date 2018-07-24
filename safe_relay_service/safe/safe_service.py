@@ -4,6 +4,7 @@ from typing import List, Tuple
 import eth_abi
 from ethereum.utils import sha3
 from hexbytes import HexBytes
+from web3.exceptions import BadFunctionCallOutput
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
@@ -37,6 +38,10 @@ class InvalidMasterCopyAddress(SafeServiceException):
 
 
 class SafeGasEstimationError(SafeServiceException):
+    pass
+
+
+class SignatureNotProvidedByOwner(SafeServiceException):
     pass
 
 
@@ -307,17 +312,21 @@ class SafeService:
         tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
 
         safe_contract = get_safe_personal_contract(self.w3, address=safe_address)
-        success = safe_contract.functions.execTransactionAndPaySubmitter(
-            to,
-            value,
-            data,
-            operation,
-            safe_tx_gas,
-            data_gas,
-            gas_price,
-            gas_token,
-            signatures,
-        ).call(block_identifier='pending')
+        try:
+            success = safe_contract.functions.execTransactionAndPaySubmitter(
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                signatures,
+            ).call(block_identifier='pending')
+        except BadFunctionCallOutput as exc:
+            if 'Signature not provided by owner' in str(exc):
+                raise SignatureNotProvidedByOwner
 
         if not success:
             raise InvalidMultisigTx
