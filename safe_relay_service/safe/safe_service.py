@@ -187,6 +187,7 @@ class SafeService:
                 'from': safe_address,
                 'gas': 5000000
             })
+            # If we build the tx web3 will not try to decode it for us
             result = self.w3.eth.call(tx, block_identifier='pending').hex()
             # 2 - 0x
             # 8 - error method id
