@@ -233,8 +233,11 @@ class SafeFunding(TimeStampedModel):
 
 
 class SafeMultisigTxManager(models.Manager):
+    class SafeMultisigTxExists(Exception):
+        pass
+
     def create_multisig_tx(self,
-                           safe: str,
+                           safe_address: str,
                            to: str,
                            value: int,
                            data: bytes,
@@ -246,13 +249,16 @@ class SafeMultisigTxManager(models.Manager):
                            nonce: int,
                            signatures: List[Dict[str, int]]):
 
+        if self.filter(safe=safe_address, nonce=nonce).exists():
+            raise self.SafeMultisigTxExists
+
         safe_service = SafeServiceProvider()
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
 
         tx_hash, tx = safe_service.send_multisig_tx(
-            safe,
+            safe_address,
             to,
             value,
             data,
@@ -264,7 +270,7 @@ class SafeMultisigTxManager(models.Manager):
             signatures_packed,
         )
 
-        safe_contract = SafeContract.objects.get(address=safe)
+        safe_contract = SafeContract.objects.get(address=safe_address)
 
         return super().create(
             safe=safe_contract,
@@ -300,6 +306,9 @@ class SafeMultisigTx(TimeStampedModel):
     nonce = models.PositiveIntegerField()
     tx_hash = HexField(unique=True)
     tx_mined = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = (('safe', 'nonce'),)
 
     def get_formated_tx_hash(self):
         return HexBytes(self.tx_hash).hex()

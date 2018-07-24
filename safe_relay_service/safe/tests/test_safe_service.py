@@ -7,7 +7,8 @@ from hexbytes import HexBytes
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
 from ..contracts import get_safe_personal_contract
-from ..safe_service import InvalidMasterCopyAddress, SafeServiceProvider
+from ..safe_service import (InvalidMasterCopyAddress,
+                            NotEnoughFundsForMultisigTx, SafeServiceProvider)
 from .factories import deploy_safe, generate_safe, get_eth_address_with_key
 from .safe_test_case import TestCaseWithSafeContractMixin
 
@@ -23,7 +24,7 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
     def setUpTestData(cls):
         cls.prepare_safe_tests()
 
-    def test_call_multisig_tx(self):
+    def test_send_multisig_tx(self):
         # Create Safe
         w3 = self.w3
         funder = w3.eth.accounts[0]
@@ -37,13 +38,8 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         safe_creation = generate_safe(owners=owners, threshold=threshold)
         my_safe_address = deploy_safe(w3, safe_creation, funder)
 
-        # Send something to the safe
+        # The balance we will send to the safe
         safe_balance = w3.toWei(0.01, 'ether')
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
-            'to': my_safe_address,
-            'value': safe_balance
-        }))
 
         # Send something to the owner[0], who will be sending the tx
         owner0_balance = safe_balance
@@ -109,8 +105,6 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(set(contract_owners), set(owners))
         self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
 
-        tx_gas = (safe_tx_gas + data_gas) * 2
-
         valid_master_copy_addresses = self.safe_service.valid_master_copy_addresses
         self.safe_service.valid_master_copy_addresses = []
         with self.assertRaises(InvalidMasterCopyAddress):
@@ -126,12 +120,36 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
                 gas_token,
                 signatures_packed,
                 tx_sender_private_key=keys[0],
-                tx_gas=tx_gas,
                 tx_gas_price=GAS_PRICE,
             )
 
         self.safe_service.valid_master_copy_addresses = valid_master_copy_addresses
-        sent_tx_hash, _ = self.safe_service.send_multisig_tx(
+
+        """
+        with self.assertRaises(NotEnoughFundsForMultisigTx):
+            self.safe_service.send_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                signatures_packed,
+                tx_sender_private_key=keys[0],
+                tx_gas_price=GAS_PRICE,
+            )
+        """
+
+        # Send something to the safe
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': my_safe_address,
+            'value': safe_balance
+        }))
+        sent_tx_hash, tx = self.safe_service.send_multisig_tx(
             my_safe_address,
             to,
             value,
@@ -143,7 +161,6 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
             gas_token,
             signatures_packed,
             tx_sender_private_key=keys[0],
-            tx_gas=tx_gas,
             tx_gas_price=GAS_PRICE,
         )
 
@@ -157,7 +174,7 @@ class TestHelpers(TestCase, TestCaseWithSafeContractMixin):
         # Estimated payment will be bigger, because it uses all the tx gas. Real payment only uses gas left
         # in the point of calculation of the payment, so it will be slightly lower
         self.assertTrue(estimated_payment > real_payment > 0)
-        self.assertTrue(owner0_new_balance > owner0_balance - tx_gas * GAS_PRICE)
+        self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * GAS_PRICE)
         self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)
 
     def test_check_proxy_code(self):

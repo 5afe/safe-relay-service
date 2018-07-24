@@ -4,6 +4,7 @@ from typing import List, Tuple
 import eth_abi
 from ethereum.utils import sha3
 from hexbytes import HexBytes
+from web3.exceptions import BadFunctionCallOutput
 
 from safe_relay_service.ether.utils import NULL_ADDRESS
 
@@ -16,19 +17,31 @@ from .safe_creation_tx import SafeCreationTx
 logger = getLogger(__name__)
 
 
-class InvalidMultisigTx(Exception):
+class SafeServiceException(Exception):
     pass
 
 
-class InvalidProxyContract(Exception):
+class InvalidMultisigTx(SafeServiceException):
     pass
 
 
-class InvalidMasterCopyAddress(Exception):
+class NotEnoughFundsForMultisigTx(SafeServiceException):
     pass
 
 
-class SafeGasEstimationError(Exception):
+class InvalidProxyContract(SafeServiceException):
+    pass
+
+
+class InvalidMasterCopyAddress(SafeServiceException):
+    pass
+
+
+class SafeGasEstimationError(SafeServiceException):
+    pass
+
+
+class SignatureNotProvidedByOwner(SafeServiceException):
     pass
 
 
@@ -151,13 +164,14 @@ class SafeService:
         return NULL_ADDRESS
 
     def retrieve_master_copy_address(self, safe_address) -> str:
-        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call()
+        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call(
+            block_identifier='pending')
 
     def retrieve_nonce(self, safe_address) -> int:
-        return self.get_contract(safe_address).functions.nonce().call()
+        return self.get_contract(safe_address).functions.nonce().call(block_identifier='pending')
 
     def retrieve_threshold(self, safe_address) -> int:
-        return self.get_contract(safe_address).functions.getThreshold().call()
+        return self.get_contract(safe_address).functions.getThreshold().call(block_identifier='pending')
 
     def estimate_tx_gas(self, safe_address: str, to: str, value: int, data: bytes, operation: int) -> int:
         data = data or b''
@@ -173,7 +187,8 @@ class SafeService:
                 'from': safe_address,
                 'gas': 5000000
             })
-            result = self.w3.eth.call(tx).hex()
+            # If we build the tx web3 will not try to decode it for us
+            result = self.w3.eth.call(tx, block_identifier='pending').hex()
             # 2 - 0x
             # 8 - error method id
             # 64 - position
@@ -205,8 +220,8 @@ class SafeService:
                              operation: int, estimate_tx_gas: int):
         data = data or b''
         paying_proxy_contract = self.get_contract(safe_address)
-        threshold = paying_proxy_contract.functions.getThreshold().call()
-        nonce = paying_proxy_contract.functions.nonce().call()
+        threshold = self.retrieve_threshold(safe_address)
+        nonce = self.retrieve_nonce(safe_address)
 
         # Calculate gas for signatures
         signature_gas = threshold * (1 * 68 + 2 * 32 * 68)
@@ -244,44 +259,75 @@ class SafeService:
 
         return data_gas
 
+    def check_funds_for_tx_gas(self, safe_address: str, gas: int, data_gas: int, gas_price: int, gas_token: str) -> bool:
+        """
+        Check safe has enough funds to pay for a tx
+        :param safe_address: Address of the safe
+        :param gas: Start gas
+        :param data_gas: Data gas
+        :param gas_price: Gas Price
+        :param gas_token: Gas Token, still not supported. Must be the NULL address
+        :return: True if enough funds, False, otherwise
+        """
+        # Gas token is still not supported
+        assert gas_token == NULL_ADDRESS
+
+        balance = self.ethereum_service.get_balance(safe_address)
+        return balance >= ((gas + data_gas) * gas_price)
+
     def send_multisig_tx(self,
-                         safe_address: str, to: str, value: int, data: bytes,
-                         operation: int, safe_tx_gas: int, data_gas: int, gas_price: int,
+                         safe_address: str,
+                         to: str,
+                         value: int,
+                         data: bytes,
+                         operation: int,
+                         safe_tx_gas: int,
+                         data_gas: int,
+                         gas_price: int,
                          gas_token: str,
                          signatures: bytes,
                          tx_sender_private_key=None,
                          tx_gas=None,
                          tx_gas_price=None) -> Tuple[str, any]:
 
-        # Make sure proxy contract is ours
-        if not self.check_proxy_code(safe_address):
-            raise InvalidProxyContract(safe_address)
-
-        # Make sure proxy contract is ours
-        if not self.check_master_copy(safe_address):
-            raise InvalidMasterCopyAddress
-
         data = data or b''
         gas_token = gas_token or NULL_ADDRESS
         to = to or NULL_ADDRESS
 
+        # Make sure proxy contract is ours
+        if not self.check_proxy_code(safe_address):
+            raise InvalidProxyContract(safe_address)
+
+        # Make sure master copy is updated
+        if not self.check_master_copy(safe_address):
+            raise InvalidMasterCopyAddress
+
+        # Check enough funds to pay for the gas
+        if not self.check_funds_for_tx_gas(safe_address, safe_tx_gas, data_gas, gas_price, gas_token):
+            raise NotEnoughFundsForMultisigTx
+
         tx_gas = tx_gas or (safe_tx_gas + data_gas) * 2
-        # Use original tx gas_price if not provided
+
+        # Use wrapped tx gas_price if not provided
         tx_gas_price = tx_gas_price or gas_price
         tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
 
         safe_contract = get_safe_personal_contract(self.w3, address=safe_address)
-        success = safe_contract.functions.execTransactionAndPaySubmitter(
-            to,
-            value,
-            data,
-            operation,
-            safe_tx_gas,
-            data_gas,
-            gas_price,
-            gas_token,
-            signatures,
-        ).call()
+        try:
+            success = safe_contract.functions.execTransactionAndPaySubmitter(
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                signatures,
+            ).call(block_identifier='pending')
+        except BadFunctionCallOutput as exc:
+            if 'Signature not provided by owner' in str(exc):
+                raise SignatureNotProvidedByOwner
 
         if not success:
             raise InvalidMultisigTx
