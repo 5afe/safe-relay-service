@@ -20,6 +20,10 @@ class InvalidMultisigTx(Exception):
     pass
 
 
+class NotEnoughFundsForMultisigTx(Exception):
+    pass
+
+
 class InvalidProxyContract(Exception):
     pass
 
@@ -245,6 +249,22 @@ class SafeService:
 
         return data_gas
 
+    def check_funds_for_tx_gas(self, safe_address: str, gas: int, data_gas: int, gas_price: int, gas_token: str) -> bool:
+        """
+        Check safe has enough funds to pay for a tx
+        :param safe_address: Address of the safe
+        :param gas: Start gas
+        :param data_gas: Data gas
+        :param gas_price: Gas Price
+        :param gas_token: Gas Token, still not supported. Must be the NULL address
+        :return: True if enough funds, False, otherwise
+        """
+        # Gas token is still not supported
+        assert gas_token == NULL_ADDRESS
+
+        balance = self.ethereum_service.get_balance(safe_address)
+        return balance >= ((gas + data_gas) * gas_price)
+
     def send_multisig_tx(self,
                          safe_address: str,
                          to: str,
@@ -260,6 +280,10 @@ class SafeService:
                          tx_gas=None,
                          tx_gas_price=None) -> Tuple[str, any]:
 
+        data = data or b''
+        gas_token = gas_token or NULL_ADDRESS
+        to = to or NULL_ADDRESS
+
         # Make sure proxy contract is ours
         if not self.check_proxy_code(safe_address):
             raise InvalidProxyContract(safe_address)
@@ -268,9 +292,9 @@ class SafeService:
         if not self.check_master_copy(safe_address):
             raise InvalidMasterCopyAddress
 
-        data = data or b''
-        gas_token = gas_token or NULL_ADDRESS
-        to = to or NULL_ADDRESS
+        # Check enough funds to pay for the gas
+        if not self.check_funds_for_tx_gas(safe_address, safe_tx_gas, data_gas, gas_price, gas_token):
+            raise NotEnoughFundsForMultisigTx
 
         tx_gas = tx_gas or (safe_tx_gas + data_gas) * 2
 
