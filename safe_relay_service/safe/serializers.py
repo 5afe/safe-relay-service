@@ -75,15 +75,6 @@ class SignatureSerializer(serializers.Serializer):
     s = serializers.IntegerField(min_value=1, max_value=secpk1n // 2)
 
 
-class SignatureResponseSerializer(serializers.Serializer):
-    """
-    Use CharField because of JavaScript problems with big integers
-    """
-    v = serializers.CharField()
-    r = serializers.CharField()
-    s = serializers.CharField()
-
-
 class TransactionSerializer(serializers.Serializer):
     from_ = EthereumAddressField()
     value = serializers.IntegerField(min_value=0)
@@ -144,19 +135,6 @@ class SafeCreationSerializer(serializers.Serializer):
             raise ValidationError("Threshold cannot be greater than number of owners")
 
         return data
-
-
-class SafeTransactionCreationResponseSerializer(serializers.Serializer):
-    signature = SignatureResponseSerializer()
-    tx = TransactionSerializer()
-    payment = serializers.CharField()
-    safe = EthereumAddressField()
-
-
-class SafeFundingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SafeFunding
-        fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
 
 
 class SafeMultisigEstimateTxSerializer(serializers.Serializer):
@@ -238,3 +216,40 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
 
         data['owners'] = owners
         return data
+
+
+# ================================================ #
+#                Responses                         #
+# ================================================ #
+class SignatureResponseSerializer(serializers.Serializer):
+    """
+    Use CharField because of JavaScript problems with big integers
+    """
+    v = serializers.CharField()
+    r = serializers.CharField()
+    s = serializers.CharField()
+
+
+class SafeTransactionCreationResponseSerializer(serializers.Serializer):
+    signature = SignatureResponseSerializer()
+    tx = TransactionSerializer()
+    payment = serializers.CharField()
+    safe = EthereumAddressField()
+
+
+class SafeFundingResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeFunding
+        fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
+
+
+class SafeMultisigTxResponseSerializer(serializers.Serializer):
+    transaction_hash = HexadecimalField()
+
+
+class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
+    safe_tx_gas = serializers.IntegerField(min_value=0)
+    data_gas = serializers.IntegerField(min_value=0)
+    gas_price = serializers.IntegerField(min_value=0)
+    gas_token = HexadecimalField()
+

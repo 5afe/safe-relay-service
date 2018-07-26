@@ -309,6 +309,3 @@ class SafeMultisigTx(TimeStampedModel):
 
     class Meta:
         unique_together = (('safe', 'nonce'),)
-
-    def get_formated_tx_hash(self):
-        return HexBytes(self.tx_hash).hex()

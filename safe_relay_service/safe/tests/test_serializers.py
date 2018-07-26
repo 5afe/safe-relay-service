@@ -7,7 +7,7 @@ from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 
 from ..models import SafeContract, SafeFunding
 from ..safe_service import SafeServiceProvider
-from ..serializers import (SafeCreationSerializer, SafeFundingSerializer,
+from ..serializers import (SafeCreationSerializer, SafeFundingResponseSerializer,
                            SafeMultisigEstimateTxSerializer,
                            SafeMultisigTxSerializer)
 from .factories import generate_safe
@@ -49,7 +49,7 @@ class TestSerializers(TestCase):
         safe_contract = SafeContract.objects.create(address=owner1, master_copy='0x' + '0' * 40)
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
 
-        s = SafeFundingSerializer(safe_funding)
+        s = SafeFundingResponseSerializer(safe_funding)
 
         self.assertTrue(s.data)
 

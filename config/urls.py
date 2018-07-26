@@ -5,13 +5,29 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.views import defaults as default_views
 
-from .swagger import get_swagger_view
 
-schema_view = get_swagger_view(title='Gnosis SAFE API')
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+
+schema_view = get_schema_view(
+   openapi.Info(
+      title="Gnosis Safe Relay API",
+      default_version='v1',
+      description="API to manage creation and tx for the safe",
+      contact=openapi.Contact(email="uxio@gnosis.pm"),
+      license=openapi.License(name="MIT License"),
+   ),
+   validators=['flex', 'ssv'],
+   public=True,
+   # permission_classes=(permissions.AllowAny,),
+)
 
 
 urlpatterns = [
-    url(r'^$', schema_view),
+    url(r'^$', schema_view.with_ui('swagger', cache_timeout=None), name='schema-swagger-ui'),
+    url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=None), name='schema-json'),
+    url(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=None), name='schema-redoc'),
     url(settings.ADMIN_URL, admin.site.urls),
     url(r'^api/v1/', include('safe_relay_service.safe.urls', namespace='v1')),
     url(r'^check/', lambda request: HttpResponse("Ok"), name='check'),
