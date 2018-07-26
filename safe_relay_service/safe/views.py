@@ -59,6 +59,7 @@ class AboutView(APIView):
             'name': 'Safe Relay Service',
             'version': __version__,
             'api_version': self.request.version,
+            'secure': self.request.is_secure(),
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,

@@ -11,16 +11,16 @@ from drf_yasg import openapi
 
 
 schema_view = get_schema_view(
-   openapi.Info(
-      title="Gnosis Safe Relay API",
-      default_version='v1',
-      description="API to manage creation and tx for the safe",
-      contact=openapi.Contact(email="uxio@gnosis.pm"),
-      license=openapi.License(name="MIT License"),
-   ),
-   validators=['flex', 'ssv'],
-   public=True,
-   # permission_classes=(permissions.AllowAny,),
+    openapi.Info(
+        title='Gnosis Safe Relay API',
+        default_version='v1',
+        description='API to manage creation of safes and multisig transaction sending',
+        contact=openapi.Contact(email='uxio@gnosis.pm'),
+        license=openapi.License(name='MIT License'),
+    ),
+    validators=['flex', 'ssv'],
+    public=True,
+    # permission_classes=(permissions.AllowAny,),
 )
 
 
