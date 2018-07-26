@@ -80,7 +80,9 @@ class SafeCreationView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeCreationSerializer
 
-    @swagger_auto_schema(responses={201: SafeTransactionCreationResponseSerializer()})
+    @swagger_auto_schema(responses={201: SafeTransactionCreationResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
@@ -114,7 +116,9 @@ class SafeCreationView(CreateAPIView):
 class SafeSignalView(APIView):
     permission_classes = (AllowAny,)
 
-    @swagger_auto_schema(responses={200: SafeFundingResponseSerializer()})
+    @swagger_auto_schema(responses={200: SafeFundingResponseSerializer(),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
     def get(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -127,6 +131,9 @@ class SafeSignalView(APIView):
             serializer = SafeFundingResponseSerializer(safe_funding)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
+    @swagger_auto_schema(responses={202: 'Task was queued',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
     def put(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -144,7 +151,10 @@ class SafeMultisigTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigTxSerializer
 
-    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer()})
+    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -188,7 +198,10 @@ class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigEstimateTxSerializer
 
-    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer()})
+    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
