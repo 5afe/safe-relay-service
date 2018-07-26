@@ -45,6 +45,10 @@ class SignatureNotProvidedByOwner(SafeServiceException):
     pass
 
 
+class CannotPayGasWithEther(SafeServiceException):
+    pass
+
+
 class SafeServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
@@ -326,8 +330,11 @@ class SafeService:
                 signatures,
             ).call(block_identifier='pending')
         except BadFunctionCallOutput as exc:
-            if 'Signature not provided by owner' in str(exc):
+            str_exc = str(exc)
+            if 'Signature not provided by owner' in str_exc:
                 raise SignatureNotProvidedByOwner
+            elif 'Could not pay gas costs with ether' in str_exc:
+                raise CannotPayGasWithEther
 
         if not success:
             raise InvalidMultisigTx
