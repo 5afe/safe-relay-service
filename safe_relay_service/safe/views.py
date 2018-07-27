@@ -85,6 +85,9 @@ class SafeCreationView(CreateAPIView):
                                     400: 'Invalid data',
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
+        """
+        Begins creation of a Safe
+        """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             s, owners, threshold = serializer.data['s'], serializer.data['owners'], serializer.data['threshold']
@@ -121,6 +124,9 @@ class SafeSignalView(APIView):
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid'})
     def get(self, request, address, format=None):
+        """
+        Get status of the safe creation
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
@@ -136,6 +142,9 @@ class SafeSignalView(APIView):
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid'})
     def put(self, request, address, format=None):
+        """
+        Force check of a safe balance to start the safe creation
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
@@ -157,6 +166,9 @@ class SafeMultisigTxView(CreateAPIView):
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
+        """
+        Send a Safe Multisig Transaction
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
@@ -204,6 +216,9 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
+        """
+        Estimates a Safe Multisig Transaction
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
