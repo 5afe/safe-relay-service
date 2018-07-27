@@ -14,11 +14,13 @@ from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .safe_service import SafeServiceException, SafeServiceProvider
-from .serializers import (SafeCreationSerializer, SafeFundingResponseSerializer,
+from .serializers import (SafeCreationSerializer,
+                          SafeFundingResponseSerializer,
+                          SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigEstimateTxSerializer,
+                          SafeMultisigTxResponseSerializer,
                           SafeMultisigTxSerializer,
-                          SafeTransactionCreationResponseSerializer, SafeMultisigTxResponseSerializer,
-                          SafeMultisigEstimateTxResponseSerializer)
+                          SafeTransactionCreationResponseSerializer)
 
 
 def custom_exception_handler(exc, context):

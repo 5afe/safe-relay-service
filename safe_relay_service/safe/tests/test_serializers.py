@@ -7,7 +7,8 @@ from safe_relay_service.ether.tests.factories import get_eth_address_with_key
 
 from ..models import SafeContract, SafeFunding
 from ..safe_service import SafeServiceProvider
-from ..serializers import (SafeCreationSerializer, SafeFundingResponseSerializer,
+from ..serializers import (SafeCreationSerializer,
+                           SafeFundingResponseSerializer,
                            SafeMultisigEstimateTxSerializer,
                            SafeMultisigTxSerializer)
 from .factories import generate_safe
