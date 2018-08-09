@@ -2,9 +2,8 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
-from hexbytes import HexBytes
-
 from django_eth.constants import NULL_ADDRESS
+from hexbytes import HexBytes
 
 from ..contracts import get_safe_personal_contract
 from ..safe_service import (InvalidMasterCopyAddress,

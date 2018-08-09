@@ -1,103 +1,13 @@
 from typing import Dict, Iterable, List
 
-import ethereum.utils
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from hexbytes import HexBytes
+from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
+                               HexField)
 from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumServiceProvider
 from .safe_service import SafeServiceProvider
-from .validators import validate_checksumed_address
-
-
-class EthereumAddressField(models.CharField):
-    default_validators = [validate_checksumed_address]
-    description = "Ethereum address"
-
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 42
-        super().__init__(*args, **kwargs)
-
-    def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        del kwargs['max_length']
-        return name, path, args, kwargs
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        value = super().to_python(value)
-        if value:
-            return ethereum.utils.checksum_encode(value)
-        else:
-            return value
-
-    def get_prep_value(self, value):
-        value = super().get_prep_value(value)
-        if value:
-            return ethereum.utils.checksum_encode(value)
-        else:
-            return value
-
-
-class EthereumBigIntegerField(models.CharField):
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 64
-        super().__init__(*args, **kwargs)
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        value = super().to_python(value)
-        if not value:
-            return value
-        else:
-            return int(value, 16)
-
-    def get_prep_value(self, value):
-        if not value:
-            return value
-        if isinstance(value, str):
-            return value
-        else:
-            return hex(int(value))[2:]
-
-
-class HexField(models.CharField):
-    """
-    Field to store hex values (without 0x). Returns hex with 0x prefix.
-
-    On Database side a CharField is used.
-    """
-    description = "Saves a hex value into an CharField"
-
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 64
-        super().__init__(*args, **kwargs)
-
-    def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        del kwargs['max_length']
-        return name, path, args, kwargs
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        return value if value is None else HexBytes(value).hex()
-
-    def get_prep_value(self, value):
-        if value is None:
-            return value
-        elif isinstance(value, bytes):
-            return value.hex()
-        elif isinstance(value, HexBytes):
-            return value.hex()[2:]
-        else:  # str
-            return HexBytes(value).hex()[2:]
 
 
 class SafeContract(TimeStampedModel):
