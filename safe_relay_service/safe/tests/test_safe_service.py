@@ -4,7 +4,7 @@ from django.conf import settings
 from django.test import TestCase
 from hexbytes import HexBytes
 
-from safe_relay_service.ether.utils import NULL_ADDRESS
+from django_eth.constants import NULL_ADDRESS
 
 from ..contracts import get_safe_personal_contract
 from ..safe_service import (InvalidMasterCopyAddress,

@@ -11,7 +11,7 @@ from ethereum.utils import checksum_encode, mk_contract_address
 from hexbytes import HexBytes
 from web3 import Web3
 
-from safe_relay_service.ether.utils import NULL_ADDRESS
+from django_eth.constants import NULL_ADDRESS
 
 from .contracts import get_paying_proxy_contract, get_safe_personal_contract
 

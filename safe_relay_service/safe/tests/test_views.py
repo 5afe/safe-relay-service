@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from safe_relay_service.ether.tests.factories import (get_eth_address_with_invalid_checksum,
                                                       get_eth_address_with_key)
-from safe_relay_service.ether.utils import NULL_ADDRESS
+from django_eth.constants import NULL_ADDRESS
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..safe_service import SafeServiceProvider

@@ -7,7 +7,7 @@ from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 from web3.utils.threads import Timeout
 
-from safe_relay_service.ether.utils import NULL_ADDRESS
+from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 logger = getLogger(__name__)

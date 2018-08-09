@@ -3,7 +3,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
-from safe_relay_service.ether.utils import NULL_ADDRESS
+from django_eth.constants import NULL_ADDRESS
 
 from .abis import load_contract_interface
 
