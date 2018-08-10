@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Dict, Tuple
 
 from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
 from django_eth.serializers import (EthereumAddressField, HexadecimalField,
@@ -8,43 +7,12 @@ from django_eth.serializers import (EthereumAddressField, HexadecimalField,
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from safe_relay_service.ether.signing import EthereumSignedMessage
 from safe_relay_service.safe.models import SafeCreation, SafeFunding
 
 from .ethereum_service import EthereumServiceProvider
 from .safe_service import SafeServiceProvider
 
 logger = logging.getLogger(__name__)
-
-
-# ================================================ #
-#                 Serializers
-# ================================================ #
-class SignedMessageSerializer(serializers.Serializer):
-    """
-    Inherit from this class and define get_hashed_fields function
-    Take care not to define `message`, `message_hash` or `signing_address` fields
-    """
-    signature = SignatureSerializer()
-
-    def validate(self, data):
-        super().validate(data)
-        v = data['signature']['v']
-        r = data['signature']['r']
-        s = data['signature']['s']
-        message = ''.join(self.get_hashed_fields(data))
-        ethereum_signed_message = EthereumSignedMessage(message, v, r, s)
-        data['message'] = message
-        data['message_hash'] = ethereum_signed_message.message_hash
-        data['signing_address'] = ethereum_signed_message.get_signing_address()
-        return data
-
-    def get_hashed_fields(self, data: Dict[str, Any]) -> Tuple[str]:
-        """
-        :return: fields to concatenate for hash calculation
-        :rtype: Tuple[str]
-        """
-        return ()
 
 
 class SafeCreationSerializer(serializers.Serializer):
