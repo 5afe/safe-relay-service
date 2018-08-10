@@ -3,7 +3,7 @@ from typing import Dict, Iterable, List
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
-                               HexField)
+                               HexField, Uint256Field)
 from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumServiceProvider
@@ -63,12 +63,12 @@ class SafeCreation(TimeStampedModel):
     deployer = EthereumAddressField(primary_key=True)
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     owners = ArrayField(EthereumAddressField())
-    threshold = models.PositiveSmallIntegerField()
-    payment = models.BigIntegerField()
+    threshold = Uint256Field()
+    payment = Uint256Field()
     tx_hash = HexField(unique=True)
-    gas = models.PositiveIntegerField()
-    gas_price = models.BigIntegerField()
-    value = models.BigIntegerField()
+    gas = Uint256Field()
+    gas_price = Uint256Field()
+    value = Uint256Field()
     v = models.PositiveSmallIntegerField()
     r = EthereumBigIntegerField()
     s = EthereumBigIntegerField()
@@ -204,16 +204,16 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
-    value = models.BigIntegerField()
+    value = Uint256Field()
     data = models.BinaryField(null=True)
     operation = models.PositiveSmallIntegerField()
-    safe_tx_gas = models.PositiveIntegerField()
-    data_gas = models.PositiveIntegerField()
-    gas_price = models.BigIntegerField()
+    safe_tx_gas = Uint256Field()
+    data_gas = Uint256Field()
+    gas_price = Uint256Field()
     gas_token = EthereumAddressField(null=True)
     signatures = models.BinaryField()
-    gas = models.PositiveIntegerField()  # Gas for the tx that executes the multisig tx
-    nonce = models.PositiveIntegerField()
+    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
+    nonce = Uint256Field()
     tx_hash = HexField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
