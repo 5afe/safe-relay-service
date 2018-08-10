@@ -70,8 +70,8 @@ class SafeCreation(TimeStampedModel):
     gas_price = Uint256Field()
     value = Uint256Field()
     v = models.PositiveSmallIntegerField()
-    r = models.CharField(max_length=100)
-    s = models.CharField(max_length=100)
+    r = EthereumBigIntegerField()
+    s = EthereumBigIntegerField()
     data = models.BinaryField(null=True)
     signed_tx = models.BinaryField(null=True)
 
