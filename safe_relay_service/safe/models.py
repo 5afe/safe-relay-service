@@ -219,3 +219,6 @@ class SafeMultisigTx(TimeStampedModel):
 
     class Meta:
         unique_together = (('safe', 'nonce'),)
+
+    def __str__(self):
+        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
