@@ -2,9 +2,10 @@ from typing import Dict, Iterable, List
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from model_utils.models import TimeStampedModel
+
 from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
                                Sha3HashField, Uint256Field)
-from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumServiceProvider
 from .safe_service import SafeServiceProvider

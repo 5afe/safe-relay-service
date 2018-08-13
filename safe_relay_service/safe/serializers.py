@@ -1,12 +1,12 @@
 import logging
 
-from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
-from django_eth.serializers import (EthereumAddressField, HexadecimalField,
-                                    SignatureSerializer,
-                                    TransactionResponseSerializer, Sha3HashField)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
+from django_eth.serializers import (EthereumAddressField, HexadecimalField,
+                                    Sha3HashField, SignatureSerializer,
+                                    TransactionResponseSerializer)
 from safe_relay_service.safe.models import SafeCreation, SafeFunding
 
 from .ethereum_service import EthereumServiceProvider

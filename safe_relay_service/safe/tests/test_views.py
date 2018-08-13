@@ -1,12 +1,13 @@
 import logging
 
 from django.urls import reverse
-from django_eth.constants import NULL_ADDRESS
-from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
-                                        get_eth_address_with_key)
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from django_eth.constants import NULL_ADDRESS
+from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
+                                        get_eth_address_with_key)
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..safe_service import SafeServiceProvider

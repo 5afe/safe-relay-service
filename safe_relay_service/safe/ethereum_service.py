@@ -1,6 +1,5 @@
 from logging import getLogger
 
-from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import (check_checksum, checksum_encode, ecrecover_to_pub,
                             privtoaddr, sha3)
 from hexbytes import HexBytes
@@ -8,6 +7,7 @@ from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 from web3.utils.threads import Timeout
 
+from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 logger = getLogger(__name__)
