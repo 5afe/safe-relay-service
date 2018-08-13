@@ -206,7 +206,7 @@ class SafeMultisigTx(TimeStampedModel):
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
-    operation = models.PositiveSmallIntegerField(choices=[(tag, tag.value) for tag in SafeOperation])
+    operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
     safe_tx_gas = Uint256Field()
     data_gas = Uint256Field()
     gas_price = Uint256Field()
