@@ -106,7 +106,7 @@ class TestSerializers(TestCase):
         self.assertFalse(serializer.is_valid())  # To and data cannot both be null
 
         tx_data = HexBytes('0xabcd')
-        data['data'] = tx_data
+        data['data'] = tx_data.hex()
         serializer = SafeMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Operation is not create, but no to provided
 

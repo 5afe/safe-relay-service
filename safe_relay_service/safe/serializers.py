@@ -3,7 +3,7 @@ import logging
 from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
 from django_eth.serializers import (EthereumAddressField, HexadecimalField,
                                     SignatureSerializer,
-                                    TransactionResponseSerializer)
+                                    TransactionResponseSerializer, Sha3HashField)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -36,7 +36,7 @@ class SafeMultisigEstimateTxSerializer(serializers.Serializer):
     safe = EthereumAddressField()
     to = EthereumAddressField(default=None, allow_null=True)
     value = serializers.IntegerField(min_value=0)
-    data = HexadecimalField(default=None, allow_null=True)
+    data = HexadecimalField(default=None, allow_null=True, allow_blank=True)
     operation = serializers.IntegerField(min_value=0, max_value=2)  # Call, DelegateCall or Create
 
     def validate(self, data):
@@ -139,11 +139,11 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
 
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
-    transaction_hash = HexadecimalField()
+    transaction_hash = Sha3HashField()
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     safe_tx_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
-    gas_token = HexadecimalField()
+    gas_token = HexadecimalField(allow_blank=True, allow_null=True)
