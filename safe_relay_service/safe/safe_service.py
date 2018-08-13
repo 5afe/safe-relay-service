@@ -1,12 +1,12 @@
+from enum import Enum
 from logging import getLogger
 from typing import List, Tuple
 
 import eth_abi
+from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import sha3
 from hexbytes import HexBytes
 from web3.exceptions import BadFunctionCallOutput
-
-from django_eth.constants import NULL_ADDRESS
 
 from .contracts import (get_paying_proxy_contract,
                         get_paying_proxy_deployed_bytecode,
@@ -47,6 +47,12 @@ class SignatureNotProvidedByOwner(SafeServiceException):
 
 class CannotPayGasWithEther(SafeServiceException):
     pass
+
+
+class SafeOperation(Enum):
+    CALL = 0
+    DELEGATE_CALL = 1
+    CREATE = 2
 
 
 class SafeServiceProvider:

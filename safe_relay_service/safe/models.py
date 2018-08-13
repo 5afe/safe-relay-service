@@ -2,13 +2,12 @@ from typing import Dict, Iterable, List
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from model_utils.models import TimeStampedModel
-
 from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
                                Sha3HashField, Uint256Field)
+from model_utils.models import TimeStampedModel
 
 from .ethereum_service import EthereumServiceProvider
-from .safe_service import SafeServiceProvider
+from .safe_service import SafeOperation, SafeServiceProvider
 
 
 class SafeContract(TimeStampedModel):
@@ -207,7 +206,7 @@ class SafeMultisigTx(TimeStampedModel):
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
-    operation = models.PositiveSmallIntegerField()
+    operation = models.PositiveSmallIntegerField(choices=[(tag, tag.value) for tag in SafeOperation])
     safe_tx_gas = Uint256Field()
     data_gas = Uint256Field()
     gas_price = Uint256Field()

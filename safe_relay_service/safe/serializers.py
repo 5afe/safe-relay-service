@@ -1,16 +1,16 @@
 import logging
 
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-
 from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
 from django_eth.serializers import (EthereumAddressField, HexadecimalField,
                                     Sha3HashField, SignatureSerializer,
                                     TransactionResponseSerializer)
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from safe_relay_service.safe.models import SafeCreation, SafeFunding
 
 from .ethereum_service import EthereumServiceProvider
-from .safe_service import SafeServiceProvider
+from .safe_service import SafeOperation, SafeServiceProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +39,27 @@ class SafeMultisigEstimateTxSerializer(serializers.Serializer):
     data = HexadecimalField(default=None, allow_null=True, allow_blank=True)
     operation = serializers.IntegerField(min_value=0, max_value=2)  # Call, DelegateCall or Create
 
+    def validate_operation(self, value):
+        try:
+            SafeOperation(value)
+            return value
+        except ValueError:
+            raise ValidationError('Unknown operation')
+
     def validate(self, data):
         super().validate(data)
 
         if not data['to'] and not data['data']:
             raise ValidationError('`data` and `to` cannot both be null')
 
-        if data['operation'] == 2:
+        if not data['to'] and not data['data']:
+            raise ValidationError('`data` and `to` cannot both be null')
+
+        if data['operation'] == SafeOperation.CREATE.value:
             if data['to']:
                 raise ValidationError('Operation is Create, but `to` was provided')
+            elif not data['data']:
+                raise ValidationError('Operation is Create, but not `data` was provided')
         elif not data['to']:
             raise ValidationError('Operation is not create, but `to` was not provided')
 
@@ -76,17 +88,6 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         # TODO check this - if safe_creation.safe.has_valid_master_copy():
         if safe_creation.safe.address in safe_service.valid_master_copy_addresses:
             raise ValidationError('Safe proxy master-copy={} not valid')
-
-        if not data['to'] and not data['data']:
-            raise ValidationError('`data` and `to` cannot both be null')
-
-        if data['operation'] == 2:
-            if data['to']:
-                raise ValidationError('Operation is Create, but `to` was provided')
-            elif not data['data']:
-                raise ValidationError('Operation is Create, but not `data` was provided')
-        elif not data['to']:
-            raise ValidationError('Operation is not create, but `to` was not provided')
 
         if data.get('gas_token'):
             raise ValidationError('Gas Token is still not supported')

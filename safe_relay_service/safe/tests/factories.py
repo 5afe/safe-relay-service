@@ -1,11 +1,11 @@
 import os
 from logging import getLogger
 
+from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Factory as FakerFactory
 from faker import Faker
 
-from django_eth.tests.factories import get_eth_address_with_key
 from safe_relay_service.safe.models import SafeCreation
 
 fakerFactory = FakerFactory.create()

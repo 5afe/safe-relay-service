@@ -1,9 +1,8 @@
 from django.conf import settings
+from django_eth.constants import NULL_ADDRESS
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
-
-from django_eth.constants import NULL_ADDRESS
 
 from .abis import load_contract_interface
 
