@@ -2,12 +2,13 @@ from typing import Dict, Iterable, List
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
-                               Sha3HashField, Uint256Field)
 from model_utils.models import TimeStampedModel
 
-from .ethereum_service import EthereumServiceProvider
-from .safe_service import SafeOperation, SafeServiceProvider
+from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
+                               Sha3HashField, Uint256Field)
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
+from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 
 class SafeContract(TimeStampedModel):
@@ -36,7 +37,9 @@ class SafeCreationManager(models.Manager):
         """
 
         safe_service = SafeServiceProvider()
-        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold)
+        gas_station = GasStationProvider()
+        fast_gas_price: int = gas_station.get_gas_prices().fast
+        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)

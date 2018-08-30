@@ -8,12 +8,13 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
+from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
+from safe_relay_service.gas_station.gas_station import GasStationProvider
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding, SafeMultisigTx)
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
-from .safe_service import SafeServiceException, SafeServiceProvider
 from .serializers import (SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
@@ -240,7 +241,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                                        data['operation'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
                                                                  data['operation'], safe_tx_gas)
-            gas_price = safe_service.ethereum_service.get_fast_gas_price()
+            gas_price = GasStationProvider().get_gas_prices().fast
 
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,

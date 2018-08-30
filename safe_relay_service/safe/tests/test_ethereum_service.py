@@ -4,7 +4,7 @@ from django.conf import settings
 from django.test import TestCase
 from hexbytes import HexBytes
 
-from ..ethereum_service import EthereumServiceProvider
+from gnosis.safe.ethereum_service import EthereumServiceProvider
 
 logger = logging.getLogger(__name__)
 
