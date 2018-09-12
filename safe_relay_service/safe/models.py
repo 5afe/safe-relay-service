@@ -4,7 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from model_utils.models import TimeStampedModel
 
-from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
+from django_eth.models import (EthereumAddressField, Uint256Field,
                                Sha3HashField, Uint256Field)
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
@@ -73,8 +73,8 @@ class SafeCreation(TimeStampedModel):
     gas_price = Uint256Field()
     value = Uint256Field()
     v = models.PositiveSmallIntegerField()
-    r = EthereumBigIntegerField()
-    s = EthereumBigIntegerField()
+    r = Uint256Field()
+    s = Uint256Field()
     data = models.BinaryField(null=True)
     signed_tx = models.BinaryField(null=True)
 
