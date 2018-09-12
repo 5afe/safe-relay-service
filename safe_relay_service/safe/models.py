@@ -1,103 +1,14 @@
 from typing import Dict, Iterable, List
 
-import ethereum.utils
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
-from .ethereum_service import EthereumServiceProvider
-from .safe_service import SafeServiceProvider
-from .validators import validate_checksumed_address
-
-
-class EthereumAddressField(models.CharField):
-    default_validators = [validate_checksumed_address]
-    description = "Ethereum address"
-
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 42
-        super().__init__(*args, **kwargs)
-
-    def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        del kwargs['max_length']
-        return name, path, args, kwargs
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        value = super().to_python(value)
-        if value:
-            return ethereum.utils.checksum_encode(value)
-        else:
-            return value
-
-    def get_prep_value(self, value):
-        value = super().get_prep_value(value)
-        if value:
-            return ethereum.utils.checksum_encode(value)
-        else:
-            return value
-
-
-class EthereumBigIntegerField(models.CharField):
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 64
-        super().__init__(*args, **kwargs)
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        value = super().to_python(value)
-        if not value:
-            return value
-        else:
-            return int(value, 16)
-
-    def get_prep_value(self, value):
-        if not value:
-            return value
-        if isinstance(value, str):
-            return value
-        else:
-            return hex(int(value))[2:]
-
-
-class HexField(models.CharField):
-    """
-    Field to store hex values (without 0x). Returns hex with 0x prefix.
-
-    On Database side a CharField is used.
-    """
-    description = "Saves a hex value into an CharField"
-
-    def __init__(self, *args, **kwargs):
-        kwargs['max_length'] = 64
-        super().__init__(*args, **kwargs)
-
-    def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
-        del kwargs['max_length']
-        return name, path, args, kwargs
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)
-
-    def to_python(self, value):
-        return value if value is None else HexBytes(value).hex()
-
-    def get_prep_value(self, value):
-        if value is None:
-            return value
-        elif isinstance(value, bytes):
-            return value.hex()
-        elif isinstance(value, HexBytes):
-            return value.hex()[2:]
-        else:  # str
-            return HexBytes(value).hex()[2:]
+from django_eth.models import (EthereumAddressField, EthereumBigIntegerField,
+                               Sha3HashField, Uint256Field)
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
+from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 
 class SafeContract(TimeStampedModel):
@@ -126,7 +37,9 @@ class SafeCreationManager(models.Manager):
         """
 
         safe_service = SafeServiceProvider()
-        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold)
+        gas_station = GasStationProvider()
+        fast_gas_price: int = gas_station.get_gas_prices().fast
+        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
@@ -153,12 +66,12 @@ class SafeCreation(TimeStampedModel):
     deployer = EthereumAddressField(primary_key=True)
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     owners = ArrayField(EthereumAddressField())
-    threshold = models.PositiveSmallIntegerField()
-    payment = models.BigIntegerField()
-    tx_hash = HexField(unique=True)
-    gas = models.PositiveIntegerField()
-    gas_price = models.BigIntegerField()
-    value = models.BigIntegerField()
+    threshold = Uint256Field()
+    payment = Uint256Field()
+    tx_hash = Sha3HashField(unique=True)
+    gas = Uint256Field()
+    gas_price = Uint256Field()
+    value = Uint256Field()
     v = models.PositiveSmallIntegerField()
     r = EthereumBigIntegerField()
     s = EthereumBigIntegerField()
@@ -192,10 +105,10 @@ class SafeFunding(TimeStampedModel):
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
     deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
-    deployer_funded_tx_hash = HexField(unique=True, blank=True, null=True)
+    deployer_funded_tx_hash = Sha3HashField(unique=True, blank=True, null=True)
     safe_deployed = models.BooleanField(default=False, db_index=True)  # Set when safe_deployed_tx_hash is mined
     # We could use SafeCreation.tx_hash, but we would run into troubles because of Ganache
-    safe_deployed_tx_hash = HexField(unique=True, blank=True, null=True)
+    safe_deployed_tx_hash = Sha3HashField(unique=True, blank=True, null=True)
 
     def is_all_funded(self):
         return self.safe_funded and self.deployer_funded
@@ -294,21 +207,21 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
-    value = models.BigIntegerField()
+    value = Uint256Field()
     data = models.BinaryField(null=True)
-    operation = models.PositiveSmallIntegerField()
-    safe_tx_gas = models.PositiveIntegerField()
-    data_gas = models.PositiveIntegerField()
-    gas_price = models.BigIntegerField()
+    operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
+    safe_tx_gas = Uint256Field()
+    data_gas = Uint256Field()
+    gas_price = Uint256Field()
     gas_token = EthereumAddressField(null=True)
     signatures = models.BinaryField()
-    gas = models.PositiveIntegerField()  # Gas for the tx that executes the multisig tx
-    nonce = models.PositiveIntegerField()
-    tx_hash = HexField(unique=True)
+    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
+    nonce = Uint256Field()
+    tx_hash = Sha3HashField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (('safe', 'nonce'),)
 
-    def get_formated_tx_hash(self):
-        return HexBytes(self.tx_hash).hex()
+    def __str__(self):
+        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)

@@ -1,137 +1,22 @@
 import logging
-from typing import Any, Dict, Tuple
 
-from ethereum.transactions import secpk1n
-from ethereum.utils import checksum_encode
-from hexbytes import HexBytes
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from safe_relay_service.ether.signing import EthereumSignedMessage
+from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
+from django_eth.serializers import (EthereumAddressField, HexadecimalField,
+                                    Sha3HashField, SignatureSerializer,
+                                    TransactionResponseSerializer)
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
 from safe_relay_service.safe.models import SafeCreation, SafeFunding
-
-from .ethereum_service import EthereumServiceProvider
-from .safe_service import SafeServiceProvider
 
 logger = logging.getLogger(__name__)
 
 
-def isoformat_without_ms(date_time):
-    return date_time.replace(microsecond=0).isoformat()
-
-
-# ================================================ #
-#                Custom Fields
-# ================================================ #
-class EthereumAddressField(serializers.Field):
-    """
-    Ethereum address checksumed
-    https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md
-    """
-
-    def to_representation(self, obj):
-        return obj
-
-    def to_internal_value(self, data):
-        # Check if address is valid
-
-        try:
-            if checksum_encode(data) != data:
-                raise ValueError
-            elif int(data, 16) == 0:
-                raise ValidationError("0x0 address is not allowed")
-            elif int(data, 16) == 1:
-                raise ValidationError("0x1 address is not allowed")
-        except ValueError:
-            raise ValidationError("Address %s is not checksumed" % data)
-        except Exception:
-            raise ValidationError("Address %s is not valid" % data)
-
-        return data
-
-
-class HexadecimalField(serializers.Field):
-    def to_representation(self, obj):
-        if not obj:
-            return '0x'
-        else:
-            return obj.hex()
-
-    def to_internal_value(self, data):
-        if not data or data == '0x':
-            return None
-        try:
-            return HexBytes(data)
-        except ValueError:
-            raise ValidationError("%s is not hexadecimal" % data)
-
-
-# ================================================ #
-#                Base Serializers
-# ================================================ #
-class SignatureSerializer(serializers.Serializer):
-    v = serializers.IntegerField(min_value=27, max_value=30)
-    r = serializers.IntegerField(min_value=1, max_value=secpk1n - 1)
-    s = serializers.IntegerField(min_value=1, max_value=secpk1n // 2)
-
-
-class SignatureResponseSerializer(serializers.Serializer):
-    """
-    Use CharField because of JavaScript problems with big integers
-    """
-    v = serializers.CharField()
-    r = serializers.CharField()
-    s = serializers.CharField()
-
-
-class TransactionSerializer(serializers.Serializer):
-    from_ = EthereumAddressField()
-    value = serializers.IntegerField(min_value=0)
-    data = serializers.CharField()
-    gas = serializers.CharField()
-    gas_price = serializers.CharField()
-    nonce = serializers.IntegerField(min_value=0)
-
-    def get_fields(self):
-        result = super().get_fields()
-        # Rename `from_` to `from`
-        from_ = result.pop('from_')
-        result['from'] = from_
-        return result
-
-
-# ================================================ #
-#                 Serializers
-# ================================================ #
-class SignedMessageSerializer(serializers.Serializer):
-    """
-    Inherit from this class and define get_hashed_fields function
-    Take care not to define `message`, `message_hash` or `signing_address` fields
-    """
-    signature = SignatureSerializer()
-
-    def validate(self, data):
-        super().validate(data)
-        v = data['signature']['v']
-        r = data['signature']['r']
-        s = data['signature']['s']
-        message = ''.join(self.get_hashed_fields(data))
-        ethereum_signed_message = EthereumSignedMessage(message, v, r, s)
-        data['message'] = message
-        data['message_hash'] = ethereum_signed_message.message_hash
-        data['signing_address'] = ethereum_signed_message.get_signing_address()
-        return data
-
-    def get_hashed_fields(self, data: Dict[str, Any]) -> Tuple[str]:
-        """
-        :return: fields to concatenate for hash calculation
-        :rtype: Tuple[str]
-        """
-        return ()
-
-
 class SafeCreationSerializer(serializers.Serializer):
-    s = serializers.IntegerField(min_value=1, max_value=secpk1n // 2)
+    s = serializers.IntegerField(min_value=SIGNATURE_S_MIN_VALUE,
+                                 max_value=SIGNATURE_S_MAX_VALUE)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
 
@@ -146,25 +31,19 @@ class SafeCreationSerializer(serializers.Serializer):
         return data
 
 
-class SafeTransactionCreationResponseSerializer(serializers.Serializer):
-    signature = SignatureResponseSerializer()
-    tx = TransactionSerializer()
-    payment = serializers.CharField()
-    safe = EthereumAddressField()
-
-
-class SafeFundingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SafeFunding
-        fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
-
-
 class SafeMultisigEstimateTxSerializer(serializers.Serializer):
     safe = EthereumAddressField()
     to = EthereumAddressField(default=None, allow_null=True)
     value = serializers.IntegerField(min_value=0)
-    data = HexadecimalField(default=None, allow_null=True)
+    data = HexadecimalField(default=None, allow_null=True, allow_blank=True)
     operation = serializers.IntegerField(min_value=0, max_value=2)  # Call, DelegateCall or Create
+
+    def validate_operation(self, value):
+        try:
+            SafeOperation(value)
+            return value
+        except ValueError:
+            raise ValidationError('Unknown operation')
 
     def validate(self, data):
         super().validate(data)
@@ -172,9 +51,14 @@ class SafeMultisigEstimateTxSerializer(serializers.Serializer):
         if not data['to'] and not data['data']:
             raise ValidationError('`data` and `to` cannot both be null')
 
-        if data['operation'] == 2:
+        if not data['to'] and not data['data']:
+            raise ValidationError('`data` and `to` cannot both be null')
+
+        if data['operation'] == SafeOperation.CREATE.value:
             if data['to']:
                 raise ValidationError('Operation is Create, but `to` was provided')
+            elif not data['data']:
+                raise ValidationError('Operation is Create, but not `data` was provided')
         elif not data['to']:
             raise ValidationError('Operation is not create, but `to` was not provided')
 
@@ -204,17 +88,6 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
         if safe_creation.safe.address in safe_service.valid_master_copy_addresses:
             raise ValidationError('Safe proxy master-copy={} not valid')
 
-        if not data['to'] and not data['data']:
-            raise ValidationError('`data` and `to` cannot both be null')
-
-        if data['operation'] == 2:
-            if data['to']:
-                raise ValidationError('Operation is Create, but `to` was provided')
-            elif not data['data']:
-                raise ValidationError('Operation is Create, but not `data` was provided')
-        elif not data['to']:
-            raise ValidationError('Operation is not create, but `to` was not provided')
-
         if data.get('gas_token'):
             raise ValidationError('Gas Token is still not supported')
 
@@ -238,3 +111,39 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
 
         data['owners'] = owners
         return data
+
+
+# ================================================ #
+#                Responses                         #
+# ================================================ #
+class SignatureResponseSerializer(serializers.Serializer):
+    """
+    Use CharField because of JavaScript problems with big integers
+    """
+    v = serializers.CharField()
+    r = serializers.CharField()
+    s = serializers.CharField()
+
+
+class SafeTransactionCreationResponseSerializer(serializers.Serializer):
+    signature = SignatureResponseSerializer()
+    tx = TransactionResponseSerializer()
+    payment = serializers.CharField()
+    safe = EthereumAddressField()
+
+
+class SafeFundingResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeFunding
+        fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
+
+
+class SafeMultisigTxResponseSerializer(serializers.Serializer):
+    transaction_hash = Sha3HashField()
+
+
+class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
+    safe_tx_gas = serializers.IntegerField(min_value=0)
+    data_gas = serializers.IntegerField(min_value=0)
+    gas_price = serializers.IntegerField(min_value=0)
+    gas_token = HexadecimalField(allow_blank=True, allow_null=True)

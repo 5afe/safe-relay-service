@@ -1,6 +1,6 @@
-from ..contracts import get_safe_personal_contract
-from ..ethereum_service import EthereumServiceProvider
-from ..safe_service import SafeServiceProvider
+from gnosis.safe.contracts import get_safe_personal_contract
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import SafeServiceProvider
 
 
 class TestCaseWithSafeContractMixin:

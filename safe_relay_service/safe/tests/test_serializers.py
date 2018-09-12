@@ -3,11 +3,12 @@ from ethereum.transactions import secpk1n
 from faker import Faker
 from hexbytes import HexBytes
 
-from safe_relay_service.ether.tests.factories import get_eth_address_with_key
+from django_eth.tests.factories import get_eth_address_with_key
+from gnosis.safe.safe_service import SafeServiceProvider
 
 from ..models import SafeContract, SafeFunding
-from ..safe_service import SafeServiceProvider
-from ..serializers import (SafeCreationSerializer, SafeFundingSerializer,
+from ..serializers import (SafeCreationSerializer,
+                           SafeFundingResponseSerializer,
                            SafeMultisigEstimateTxSerializer,
                            SafeMultisigTxSerializer)
 from .factories import generate_safe
@@ -49,7 +50,7 @@ class TestSerializers(TestCase):
         safe_contract = SafeContract.objects.create(address=owner1, master_copy='0x' + '0' * 40)
         safe_funding = SafeFunding.objects.create(safe=safe_contract)
 
-        s = SafeFundingSerializer(safe_funding)
+        s = SafeFundingResponseSerializer(safe_funding)
 
         self.assertTrue(s.data)
 
@@ -106,7 +107,7 @@ class TestSerializers(TestCase):
         self.assertFalse(serializer.is_valid())  # To and data cannot both be null
 
         tx_data = HexBytes('0xabcd')
-        data['data'] = tx_data
+        data['data'] = tx_data.hex()
         serializer = SafeMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Operation is not create, but no to provided
 

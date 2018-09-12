@@ -1,5 +1,6 @@
 import ethereum.utils
 from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -7,14 +8,18 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
+from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
+from safe_relay_service.gas_station.gas_station import GasStationProvider
 from safe_relay_service.safe.models import (SafeContract, SafeCreation,
                                             SafeFunding, SafeMultisigTx)
 from safe_relay_service.safe.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
-from .safe_service import SafeServiceException, SafeServiceProvider
-from .serializers import (SafeCreationSerializer, SafeFundingSerializer,
+from .serializers import (SafeCreationSerializer,
+                          SafeFundingResponseSerializer,
+                          SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigEstimateTxSerializer,
+                          SafeMultisigTxResponseSerializer,
                           SafeMultisigTxSerializer,
                           SafeTransactionCreationResponseSerializer)
 
@@ -57,6 +62,7 @@ class AboutView(APIView):
             'name': 'Safe Relay Service',
             'version': __version__,
             'api_version': self.request.version,
+            'https_detected': self.request.is_secure(),
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
@@ -78,7 +84,13 @@ class SafeCreationView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeCreationSerializer
 
+    @swagger_auto_schema(responses={201: SafeTransactionCreationResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
+        """
+        Begins creation of a Safe
+        """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             s, owners, threshold = serializer.data['s'], serializer.data['owners'], serializer.data['threshold']
@@ -111,78 +123,105 @@ class SafeCreationView(CreateAPIView):
 class SafeSignalView(APIView):
     permission_classes = (AllowAny,)
 
+    @swagger_auto_schema(responses={200: SafeFundingResponseSerializer(),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
     def get(self, request, address, format=None):
+        """
+        Get status of the safe creation
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                safe_funding = SafeFunding.objects.get(safe=address)
+            except SafeFunding.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            safe_funding = SafeFunding.objects.get(safe=address)
-        except SafeFunding.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            serializer = SafeFundingResponseSerializer(safe_funding)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
 
-        serializer = SafeFundingSerializer(safe_funding)
-        return Response(status=status.HTTP_200_OK, data=serializer.data)
-
+    @swagger_auto_schema(responses={202: 'Task was queued',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
     def put(self, request, address, format=None):
+        """
+        Force check of a safe balance to start the safe creation
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeCreation.objects.get(safe=address)
+            except SafeCreation.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            SafeCreation.objects.get(safe=address)
-        except SafeCreation.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        fund_deployer_task.delay(address)
-
-        return Response(status=status.HTTP_202_ACCEPTED)
+            fund_deployer_task.delay(address)
+            return Response(status=status.HTTP_202_ACCEPTED)
 
 
 class SafeMultisigTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigTxSerializer
 
+    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
+        """
+        Send a Safe Multisig Transaction
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        try:
-            SafeContract.objects.get(address=address)
-        except SafeContract.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        request.data['safe'] = address
-        serializer = self.serializer_class(data=request.data)
-
-        if serializer.is_valid():
-            data = serializer.validated_data
-            try:
-                safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
-                    safe_address=data['safe'],
-                    to=data['to'],
-                    value=data['value'],
-                    data=data['data'],
-                    operation=data['operation'],
-                    safe_tx_gas=data['safe_tx_gas'],
-                    data_gas=data['data_gas'],
-                    gas_price=data['gas_price'],
-                    gas_token=data['gas_token'],
-                    nonce=data['nonce'],
-                    signatures=data['signatures'],
-                )
-                data = {'transaction_hash': safe_multisig_tx.get_formated_tx_hash()}
-                return Response(status=status.HTTP_201_CREATED, data=data)
-            except SafeMultisigTx.objects.SafeMultisigTxExists:
-                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                data='Safe Multisig Tx with that nonce already exists')
         else:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            request.data['safe'] = address
+            serializer = self.serializer_class(data=request.data)
+
+            if not serializer.is_valid():
+                return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+            else:
+                data = serializer.validated_data
+                try:
+                    safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
+                        safe_address=data['safe'],
+                        to=data['to'],
+                        value=data['value'],
+                        data=data['data'],
+                        operation=data['operation'],
+                        safe_tx_gas=data['safe_tx_gas'],
+                        data_gas=data['data_gas'],
+                        gas_price=data['gas_price'],
+                        gas_token=data['gas_token'],
+                        nonce=data['nonce'],
+                        signatures=data['signatures'],
+                    )
+                    response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
+                                                                                 safe_multisig_tx.tx_hash})
+                    assert response_serializer.is_valid()
+                    return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+                except SafeMultisigTx.objects.SafeMultisigTxExists:
+                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    data='Safe Multisig Tx with that nonce already exists')
 
 
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigEstimateTxSerializer
 
+    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address, format=None):
+        """
+        Estimates a Safe Multisig Transaction
+        """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -202,12 +241,14 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                                        data['operation'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
                                                                  data['operation'], safe_tx_gas)
-            gas_price = safe_service.ethereum_service.get_fast_gas_price()
+            gas_price = GasStationProvider().get_gas_prices().fast
 
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,
                              'gas_price': gas_price,
                              'gas_token': gas_token}
-            return Response(status=status.HTTP_200_OK, data=response_data)
+            response_serializer = SafeMultisigEstimateTxResponseSerializer(data=response_data)
+            assert response_serializer.is_valid()
+            return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
