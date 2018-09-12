@@ -70,6 +70,7 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
     data_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
     gas_token = EthereumAddressField(default=None, allow_null=True)
+    refund_receiver = EthereumAddressField(default=None, allow_null=True)
     nonce = serializers.IntegerField(min_value=0)
     signatures = serializers.ListField(child=SignatureSerializer())
 
@@ -93,7 +94,8 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
 
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
-                                                    data['gas_price'], data['gas_token'], data['nonce'])
+                                                    data['gas_price'], data['gas_token'], data['refund_receiver'],
+                                                    data['nonce'])
 
         owners = [EthereumServiceProvider().get_signing_address(tx_hash,
                                                                 signature['v'],

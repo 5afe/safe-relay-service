@@ -100,6 +100,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         data_gas = safe_tx_gas * 10
         gas_price = 1
         gas_token = None
+        refund_receiver = None
         nonce = 0
 
         multisig_tx_hash = safe_service.get_hash_for_safe_tx(
@@ -112,6 +113,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
             data_gas,
             gas_price,
             gas_token,
+            refund_receiver,
             nonce
         )
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]

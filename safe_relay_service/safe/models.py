@@ -159,6 +159,7 @@ class SafeMultisigTxManager(models.Manager):
                            data_gas: int,
                            gas_price: int,
                            gas_token: str,
+                           refund_receiver: str,
                            nonce: int,
                            signatures: List[Dict[str, int]]):
 
@@ -180,6 +181,7 @@ class SafeMultisigTxManager(models.Manager):
             data_gas,
             gas_price,
             gas_token,
+            refund_receiver,
             signatures_packed,
         )
 

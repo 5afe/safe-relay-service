@@ -199,6 +199,7 @@ class SafeMultisigTxView(CreateAPIView):
                         gas_price=data['gas_price'],
                         gas_token=data['gas_token'],
                         nonce=data['nonce'],
+                        refund_receiver=data['refund_receiver'],
                         signatures=data['signatures'],
                     )
                     response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':

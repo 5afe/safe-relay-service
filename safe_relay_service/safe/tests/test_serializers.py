@@ -67,6 +67,7 @@ class TestSerializers(TestCase):
         data_gas = 1
         gas_price = 1
         gas_token = None
+        refund_receiver = None
         nonce = 0
 
         data = {
@@ -124,6 +125,7 @@ class TestSerializers(TestCase):
             data_gas,
             gas_price,
             gas_token,
+            refund_receiver,
             nonce
         )
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
