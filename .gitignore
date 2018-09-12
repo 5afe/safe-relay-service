@@ -67,6 +67,7 @@ typings/
 .ipfs
 
 .idea
+.vscode
 
 venv/
 config/settings/dev.py
