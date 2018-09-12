@@ -10,9 +10,9 @@ from rest_framework.views import APIView, exception_handler
 
 from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
 from safe_relay_service.gas_station.gas_station import GasStationProvider
-from safe_relay_service.safe.models import (SafeContract, SafeCreation,
+from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                             SafeFunding, SafeMultisigTx)
-from safe_relay_service.safe.tasks import fund_deployer_task
+from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .serializers import (SafeCreationSerializer,

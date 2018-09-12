@@ -9,7 +9,7 @@ from django_eth.serializers import (EthereumAddressField, HexadecimalField,
                                     TransactionResponseSerializer)
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
-from safe_relay_service.safe.models import SafeCreation, SafeFunding
+from safe_relay_service.relay.models import SafeCreation, SafeFunding
 
 logger = logging.getLogger(__name__)
 

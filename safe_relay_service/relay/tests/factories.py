@@ -6,7 +6,7 @@ from faker import Factory as FakerFactory
 from faker import Faker
 
 from django_eth.tests.factories import get_eth_address_with_key
-from safe_relay_service.safe.models import SafeCreation
+from safe_relay_service.relay.models import SafeCreation
 
 fakerFactory = FakerFactory.create()
 faker = Faker()

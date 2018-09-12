@@ -69,7 +69,7 @@ THIRD_PARTY_APPS = [
     'drf_yasg',
 ]
 LOCAL_APPS = [
-    'safe_relay_service.safe.apps.SafeConfig',
+    'safe_relay_service.relay.apps.RelayConfig',
     'safe_relay_service.gas_station.apps.GasStationConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -202,7 +202,7 @@ REST_FRAMEWORK = {
         'djangorestframework_camel_case.parser.CamelCaseJSONParser',
     ),
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',
-    'EXCEPTION_HANDLER': 'safe_relay_service.safe.views.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'safe_relay_service.relay.views.custom_exception_handler'
 }
 
 # LOGGING
