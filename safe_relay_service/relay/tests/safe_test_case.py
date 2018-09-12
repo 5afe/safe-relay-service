@@ -1,4 +1,4 @@
-from gnosis.safe.contracts import get_safe_personal_contract
+from gnosis.safe.contracts import get_safe_contract
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeServiceProvider
 
@@ -15,4 +15,4 @@ class TestCaseWithSafeContractMixin:
                                                                                      cls.safe_personal_deployer)
         cls.safe_service.master_copy_address = cls.safe_personal_contract_address
         cls.safe_service.valid_master_copy_addresses = [cls.safe_personal_contract_address]
-        cls.safe_personal_contract = get_safe_personal_contract(cls.w3, cls.safe_personal_contract_address)
+        cls.safe_personal_contract = get_safe_contract(cls.w3, cls.safe_personal_contract_address)
