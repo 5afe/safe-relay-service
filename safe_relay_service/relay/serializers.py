@@ -109,7 +109,7 @@ class SafeMultisigTxSerializer(SafeMultisigEstimateTxSerializer):
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         if not safe_service.check_hash(tx_hash, safe_service.signatures_to_bytes(signature_pairs), owners):
-            raise ValidationError('Signatures are not sorted by owner')
+            raise ValidationError('Signatures are not sorted by owner: %s' % owners)
 
         data['owners'] = owners
         return data
