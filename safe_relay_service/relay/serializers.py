@@ -1,14 +1,14 @@
 import logging
 
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-
 from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
 from django_eth.serializers import (EthereumAddressField, HexadecimalField,
                                     Sha3HashField, SignatureSerializer,
                                     TransactionResponseSerializer)
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
 
 logger = logging.getLogger(__name__)

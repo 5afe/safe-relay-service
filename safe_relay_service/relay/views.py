@@ -1,6 +1,7 @@
 import ethereum.utils
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
+from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -8,10 +9,9 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
-from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
-                                            SafeFunding, SafeMultisigTx)
+                                             SafeFunding, SafeMultisigTx)
 from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
@@ -209,6 +209,9 @@ class SafeMultisigTxView(CreateAPIView):
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
+                except SafeMultisigTx.objects.SafeMultisigTxError as exc:
+                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    data='Error procesing tx: ' + str(exc))
 
 
 class SafeMultisigTxEstimateView(CreateAPIView):

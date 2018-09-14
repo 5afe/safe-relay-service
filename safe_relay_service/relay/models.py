@@ -2,12 +2,12 @@ from typing import Dict, Iterable, List
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import (InvalidMultisigTx, SafeOperation,
+                                      SafeServiceProvider)
 from model_utils.models import TimeStampedModel
 
-from django_eth.models import (EthereumAddressField, Uint256Field,
-                               Sha3HashField, Uint256Field)
-from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 
@@ -149,6 +149,9 @@ class SafeMultisigTxManager(models.Manager):
     class SafeMultisigTxExists(Exception):
         pass
 
+    class SafeMultisigTxError(Exception):
+        pass
+
     def create_multisig_tx(self,
                            safe_address: str,
                            to: str,
@@ -162,6 +165,11 @@ class SafeMultisigTxManager(models.Manager):
                            refund_receiver: str,
                            nonce: int,
                            signatures: List[Dict[str, int]]):
+        """
+        :return: Database model of SafeMultisigTx
+        :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
+        :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
+        """
 
         if self.filter(safe=safe_address, nonce=nonce).exists():
             raise self.SafeMultisigTxExists
@@ -171,19 +179,22 @@ class SafeMultisigTxManager(models.Manager):
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
 
-        tx_hash, tx = safe_service.send_multisig_tx(
-            safe_address,
-            to,
-            value,
-            data,
-            operation,
-            safe_tx_gas,
-            data_gas,
-            gas_price,
-            gas_token,
-            refund_receiver,
-            signatures_packed,
-        )
+        try:
+            tx_hash, tx = safe_service.send_multisig_tx(
+                safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                signatures_packed,
+            )
+        except InvalidMultisigTx as exc:
+            raise self.SafeMultisigTxError(str(exc)) from exc
 
         safe_contract = SafeContract.objects.get(address=safe_address)
 
