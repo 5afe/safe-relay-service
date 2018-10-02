@@ -5,8 +5,8 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
-from gnosis.safe.safe_service import EthereumServiceProvider
 
+from gnosis.safe.safe_service import EthereumServiceProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
