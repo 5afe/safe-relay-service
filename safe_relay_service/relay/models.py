@@ -208,6 +208,7 @@ class SafeMultisigTxManager(models.Manager):
             data_gas=data_gas,
             gas_price=gas_price,
             gas_token=gas_token,
+            refund_receiver=refund_receiver,
             nonce=nonce,
             signatures=signatures_packed,
             gas=tx['gas'],
@@ -227,6 +228,7 @@ class SafeMultisigTx(TimeStampedModel):
     data_gas = Uint256Field()
     gas_price = Uint256Field()
     gas_token = EthereumAddressField(null=True)
+    refund_receiver = EthereumAddressField(null=True)
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
