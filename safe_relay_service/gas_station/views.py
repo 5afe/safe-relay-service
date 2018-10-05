@@ -8,8 +8,6 @@ from .serializers import GasPriceSerializer
 
 
 class GasStationView(APIView):
-    renderer_classes = (JSONRenderer,)
-
     gas_station = GasStationProvider()
 
     @swagger_auto_schema(responses={200: GasPriceSerializer()})
