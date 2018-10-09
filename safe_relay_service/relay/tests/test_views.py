@@ -5,10 +5,9 @@ from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
                                         get_eth_address_with_key)
 from faker import Faker
+from gnosis.safe.safe_service import SafeServiceProvider
 from rest_framework import status
 from rest_framework.test import APITestCase
-
-from gnosis.safe.safe_service import SafeServiceProvider
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
@@ -96,12 +95,28 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         value = safe_balance // 2
         tx_data = None
         operation = 0
-        safe_tx_gas = 23000
-        data_gas = safe_tx_gas * 10
-        gas_price = 1
-        gas_token = None
         refund_receiver = None
         nonce = 0
+
+        data = {
+            "to": to,
+            "value": value,
+            "data": tx_data,
+            "operation": operation,
+        }
+
+        # Get estimation for gas
+        request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                   data=data,
+                                   format='json')
+        self.assertEqual(request.status_code, status.HTTP_200_OK)
+        estimation_json = request.json()
+
+        safe_tx_gas = estimation_json['safeTxGas']
+        data_gas = estimation_json['dataGas']
+        gas_price = estimation_json['gasPrice']
+        # TODO Use estimation_json['gasToken']
+        gas_token = None
 
         multisig_tx_hash = safe_service.get_hash_for_safe_tx(
             my_safe_address,

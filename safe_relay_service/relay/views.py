@@ -1,6 +1,8 @@
 import ethereum.utils
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
+from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -8,8 +10,6 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
-from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
-from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx)

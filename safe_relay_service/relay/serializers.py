@@ -1,15 +1,16 @@
 import logging
 
-from django_eth.constants import SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE
+from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
+                                  SIGNATURE_S_MIN_VALUE)
 from django_eth.serializers import (EthereumAddressField, HexadecimalField,
                                     Sha3HashField, SignatureSerializer,
                                     TransactionResponseSerializer)
+from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.safe.safe_service import SafeServiceProvider
+from gnosis.safe.serializers import SafeMultisigTxSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
-from gnosis.safe.serializers import SafeMultisigTxSerializer
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
 
 logger = logging.getLogger(__name__)
@@ -50,8 +51,13 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
         if safe_creation.safe.address in safe_service.valid_master_copy_addresses:
             raise ValidationError('Safe proxy master-copy={} not valid')
 
-        if data.get('gas_token'):
+        gas_token = data.get('gas_token')
+        if gas_token and gas_token != NULL_ADDRESS:
             raise ValidationError('Gas Token is still not supported')
+
+        refund_receiver = data.get('refund_receiver')
+        if refund_receiver and refund_receiver != NULL_ADDRESS:
+            raise ValidationError('Refund Receiver is not configurable')
 
         tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
