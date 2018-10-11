@@ -1,16 +1,14 @@
 from django.test import TestCase
+from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Faker
-from hexbytes import HexBytes
-
-from django_eth.tests.factories import get_eth_address_with_key
 from gnosis.safe.safe_service import SafeServiceProvider
+from hexbytes import HexBytes
 
 from ..models import SafeContract, SafeFunding
 from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
-                           SafeMultisigEstimateTxSerializer,
-                           SafeMultisigTxSerializer)
+                           SafeRelayMultisigTxSerializer)
 from .factories import generate_safe
 
 faker = Faker()
@@ -67,6 +65,7 @@ class TestSerializers(TestCase):
         data_gas = 1
         gas_price = 1
         gas_token = None
+        refund_receiver = None
         nonce = 0
 
         data = {
@@ -91,7 +90,7 @@ class TestSerializers(TestCase):
                     's': 29,
                     'v': 28
                 }]}
-        serializer = SafeMultisigTxSerializer(data=data)
+        serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Less signatures than threshold
 
         owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
@@ -103,12 +102,12 @@ class TestSerializers(TestCase):
         safe = generate_safe(owners=owners).safe.address
         data['safe'] = safe
 
-        serializer = SafeMultisigTxSerializer(data=data)
+        serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # To and data cannot both be null
 
         tx_data = HexBytes('0xabcd')
         data['data'] = tx_data.hex()
-        serializer = SafeMultisigTxSerializer(data=data)
+        serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Operation is not create, but no to provided
 
         # Now we fix the signatures
@@ -124,68 +123,10 @@ class TestSerializers(TestCase):
             data_gas,
             gas_price,
             gas_token,
+            refund_receiver,
             nonce
         )
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
         data['signatures'] = signatures
-        serializer = SafeMultisigTxSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-
-    def test_safe_multisig_tx_estimate_serializer(self):
-        safe_address, _ = get_eth_address_with_key()
-        eth_address, _ = get_eth_address_with_key()
-        data = {
-            'safe': safe_address,
-            'to': None,
-            'data': None,
-            'value': 1,
-            'operation': 0
-        }
-        serializer = SafeMultisigEstimateTxSerializer(data=data)
-
-        # To and data cannot be empty
-        self.assertFalse(serializer.is_valid())
-
-        data = {
-            'safe': safe_address,
-            'to': eth_address,
-            'data': '0x00',
-            'value': 1,
-            'operation': 2
-        }
-        serializer = SafeMultisigEstimateTxSerializer(data=data)
-        # Operation cannot be contract creation and to set
-        self.assertFalse(serializer.is_valid())
-
-        data = {
-            'safe': safe_address,
-            'to': None,
-            'data': None,
-            'value': 1,
-            'operation': 2
-        }
-        serializer = SafeMultisigEstimateTxSerializer(data=data)
-        # Operation is not contract creation and to is not empty
-        self.assertFalse(serializer.is_valid())
-
-        data = {
-            'safe': safe_address,
-            'to': eth_address,
-            'data': '0x00',
-            'value': 1,
-            'operation': 0
-        }
-        serializer = SafeMultisigEstimateTxSerializer(data=data)
-        # Operation is not contract creation and to is not empty
-        self.assertTrue(serializer.is_valid())
-
-        data = {
-            'safe': safe_address,
-            'to': None,
-            'data': '0x00',
-            'value': 1,
-            'operation': 2
-        }
-        serializer = SafeMultisigEstimateTxSerializer(data=data)
-        # Operation is not contract creation and to is not empty
+        serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertTrue(serializer.is_valid())

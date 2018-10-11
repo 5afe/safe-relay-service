@@ -1,6 +1,8 @@
 import ethereum.utils
 from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
+from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -8,19 +10,17 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
-from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
 from safe_relay_service.gas_station.gas_station import GasStationProvider
-from safe_relay_service.safe.models import (SafeContract, SafeCreation,
-                                            SafeFunding, SafeMultisigTx)
-from safe_relay_service.safe.tasks import fund_deployer_task
+from safe_relay_service.relay.models import (SafeContract, SafeCreation,
+                                             SafeFunding, SafeMultisigTx)
+from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.version import __version__
 
 from .serializers import (SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
-                          SafeMultisigEstimateTxSerializer,
                           SafeMultisigTxResponseSerializer,
-                          SafeMultisigTxSerializer,
+                          SafeRelayMultisigTxSerializer,
                           SafeTransactionCreationResponseSerializer)
 
 
@@ -73,7 +73,7 @@ class AboutView(APIView):
                 'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
                 'SAFE_GAS_PRICE': settings.SAFE_GAS_PRICE,
-                'SAFE_PERSONAL_CONTRACT_ADDRESS': settings.SAFE_PERSONAL_CONTRACT_ADDRESS,
+                'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
                 'SAFE_TX_SENDER_PUBLIC_KEY': safe_sender_public_key,
             }
         }
@@ -162,7 +162,7 @@ class SafeSignalView(APIView):
 
 class SafeMultisigTxView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeMultisigTxSerializer
+    serializer_class = SafeRelayMultisigTxSerializer
 
     @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -199,6 +199,7 @@ class SafeMultisigTxView(CreateAPIView):
                         gas_price=data['gas_price'],
                         gas_token=data['gas_token'],
                         nonce=data['nonce'],
+                        refund_receiver=data['refund_receiver'],
                         signatures=data['signatures'],
                     )
                     response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
@@ -208,6 +209,9 @@ class SafeMultisigTxView(CreateAPIView):
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
+                except SafeMultisigTx.objects.SafeMultisigTxError as exc:
+                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    data='Error procesing tx: ' + str(exc))
 
 
 class SafeMultisigTxEstimateView(CreateAPIView):

@@ -6,7 +6,7 @@ class Command(BaseCommand):
     help = 'Setup Safe relay required tasks'
 
     def handle(self, *args, **options):
-        task_name = 'safe_relay_service.safe.tasks.deploy_safes_task'
+        task_name = 'safe_relay_service.relay.tasks.deploy_safes_task'
         if PeriodicTask.objects.filter(task=task_name).count():
             self.stdout.write(self.style.SUCCESS('Task was already created'))
         else:

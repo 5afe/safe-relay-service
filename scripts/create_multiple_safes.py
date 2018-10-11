@@ -27,14 +27,13 @@ def get_safes_notify_url(address):
     return urljoin(SAFES_URL, address + '/funded/')
 
 
-def send_eth(private_key, to, value):
-    public_key = checksum_encode(privtoaddr(private_key))
+def send_eth(private_key, to, value, nonce):
     tx = {
         'to': to,
         'value': value,
         'gas': 23000,
         'gasPrice': w3.eth.gasPrice,
-        'nonce': w3.eth.getTransactionCount(public_key, 'pending'),
+        'nonce': nonce,
     }
 
     signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
@@ -61,6 +60,8 @@ def notify_safes():
 
 def deploy_safes(number, owners, private_key):
     safes = []
+    funding_public_key = checksum_encode(privtoaddr(private_key))
+    funding_nonce = w3.eth.getTransactionCount(funding_public_key, 'pending')
     for _ in range(number):
         payload_json = generate_payload(owners)
         r = requests.post(SAFES_URL, json=payload_json)
@@ -70,10 +71,11 @@ def deploy_safes(number, owners, private_key):
         payment = int(safe_created['payment'])
 
         logging.info('Created safe=%s, need payment=%d', safe_address, payment)
-        send_eth(private_key, safe_address, payment)
+        send_eth(private_key, safe_address, payment, funding_nonce)
         logging.info('Sent payment=%s to safe=%s', payment, safe_address)
         r = requests.put(get_safes_notify_url(safe_address))
         assert r.ok
+        funding_nonce += 1
         safes.append(safe_address)
 
     with open('safes.txt', mode='a') as safes_file:
