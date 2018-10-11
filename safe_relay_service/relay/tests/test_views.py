@@ -115,8 +115,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_tx_gas = estimation_json['safeTxGas']
         data_gas = estimation_json['dataGas']
         gas_price = estimation_json['gasPrice']
-        # TODO Use estimation_json['gasToken']
-        gas_token = None
+        gas_token = estimation_json['gasToken']
 
         multisig_tx_hash = safe_service.get_hash_for_safe_tx(
             my_safe_address,
