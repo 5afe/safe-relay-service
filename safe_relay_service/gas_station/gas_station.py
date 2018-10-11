@@ -30,6 +30,8 @@ class GasStationProvider:
 
 
 class GasStation:
+    CONSTANT_GAS_INCREMENT = 1  # Increase a little for fastest mining for API Calls
+
     def __init__(self,
                  http_provider_uri='http://localhost:8545',
                  number_of_blocks: int=200,
@@ -118,11 +120,11 @@ class GasStation:
             raise NoBlocksFound
         else:
             np_gas_prices = np.array(gas_prices)
-            lowest = np_gas_prices.min()
-            safe_low = math.ceil(np.percentile(np_gas_prices, 30))
-            standard = math.ceil(np.percentile(np_gas_prices, 50))
-            fast = math.ceil(np.percentile(np_gas_prices, 75))
-            fastest = np_gas_prices.max()
+            lowest = np_gas_prices.min() + self.CONSTANT_GAS_INCREMENT
+            safe_low = math.ceil(np.percentile(np_gas_prices, 30)) + self.CONSTANT_GAS_INCREMENT
+            standard = math.ceil(np.percentile(np_gas_prices, 50)) + self.CONSTANT_GAS_INCREMENT
+            fast = math.ceil(np.percentile(np_gas_prices, 75)) + self.CONSTANT_GAS_INCREMENT
+            fastest = np_gas_prices.max() + self.CONSTANT_GAS_INCREMENT
 
             gas_price = GasPrice.objects.create(lowest=lowest,
                                                 safe_low=safe_low,
