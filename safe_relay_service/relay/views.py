@@ -241,7 +241,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             data = serializer.validated_data
             safe_service = SafeServiceProvider()
             gas_token = safe_service.get_gas_token()
-            nonce = safe_service.retrieve_nonce(address)
+            nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
             safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
                                                        data['operation'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],

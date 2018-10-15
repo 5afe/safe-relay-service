@@ -152,6 +152,10 @@ class SafeMultisigTxManager(models.Manager):
     class SafeMultisigTxError(Exception):
         pass
 
+    def get_last_nonce_for_safe(self, safe_address: str):
+        tx = self.filter(safe=safe_address).order_by('-nonce').first()
+        return tx.nonce if tx else 0
+
     def create_multisig_tx(self,
                            safe_address: str,
                            to: str,
