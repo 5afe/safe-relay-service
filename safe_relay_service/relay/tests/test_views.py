@@ -223,6 +223,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['safeTxGas'], 0)
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
+        self.assertGreaterEqual(response['nonce'], 0)
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
         to, _ = get_eth_address_with_key()
