@@ -39,7 +39,8 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     def validate(self, data):
         super().validate(data)
 
-        safe_creation = SafeCreation.objects.select_related('safe').get(safe=data['safe'])
+        safe_address = data['safe']
+        safe_creation = SafeCreation.objects.select_related('safe').get(safe=safe_address)
 
         signatures = data['signatures']
 
@@ -47,9 +48,6 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
             raise ValidationError('Need at least %d signatures' % safe_creation.threshold)
 
         safe_service = SafeServiceProvider()
-        # TODO check this - if safe_creation.safe.has_valid_master_copy():
-        if safe_creation.safe.address in safe_service.valid_master_copy_addresses:
-            raise ValidationError('Safe proxy master-copy={} not valid')
 
         gas_token = data.get('gas_token')
         if gas_token and gas_token != NULL_ADDRESS:
@@ -59,7 +57,7 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
         if refund_receiver and refund_receiver != NULL_ADDRESS:
             raise ValidationError('Refund Receiver is not configurable')
 
-        tx_hash = safe_service.get_hash_for_safe_tx(data['safe'], data['to'], data['value'], data['data'],
+        tx_hash = safe_service.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
                                                     data['gas_price'], data['gas_token'], data['refund_receiver'],
                                                     data['nonce'])
@@ -68,11 +66,6 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
                                                                 signature['v'],
                                                                 signature['r'],
                                                                 signature['s']) for signature in signatures]
-
-        # FIXME Check owners in blockchain instead of DB
-        # for owner in owners:
-        #    if owner not in safe_creation.owners:
-        #        raise ValidationError('Owner=%s is not a member of the safe' % owner)
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         if not safe_service.check_hash(tx_hash, safe_service.signatures_to_bytes(signature_pairs), owners):
