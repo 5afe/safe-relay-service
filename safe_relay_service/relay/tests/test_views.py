@@ -115,8 +115,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_tx_gas = estimation_json['safeTxGas']
         data_gas = estimation_json['dataGas']
         gas_price = estimation_json['gasPrice']
-        # TODO Use estimation_json['gasToken']
-        gas_token = None
+        gas_token = estimation_json['gasToken']
 
         multisig_tx_hash = safe_service.get_hash_for_safe_tx(
             my_safe_address,
@@ -224,6 +223,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['safeTxGas'], 0)
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
+        self.assertGreaterEqual(response['nonce'], 0)
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
         to, _ = get_eth_address_with_key()
