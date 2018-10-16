@@ -125,8 +125,7 @@ class SafeFunding(TimeStampedModel):
         elif self.safe_funded:
             return 'DEPLOYER_NOT_FUNDED_SAFE_WITH_BALANCE'
         else:
-            s = 'Safe %s' % self.safe.address
-        return s
+            return 'SAFE_WITHOUT_BALANCE'
 
     def __str__(self):
         s = 'Safe %s - ' % self.safe.address
