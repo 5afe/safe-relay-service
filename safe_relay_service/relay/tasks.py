@@ -137,11 +137,14 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
             logger.debug('Not found transaction for receipt %s', tx_hash)
             # If no more retries
             if not retry or (self.request.retries == self.max_retries):
-                logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
-                             tx_hash,
-                             self.request.retries)
-                safe_funding.deployer_funded_tx_hash = None
-                safe_funding.save()
+                safe_creation = SafeCreation.objects.get(safe=safe_address)
+                balance = ethereum_service.get_balance(safe_creation.deployer)
+                if not balance:
+                    logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
+                                 tx_hash,
+                                 self.request.retries)
+                    safe_funding.deployer_funded_tx_hash = None
+                    safe_funding.save()
             else:
                 logger.debug('Retry finding transaction receipt %s', tx_hash)
                 if retry:
