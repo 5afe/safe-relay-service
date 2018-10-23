@@ -112,7 +112,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(request.status_code, status.HTTP_200_OK)
         estimation_json = request.json()
 
-        safe_tx_gas = estimation_json['safeTxGas']
+        safe_tx_gas = estimation_json['safeTxGas'] + estimation_json['signatureGas']
         data_gas = estimation_json['dataGas']
         gas_price = estimation_json['gasPrice']
         gas_token = estimation_json['gasToken']

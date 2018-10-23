@@ -246,10 +246,12 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                                        data['operation'])
             safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
                                                                  data['operation'], safe_tx_gas)
+            safe_signature_tx_gas = safe_service.estimate_tx_signature_gas(address)
             gas_price = GasStationProvider().get_gas_prices().fast
 
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,
+                             'signature_gas': safe_signature_tx_gas,
                              'gas_price': gas_price,
                              'gas_token': gas_token,
                              'nonce': nonce}
