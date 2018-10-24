@@ -129,14 +129,14 @@ class SafeView(APIView):
                                     422: 'Safe address checksum not valid'})
     def get(self, request, address, format=None):
         """
-        Get status of the safe creation
+        Get status of the safe
         """
         if not ethereum.utils.check_checksum(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
                 SafeContract.objects.get(address=address)
-            except SafeFunding.DoesNotExist:
+            except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             safe_service = SafeServiceProvider()
