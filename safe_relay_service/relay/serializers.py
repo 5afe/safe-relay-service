@@ -87,6 +87,13 @@ class SignatureResponseSerializer(serializers.Serializer):
     s = serializers.CharField()
 
 
+class SafeResponseSerializer(serializers.Serializer):
+    address = EthereumAddressField()
+    nonce = serializers.IntegerField(min_value=0)
+    threshold = serializers.IntegerField(min_value=1)
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+
+
 class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()

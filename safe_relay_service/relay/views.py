@@ -21,7 +21,7 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
-                          SafeTransactionCreationResponseSerializer)
+                          SafeTransactionCreationResponseSerializer, SafeResponseSerializer)
 
 
 def custom_exception_handler(exc, context):
@@ -118,6 +118,39 @@ class SafeCreationView(CreateAPIView):
             http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \
                 if 's' in serializer.errors else status.HTTP_400_BAD_REQUEST
             return Response(status=http_status, data=serializer.errors)
+
+
+class SafeView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeResponseSerializer
+
+    @swagger_auto_schema(responses={200: SafeResponseSerializer(),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
+    def get(self, request, address, format=None):
+        """
+        Get status of the safe creation
+        """
+        if not ethereum.utils.check_checksum(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeFunding.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            safe_service = SafeServiceProvider()
+            nonce = safe_service.retrieve_nonce(address)
+            threshold = safe_service.retrieve_threshold(address)
+            owners = safe_service.retrieve_owners(address)
+            serializer = self.serializer_class(data={
+                'address': address,
+                'nonce': nonce,
+                'threshold': threshold,
+                'owners': owners,
+            })
+            assert serializer.is_valid()
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
 class SafeSignalView(APIView):
