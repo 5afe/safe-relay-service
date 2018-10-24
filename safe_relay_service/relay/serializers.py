@@ -109,5 +109,5 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     data_gas = serializers.IntegerField(min_value=0)
     signature_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
-    nonce = serializers.IntegerField(min_value=0, allow_null=True)
+    last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
     gas_token = HexadecimalField(allow_blank=True, allow_null=True)
