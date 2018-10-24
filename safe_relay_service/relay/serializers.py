@@ -87,6 +87,13 @@ class SignatureResponseSerializer(serializers.Serializer):
     s = serializers.CharField()
 
 
+class SafeResponseSerializer(serializers.Serializer):
+    address = EthereumAddressField()
+    nonce = serializers.IntegerField(min_value=0)
+    threshold = serializers.IntegerField(min_value=1)
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+
+
 class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()
@@ -107,6 +114,7 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     safe_tx_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)
+    signature_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
-    nonce = serializers.IntegerField(min_value=0)
+    last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
     gas_token = HexadecimalField(allow_blank=True, allow_null=True)

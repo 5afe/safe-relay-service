@@ -17,10 +17,11 @@ logger = get_task_logger(__name__)
 ethereum_service = EthereumServiceProvider()
 redis = RedisService().redis
 
-# TODO Control ConnectionError: HTTPConnectionPool for web3
-
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
+
+
+# TODO Control ConnectionError: HTTPConnectionPool for web3
 
 
 @app.shared_task(bind=True, max_retries=3)
@@ -94,17 +95,16 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                                     tx_hash)
                         safe_funding.deployer_funded_tx_hash = tx_hash
                         safe_funding.save()
-                        logger.debug('Safe %s deployer has just been funded. tx_hash=%s', safe_address,
-                                     tx_hash)
-                        check_deployer_funded_task.apply_async((safe_address,), countdown=1 * 15)
+                        logger.debug('Safe=%s deployer has just been funded. tx_hash=%s', safe_address, tx_hash)
+                        check_deployer_funded_task.apply_async((safe_address,), countdown=20)
                     else:
                         logger.error('Cannot send payment=%d to deployer safe=%s', payment, deployer_address)
                         if retry:
-                            raise self.retry(countdown=1 * 30)
+                            raise self.retry(countdown=30)
             else:
                 logger.info('Not found required balance=%d for safe=%s', payment, safe_address)
                 if retry:
-                    raise self.retry(countdown=1 * 30)
+                    raise self.retry(countdown=30)
 
 
 @app.shared_task(bind=True,
@@ -117,18 +117,18 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
         logger.info('check_deployer_funded_task is locked for safe=%s', safe_address)
         return
     try:
-        logger.debug('Starting check deployer funded task for safe %s', safe_address)
+        logger.debug('Starting check deployer funded task for safe=%s', safe_address)
         safe_funding = SafeFunding.objects.get(safe=safe_address)
         tx_hash = safe_funding.deployer_funded_tx_hash
 
         if safe_funding.deployer_funded:
-            logger.warning('Tx %s for safe %s is already checked!', tx_hash, safe_address)
+            logger.warning('Tx-hash=%s for safe %s is already checked!', tx_hash, safe_address)
             return
         elif not tx_hash:
-            logger.error('No deployer_funded_tx_hash for safe %s', safe_address)
+            logger.error('No deployer_funded_tx_hash for safe=%s', safe_address)
             return
 
-        logger.debug('Checking safe %s deployer tx receipt %s', safe_address, tx_hash)
+        logger.debug('Checking safe=%s deployer tx-hash=%s', safe_address, tx_hash)
         if ethereum_service.get_transaction_receipt(tx_hash):
             logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address, tx_hash)
             safe_funding.deployer_funded = True
@@ -137,15 +137,18 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
             logger.debug('Not found transaction for receipt %s', tx_hash)
             # If no more retries
             if not retry or (self.request.retries == self.max_retries):
-                logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
-                             tx_hash,
-                             self.request.retries)
-                safe_funding.deployer_funded_tx_hash = None
-                safe_funding.save()
+                safe_creation = SafeCreation.objects.get(safe=safe_address)
+                balance = ethereum_service.get_balance(safe_creation.deployer)
+                if not balance:
+                    logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
+                                 tx_hash,
+                                 self.request.retries)
+                    safe_funding.deployer_funded_tx_hash = None
+                    safe_funding.save()
             else:
                 logger.debug('Retry finding transaction receipt %s', tx_hash)
                 if retry:
-                    raise self.retry()
+                    raise self.retry(countdown=self.request.retries * 10 + 15)  # More countdown every retry
     finally:
         if have_lock:
             lock.release()

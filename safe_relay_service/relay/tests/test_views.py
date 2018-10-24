@@ -59,6 +59,22 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         request = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
+    def test_safe_view(self):
+        funder = self.w3.eth.accounts[0]
+        owners_with_keys = [get_eth_address_with_key(),
+                            get_eth_address_with_key(),
+                            get_eth_address_with_key()]
+        owners = [x[0] for x in owners_with_keys]
+        threshold = len(owners) - 1
+        safe_creation = generate_safe(owners=owners, threshold=threshold)
+        my_safe_address = deploy_safe(self.w3, safe_creation, funder)
+        response = self.client.get(reverse('v1:safe', args=(my_safe_address,)), format='json')
+        safe_json = response.json()
+        self.assertEqual(safe_json['address'], my_safe_address)
+        self.assertEqual(safe_json['nonce'], 0)
+        self.assertEqual(safe_json['threshold'], threshold)
+        self.assertEqual(safe_json['owners'], owners)
+
     def test_safe_multisig_tx(self):
         # Create Safe ------------------------------------------------
         safe_service = SafeServiceProvider()
@@ -112,7 +128,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(request.status_code, status.HTTP_200_OK)
         estimation_json = request.json()
 
-        safe_tx_gas = estimation_json['safeTxGas']
+        safe_tx_gas = estimation_json['safeTxGas'] + estimation_json['signatureGas']
         data_gas = estimation_json['dataGas']
         gas_price = estimation_json['gasPrice']
         gas_token = estimation_json['gasToken']
@@ -223,7 +239,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['safeTxGas'], 0)
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
-        self.assertGreaterEqual(response['nonce'], 0)
+        self.assertIsNone(response['lastUsedNonce'])
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
         to, _ = get_eth_address_with_key()
