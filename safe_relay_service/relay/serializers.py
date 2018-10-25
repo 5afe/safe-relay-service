@@ -2,14 +2,13 @@ import logging
 
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeServiceProvider
-from gnosis.safe.serializers import SafeMultisigTxSerializer
+from gnosis.safe.serializers import SafeMultisigTxSerializer, SafeSignatureSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
                                   SIGNATURE_S_MIN_VALUE)
-from django_eth.serializers import (EthereumAddressField, HexadecimalField,
-                                    Sha3HashField, SignatureSerializer,
+from django_eth.serializers import (EthereumAddressField, Sha3HashField,
                                     TransactionResponseSerializer)
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
 
@@ -34,7 +33,7 @@ class SafeCreationSerializer(serializers.Serializer):
 
 
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
-    signatures = serializers.ListField(child=SignatureSerializer())
+    signatures = serializers.ListField(child=SafeSignatureSerializer())
 
     def validate(self, data):
         super().validate(data)
@@ -48,10 +47,6 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
             raise ValidationError('Need at least %d signatures' % safe_creation.threshold)
 
         safe_service = SafeServiceProvider()
-
-        gas_token = data.get('gas_token')
-        if gas_token and gas_token != NULL_ADDRESS:
-            raise ValidationError('Gas Token is still not supported')
 
         refund_receiver = data.get('refund_receiver')
         if refund_receiver and refund_receiver != NULL_ADDRESS:
@@ -118,4 +113,4 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     operational_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
     last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
-    gas_token = HexadecimalField(allow_blank=True, allow_null=True)
+    gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)

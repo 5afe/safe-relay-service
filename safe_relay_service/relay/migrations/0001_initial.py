@@ -3,9 +3,10 @@
 import django.contrib.postgres.fields
 import django.db.models.deletion
 import django.utils.timezone
-import django_eth.models
 import model_utils.fields
 from django.db import migrations, models
+
+import django_eth.models
 
 
 class Migration(migrations.Migration):

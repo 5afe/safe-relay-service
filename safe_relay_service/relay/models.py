@@ -2,12 +2,12 @@ from typing import Dict, Iterable, List
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import (InvalidMultisigTx, SafeOperation,
                                       SafeServiceProvider)
 from model_utils.models import TimeStampedModel
 
+from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 
@@ -167,7 +167,8 @@ class SafeMultisigTxManager(models.Manager):
                            gas_token: str,
                            refund_receiver: str,
                            nonce: int,
-                           signatures: List[Dict[str, int]]):
+                           signatures: List[Dict[str, int]],
+                           tx_gas_price: int):
         """
         :return: Database model of SafeMultisigTx
         :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
@@ -195,6 +196,7 @@ class SafeMultisigTxManager(models.Manager):
                 gas_token,
                 refund_receiver,
                 signatures_packed,
+                tx_gas_price=tx_gas_price
             )
         except InvalidMultisigTx as exc:
             raise self.SafeMultisigTxError(str(exc)) from exc
