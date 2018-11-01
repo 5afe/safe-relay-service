@@ -24,7 +24,7 @@ install:
 before_script:
   - psql -c 'create database travisci;' -U postgres
 script:
-  - ganache-cli -d -p 8545 --defaultBalanceEther 10000 -a 30 > /dev/null &
+  - ganache-cli -d -p 8545 --defaultBalanceEther 10000 --gasLimit 10000000 -a 30 > /dev/null &
   - sleep 5
   - coverage run --source=$SOURCE_FOLDER -m py.test
 deploy:
