@@ -1,13 +1,15 @@
 import logging
 
 from django.urls import reverse
-from django_eth.constants import NULL_ADDRESS
-from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
-                                        get_eth_address_with_key)
+from ethereum.utils import check_checksum
 from faker import Faker
 from gnosis.safe.safe_service import SafeServiceProvider
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from django_eth.constants import NULL_ADDRESS
+from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
+                                        get_eth_address_with_key)
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
@@ -43,7 +45,10 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         })
         self.assertTrue(serializer.is_valid())
         request = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response_json = request.json()
 
+        self.assertTrue(check_checksum(response_json['deployer']))
+        self.assertTrue(check_checksum(response_json['safe']))
         self.assertEqual(request.status_code, status.HTTP_201_CREATED)
 
         self.assertTrue(SafeContract.objects.filter(address=request.data['safe']))
