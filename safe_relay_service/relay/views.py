@@ -21,7 +21,8 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
-                          SafeTransactionCreationResponseSerializer, SafeResponseSerializer)
+                          SafeResponseSerializer,
+                          SafeTransactionCreationResponseSerializer)
 
 
 def custom_exception_handler(exc, context):
@@ -101,7 +102,6 @@ class SafeCreationView(CreateAPIView):
                     'r': safe_creation.r,
                     's': safe_creation.s,
                 },
-                'safe': safe_creation.safe.address,
                 'tx': {
                     'from': safe_creation.deployer,
                     'value': safe_creation.value,
@@ -110,7 +110,9 @@ class SafeCreationView(CreateAPIView):
                     'gas_price': safe_creation.gas_price,
                     'nonce': 0,
                 },
-                'payment': safe_creation.payment
+                'payment': safe_creation.payment,
+                'safe': safe_creation.safe.address,
+                'deployer': safe_creation.deployer
             })
             safe_transaction_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)
