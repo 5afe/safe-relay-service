@@ -5,6 +5,7 @@ set -euo pipefail
 echo "==> Migrating Django models ... "
 python manage.py migrate --noinput
 python manage.py setup_gas_station
+python manage.py setup_safe_relay
 
 echo "==> Collecting statics ... "
 DOCKER_SHARED_DIR=/nginx

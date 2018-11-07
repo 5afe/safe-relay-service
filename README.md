@@ -3,17 +3,28 @@
 ![Python 3.6](https://img.shields.io/badge/Python-3.6-blue.svg)
 ![Django 2](https://img.shields.io/badge/Django-2-blue.svg)
 
-# Gnosis Safe Notification Service
-Service for Gnosis Safe push notifications
+# Gnosis Safe Relay Service
+Service for Gnosis Safe Relay
 
 ## Index of contents
 
 - [Docs](#docs)
+- [Initial Configuration](#configuration)
 - [Contributors](#contributors)
 
 Docs
 ------------
+Docs are available on [Readthedocs](https://gnosis-safe.readthedocs.io/en/latest/services/relay.html)
 You can open the diagrams with [Staruml](http://staruml.io/)
+
+Configuration
+------------
+Use `docker-compose` for running the project:
+
+```bash
+docker-compose build --force-rm
+docker-compose up
+```
 
 Contributors
 ------------
