@@ -2,7 +2,8 @@ import logging
 
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeServiceProvider
-from gnosis.safe.serializers import SafeMultisigTxSerializer, SafeSignatureSerializer
+from gnosis.safe.serializers import (SafeMultisigTxSerializer,
+                                     SafeSignatureSerializer)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 

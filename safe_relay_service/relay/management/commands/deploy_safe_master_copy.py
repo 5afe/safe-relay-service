@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-
 from gnosis.safe.safe_service import SafeServiceProvider
 
 
