@@ -1,11 +1,12 @@
 import os
 from logging import getLogger
 
-from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Factory as FakerFactory
 from faker import Faker
+from gnosis.safe.tests.factories import generate_valid_s
 
+from django_eth.tests.factories import get_eth_address_with_key
 from safe_relay_service.relay.models import SafeCreation
 
 fakerFactory = FakerFactory.create()
@@ -36,7 +37,8 @@ def generate_safe(owners=None, number_owners=3, threshold=None) -> SafeCreation:
     return safe_creation
 
 
-def deploy_safe(w3, safe_creation, funder) -> str:
+#FIXME Use the functions in gnosis-py
+def deploy_safe(w3, safe_creation, funder: str, initial_funding_wei: int=0) -> str:
     w3.eth.waitForTransactionReceipt(
         w3.eth.sendTransaction({
             'from': funder,
@@ -45,15 +47,26 @@ def deploy_safe(w3, safe_creation, funder) -> str:
         })
     )
 
-    w3.eth.sendTransaction({
-        'from': funder,
-        'to': safe_creation.safe.address,
-        'value': safe_creation.payment
-    })
+    w3.eth.waitForTransactionReceipt(
+        w3.eth.sendTransaction({
+            'from': funder,
+            'to': safe_creation.safe.address,
+            'value': safe_creation.payment
+        })
+    )
 
     tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
     tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
     assert tx_receipt.contractAddress == safe_creation.safe.address
     assert tx_receipt.status
+
+    if initial_funding_wei > 0:
+        w3.eth.waitForTransactionReceipt(
+            w3.eth.sendTransaction({
+                'from': funder,
+                'to': safe_creation.safe.address,
+                'value': initial_funding_wei
+            })
+        )
 
     return safe_creation.safe.address

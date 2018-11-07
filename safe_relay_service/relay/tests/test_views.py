@@ -4,12 +4,13 @@ from django.urls import reverse
 from ethereum.utils import check_checksum
 from faker import Faker
 from gnosis.safe.safe_service import SafeServiceProvider
+from gnosis.safe.tests.factories import deploy_example_erc20
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
                                         get_eth_address_with_key)
+from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
@@ -193,6 +194,113 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(request.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertTrue('exists' in request.data)
 
+    def test_safe_multisig_tx_gas_token(self):
+        # Create Safe ------------------------------------------------
+        safe_service = SafeServiceProvider()
+        w3 = safe_service.w3
+        funder = w3.eth.accounts[0]
+        owner, owner_key = get_eth_address_with_key()
+        threshold = 1
+
+        safe_balance = w3.toWei(0.01, 'ether')
+        safe_creation = generate_safe(owners=[owner], threshold=threshold)
+        my_safe_address = deploy_safe(w3, safe_creation, funder, initial_funding_wei=safe_balance)
+
+        # Get tokens for the safe
+        safe_token_balance = int(1e18)
+        erc20_contract = deploy_example_erc20(self.w3, safe_token_balance, my_safe_address, funder)
+
+        # Send something to the owner, who will be sending the tx
+        owner0_balance = safe_balance
+        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
+            'from': funder,
+            'to': owner,
+            'value': owner0_balance
+        }))
+
+        # Safe prepared --------------------------------------------
+        to, _ = get_eth_address_with_key()
+        value = safe_balance
+        tx_data = None
+        operation = 0
+        refund_receiver = None
+        nonce = 0
+        gas_token = erc20_contract.address
+
+        data = {
+            "to": to,
+            "value": value,
+            "data": tx_data,
+            "operation": operation,
+            "gasToken": gas_token
+        }
+
+        # Get estimation for gas. Token does not exist
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('Gas token', response.json())
+
+        # Create token
+        token_model = TokenFactory(address=gas_token)
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        estimation_json = response.json()
+
+        safe_tx_gas = estimation_json['safeTxGas'] + estimation_json['operationalGas']
+        data_gas = estimation_json['dataGas']
+        gas_price = estimation_json['gasPrice']
+        gas_token = estimation_json['gasToken']
+
+        multisig_tx_hash = safe_service.get_hash_for_safe_tx(
+            my_safe_address,
+            to,
+            value,
+            tx_data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            refund_receiver,
+            nonce
+        )
+
+        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in [owner_key]]
+        signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
+
+        data = {
+            "to": to,
+            "value": value,
+            "data": tx_data,
+            "operation": operation,
+            "safe_tx_gas": safe_tx_gas,
+            "data_gas": data_gas,
+            "gas_price": gas_price,
+            "gas_token": gas_token,
+            "nonce": nonce,
+            "signatures": signatures_json
+        }
+
+        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        tx_hash = response.json()['transactionHash'][2:]  # Remove leading 0x
+        safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=tx_hash)
+        self.assertEqual(safe_multisig_tx.to, to)
+        self.assertEqual(safe_multisig_tx.value, value)
+        self.assertEqual(safe_multisig_tx.data, tx_data)
+        self.assertEqual(safe_multisig_tx.operation, operation)
+        self.assertEqual(safe_multisig_tx.safe_tx_gas, safe_tx_gas)
+        self.assertEqual(safe_multisig_tx.data_gas, data_gas)
+        self.assertEqual(safe_multisig_tx.gas_price, gas_price)
+        self.assertEqual(safe_multisig_tx.gas_token, gas_token)
+        self.assertEqual(safe_multisig_tx.nonce, nonce)
+
     def test_safe_multisig_tx_errors(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
         request = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
@@ -225,16 +333,18 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
                                    format='json')
         self.assertEqual(request.status_code, status.HTTP_404_NOT_FOUND)
 
+        initial_funding = self.w3.toWei(0.0001, 'ether')
         to, _ = get_eth_address_with_key()
         data = {
             'to': to,
-            'value': 10,
+            'value': initial_funding // 2,
             'data': '0x',
             'operation': 1
         }
 
         safe_creation = generate_safe()
-        my_safe_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0])
+        my_safe_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0],
+                                      initial_funding_wei=initial_funding)
 
         request = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                    data=data,
@@ -245,12 +355,12 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
         self.assertIsNone(response['lastUsedNonce'])
-        self.assertEqual(response['gasToken'], NULL_ADDRESS)
+        self.assertEqual(response['gasToken'], None)
 
         to, _ = get_eth_address_with_key()
         data = {
             'to': to,
-            'value': 100,
+            'value': initial_funding // 2,
             'data': None,
             'operation': 0
         }
