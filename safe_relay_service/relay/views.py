@@ -230,17 +230,24 @@ class SafeMultisigTxView(CreateAPIView):
                 # If not, we just use the internal tx gas_price for the gas_price
                 gas_token = data['gas_token']
                 gas_price = data['gas_price']
+                current_gas_price = GasStationProvider().get_gas_prices().fast
                 if gas_token and gas_token != NULL_ADDRESS:
                     try:
                         gas_token_model = Token.objects.get(address=gas_token)
-                        estimated_gas_price = gas_token_model.calculate_gas_price(gas_price)
-                        if estimated_gas_price < gas_price:
+                        estimated_gas_price = gas_token_model.calculate_gas_price(current_gas_price)
+                        if gas_price < estimated_gas_price:
                             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                             data='Required gas-price>=%d to use gas-token' % estimated_gas_price)
-                        tx_gas_price = GasStationProvider().get_gas_prices().fast
+                        # We use gas station tx gas price. We cannot use internal tx's because is calculated
+                        # based on the gas token
+                        tx_gas_price = current_gas_price
                     except Token.DoesNotExist:
                         return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
                 else:
+                    if gas_price < current_gas_price:
+                        return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                        data='Required gas-price>=%d' % current_gas_price)
+                    # We use internal tx gas price
                     tx_gas_price = gas_price
 
                 try:
