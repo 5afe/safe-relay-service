@@ -8,14 +8,15 @@ from django_eth.models import EthereumAddressField
 
 class Token(models.Model):
     address = EthereumAddressField(primary_key=True)
-    name = models.CharField(max_length=15)
-    code = models.CharField(max_length=5)
+    name = models.CharField(max_length=30)
+    code = models.CharField(max_length=30)
     description = models.TextField(blank=True)
     decimals = models.PositiveSmallIntegerField()
     logo_uri = models.URLField(blank=True)
     website_uri = models.URLField(blank=True)
     gas_token = models.BooleanField(default=False)
     fixed_eth_conversion = models.DecimalField(null=True, default=None, max_digits=25, decimal_places=15)
+    relevance = models.PositiveIntegerField(default=1)
 
     def __str__(self):
         return '%s - %s' % (self.name, self.address)
@@ -38,3 +39,6 @@ class Token(models.Model):
         :return:
         """
         return math.ceil(gas_price / self.get_eth_value() * price_margin)
+
+    def get_full_logo_url(self):
+        return 'https://raw.githubusercontent.com/TrustWallet/tokens/master/images/{}.png'.format(self.address.lower())
