@@ -70,6 +70,7 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     'safe_relay_service.relay.apps.RelayConfig',
+    'safe_relay_service.tokens.apps.TokensConfig',
     'safe_relay_service.gas_station.apps.GasStationConfig',
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

@@ -26,6 +26,8 @@ class GasStationProvider:
             if w3.isConnected() and int(w3.net.version) > 1000:  # Ganache
                 logger.warning('Using mock Gas Station because no chainId was detected')
                 cls.instance = GasStationMock()
+            elif settings.SAFE_GAS_PRICE is not None:
+                cls.instance = GasStationMock(gas_price=settings.SAFE_GAS_PRICE)
         return cls.instance
 
 
@@ -149,9 +151,12 @@ class GasStation:
 
 
 class GasStationMock(GasStation):
+    def __init__(self, gas_price: int=1):
+        self.gas_price = gas_price
+
     def calculate_gas_prices(self) -> GasPrice:
-        return GasPrice(lowest=1,
-                        safe_low=1,
-                        standard=1,
-                        fast=1,
-                        fastest=1)
+        return GasPrice(lowest=self.gas_price,
+                        safe_low=self.gas_price,
+                        standard=self.gas_price,
+                        fast=self.gas_price,
+                        fastest=self.gas_price)
