@@ -153,7 +153,7 @@ class SafeView(APIView):
                 'threshold': threshold,
                 'owners': owners,
             })
-            assert serializer.is_valid()
+            assert serializer.is_valid(), serializer.errors
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
@@ -268,7 +268,7 @@ class SafeMultisigTxView(CreateAPIView):
                     )
                     response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
                                                                                  safe_multisig_tx.tx_hash})
-                    assert response_serializer.is_valid()
+                    assert response_serializer.is_valid(), response_serializer.errors
                     return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -334,7 +334,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                              'gas_token': gas_token,
                              'last_used_nonce': last_used_nonce}
             response_serializer = SafeMultisigEstimateTxResponseSerializer(data=response_data)
-            assert response_serializer.is_valid()
+            assert response_serializer.is_valid(), response_serializer.errors
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
