@@ -22,7 +22,7 @@ def generate_valid_s():
             return s
 
 
-def generate_safe(owners=None, number_owners=3, threshold=None) -> SafeCreation:
+def generate_safe(owners=None, number_owners=3, threshold=None, payment_token=None) -> SafeCreation:
     s = generate_valid_s()
 
     if not owners:
@@ -33,7 +33,7 @@ def generate_safe(owners=None, number_owners=3, threshold=None) -> SafeCreation:
 
     threshold = threshold if threshold else len(owners)
 
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
+    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
     return safe_creation
 
 
