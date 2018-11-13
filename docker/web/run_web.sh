@@ -6,7 +6,7 @@ echo "==> Migrating Django models ... "
 python manage.py migrate --noinput
 python manage.py setup_gas_station
 python manage.py setup_safe_relay
-if [ "$DEPLOY_MASTER_COPY_ON_INIT:-0" = 1 ]; then
+if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
     python manage.py deploy_safe_master_copy
 fi
 
