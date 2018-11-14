@@ -228,10 +228,10 @@ class SafeMultisigTxView(CreateAPIView):
                 # If gas_token is specified, we see if the gas_price matches the current token value and use as the
                 # external tx gas the fast gas price from the gas station.
                 # If not, we just use the internal tx gas_price for the gas_price
-                gas_token = data['gas_token']
+                gas_token = data['gas_token'] or NULL_ADDRESS
                 gas_price = data['gas_price']
                 current_gas_price = GasStationProvider().get_gas_prices().fast
-                if gas_token and gas_token != NULL_ADDRESS:
+                if gas_token != NULL_ADDRESS:
                     try:
                         gas_token_model = Token.objects.get(address=gas_token)
                         estimated_gas_price = gas_token_model.calculate_gas_price(current_gas_price)
@@ -304,8 +304,8 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         if serializer.is_valid():
             safe_service = SafeServiceProvider()
             data = serializer.validated_data
-            gas_token = data['gas_token']
-            if gas_token and gas_token != NULL_ADDRESS:
+            gas_token = data['gas_token'] or NULL_ADDRESS
+            if gas_token != NULL_ADDRESS:
                 try:
                     gas_token_model = Token.objects.get(address=gas_token)
                 except Token.DoesNotExist:
