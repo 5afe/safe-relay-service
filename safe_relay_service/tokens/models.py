@@ -24,7 +24,7 @@ class Token(models.Model):
     # TODO Cache
     def get_eth_value(self) -> float:
         if self.fixed_eth_conversion is None:
-            pair = '{}ETH'.format(self.symbol)
+            pair = '{}ETH'.format(self.code)
             price = float(requests.get('https://api.kraken.com/0/public/Ticker?pair=' + pair).json()['result']['c'][0])
             return price
         else:
