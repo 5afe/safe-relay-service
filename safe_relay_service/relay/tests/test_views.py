@@ -1,6 +1,7 @@
 import logging
 
 from django.urls import reverse
+from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum
 from faker import Faker
 from gnosis.safe.safe_service import SafeServiceProvider
@@ -355,7 +356,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertGreater(response['dataGas'], 0)
         self.assertGreater(response['gasPrice'], 0)
         self.assertIsNone(response['lastUsedNonce'])
-        self.assertEqual(response['gasToken'], None)
+        self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
         to, _ = get_eth_address_with_key()
         data = {
