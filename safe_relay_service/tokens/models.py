@@ -13,7 +13,7 @@ class CannotGetTokenPriceFromApi(Exception):
 class Token(models.Model):
     address = EthereumAddressField(primary_key=True)
     name = models.CharField(max_length=30)
-    code = models.CharField(max_length=30)
+    symbol = models.CharField(max_length=30)
     description = models.TextField(blank=True)
     decimals = models.PositiveSmallIntegerField()
     logo_uri = models.URLField(blank=True)
@@ -28,7 +28,7 @@ class Token(models.Model):
     # TODO Cache
     def get_eth_value(self) -> float:
         if self.fixed_eth_conversion is None:
-            pair = '{}ETH'.format(self.code)
+            pair = '{}ETH'.format(self.symbol)
             api_json = requests.get('https://api.kraken.com/0/public/Ticker?pair=' + pair).json()
             error = api_json.get('error')
             if error:

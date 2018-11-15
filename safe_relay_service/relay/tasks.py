@@ -27,7 +27,7 @@ LOCK_TIMEOUT = 60 * 2
 @app.shared_task(bind=True, max_retries=3)
 def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     """
-    Check if user has sent enough ether to the safe account
+    Check if user has sent enough ether or tokens to the safe account
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
     is called to check that that tx is mined
     :param safe_address: safe account

@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
@@ -7,6 +7,7 @@ from gnosis.safe.safe_service import (InvalidMultisigTx, SafeOperation,
                                       SafeServiceProvider)
 from model_utils.models import TimeStampedModel
 
+from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
@@ -29,7 +30,7 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int):
+    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None]):
         """
         Create models for safe tx
         :return:
@@ -39,10 +40,11 @@ class SafeCreationManager(models.Manager):
         safe_service = SafeServiceProvider()
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price)
+        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
+
         return super().create(
             deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
@@ -52,6 +54,7 @@ class SafeCreationManager(models.Manager):
             tx_hash=safe_creation_tx.tx_hash.hex(),
             gas=safe_creation_tx.gas,
             gas_price=safe_creation_tx.gas_price,
+            payment_token=None if safe_creation_tx.payment_token == NULL_ADDRESS else safe_creation_tx.payment_token,
             value=safe_creation_tx.contract_creation_tx.value,
             v=safe_creation_tx.v,
             r=safe_creation_tx.r,
@@ -71,6 +74,7 @@ class SafeCreation(TimeStampedModel):
     tx_hash = Sha3HashField(unique=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
+    payment_token = EthereumAddressField(null=True)
     value = Uint256Field()
     v = models.PositiveSmallIntegerField()
     r = Uint256Field()
@@ -79,7 +83,7 @@ class SafeCreation(TimeStampedModel):
     signed_tx = models.BinaryField(null=True)
 
     def __str__(self):
-        return 'Deployer {} - Safe {}'.format(self.deployer, self.safe)
+        return 'Safe {} - Deployer {}'.format(self.safe, self.deployer)
 
 
 class SafeFundingManager(models.Manager):
@@ -212,7 +216,7 @@ class SafeMultisigTxManager(models.Manager):
             safe_tx_gas=safe_tx_gas,
             data_gas=data_gas,
             gas_price=gas_price,
-            gas_token=gas_token,
+            gas_token=None if gas_token == NULL_ADDRESS else gas_token,
             refund_receiver=refund_receiver,
             nonce=nonce,
             signatures=signatures_packed,

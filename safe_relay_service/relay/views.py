@@ -96,8 +96,9 @@ class SafeCreationView(CreateAPIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            s, owners, threshold = serializer.data['s'], serializer.data['owners'], serializer.data['threshold']
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold)
+            s, owners, threshold, payment_token = (serializer.data['s'], serializer.data['owners'],
+                                                   serializer.data['threshold'], serializer.data['payment_token'])
+            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
@@ -113,6 +114,7 @@ class SafeCreationView(CreateAPIView):
                     'nonce': 0,
                 },
                 'payment': safe_creation.payment,
+                'payment_token': safe_creation.payment_token or NULL_ADDRESS,
                 'safe': safe_creation.safe.address,
                 'deployer': safe_creation.deployer
             })
