@@ -10,7 +10,7 @@ class TokenFactory(factory_boy.DjangoModelFactory):
     class Meta:
         model = models.Token
 
-    address = get_eth_address_with_key()[0]
+    address = factory_boy.LazyFunction(lambda: get_eth_address_with_key()[0])
     name = factory_boy.Faker('cryptocurrency_name')
     symbol = factory_boy.Faker('cryptocurrency_code')
     description = factory_boy.Faker('catch_phrase')
