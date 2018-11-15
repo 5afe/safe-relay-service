@@ -38,7 +38,7 @@ class Token(models.Model):
         else:
             # Ether has 18 decimals, but maybe the token has a different number
             multiplier = 1e18 / 10**self.decimals
-            return round(multiplier * self.fixed_eth_conversion, 10)
+            return round(multiplier * float(self.fixed_eth_conversion), 10)
 
     def calculate_gas_price(self, gas_price: int, price_margin: float=1.0) -> int:
         """
