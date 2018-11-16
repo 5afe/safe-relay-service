@@ -1,9 +1,10 @@
 from django.conf.urls import include, url
 from django.urls import path
 
-from . import views
 from safe_relay_service.gas_station.views import GasStationView
 from safe_relay_service.tokens.views import TokenView
+
+from . import views
 
 app_name = "safe"
 

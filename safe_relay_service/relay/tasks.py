@@ -7,6 +7,7 @@ from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.safe_service import EthereumServiceProvider
 
+from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -66,7 +67,10 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
 
             assert (last_block_number - confirmations) > 0
 
-            safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
+            if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
+                safe_balance = ethereum_service.get_erc20_balance(safe_address, safe_creation.payment_token)
+            else:
+                safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
 
             if safe_balance >= payment:
                 logger.info('Found %d balance for safe=%s',
@@ -78,7 +82,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                 # Check deployer has no eth. This should never happen
                 balance = ethereum_service.get_balance(deployer_address)
                 if balance:
-                    logger.error('Deployer=%s for safe=%s has funds already (%d wei)!', deployer_address, safe_address,
+                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)!', deployer_address, safe_address,
                                  balance)
                 else:
                     logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
