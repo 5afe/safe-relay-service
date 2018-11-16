@@ -98,19 +98,17 @@ class SafeCreationView(CreateAPIView):
         if serializer.is_valid():
             s, owners, threshold, payment_token = (serializer.data['s'], serializer.data['owners'],
                                                    serializer.data['threshold'], serializer.data['payment_token'])
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
-            payment_token = safe_creation.payment_token or NULL_ADDRESS
 
-            # FIXME Refactor token payment calculation
-            payment = safe_creation.payment
-            if payment_token != NULL_ADDRESS:
+            payment_token_eth_value = 1.0
+            if payment_token and payment_token != NULL_ADDRESS:
                 try:
-                    price_margin = 1 + 1 / 100  # TODO Make it configurable
-                    gas_token_model = Token.objects.get(address=payment_token)
-                    payment = gas_token_model.calculate_gas_price(payment, price_margin=price_margin)
+                    token = Token.objects.get(address=payment_token)
+                    payment_token_eth_value = token.get_eth_value()
                 except Token.DoesNotExist:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
 
+            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
+                                                                payment_token_eth_value=payment_token_eth_value)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
@@ -125,8 +123,8 @@ class SafeCreationView(CreateAPIView):
                     'gas_price': safe_creation.gas_price,
                     'nonce': 0,
                 },
-                'payment': payment,
-                'payment_token': payment_token,
+                'payment': safe_creation.payment,
+                'payment_token': safe_creation.payment_token or NULL_ADDRESS,
                 'safe': safe_creation.safe.address,
                 'deployer': safe_creation.deployer
             })
