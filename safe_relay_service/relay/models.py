@@ -58,6 +58,7 @@ class SafeCreationManager(models.Manager):
             owners=owners,
             threshold=threshold,
             payment=safe_creation_tx.payment,
+            payment_ether=safe_creation_tx.payment_ether,
             tx_hash=safe_creation_tx.tx_hash.hex(),
             gas=safe_creation_tx.gas,
             gas_price=safe_creation_tx.gas_price,
@@ -78,6 +79,7 @@ class SafeCreation(TimeStampedModel):
     owners = ArrayField(EthereumAddressField())
     threshold = Uint256Field()
     payment = Uint256Field()
+    payment_ether = Uint256Field()
     tx_hash = Sha3HashField(unique=True)
     gas = Uint256Field()
     gas_price = Uint256Field()

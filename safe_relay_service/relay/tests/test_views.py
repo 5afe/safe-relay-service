@@ -88,8 +88,8 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         response_json = response.json()
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         deployer = response_json['deployer']
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(check_checksum(deployer))
         self.assertTrue(check_checksum(response_json['safe']))
         self.assertEqual(response_json['paymentToken'], payment_token)
@@ -98,6 +98,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertIn(owner1, safe_creation.owners)
         self.assertEqual(safe_creation.payment_token, payment_token)
+        self.assertGreater(safe_creation.payment, safe_creation.payment_ether)
 
         # Check that payment is more than with ether
         token_payment = response_json['payment']
@@ -109,9 +110,9 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(serializer.is_valid())
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         response_json = response.json()
-        ether_payment = response_json['payment']
+        payment_ether = response_json['payment']
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertGreater(token_payment, ether_payment)
+        self.assertGreater(token_payment, payment_ether)
 
         # Check that token with fixed conversion price is the same than with ether
         token_model = TokenFactory(fixed_eth_conversion=1)
@@ -124,8 +125,11 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(serializer.is_valid())
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         response_json = response.json()
+        deployer = response_json['deployer']
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response_json['payment'], ether_payment)
+        self.assertEqual(response_json['payment'], payment_ether)
+        safe_creation = SafeCreation.objects.get(deployer=deployer)
+        self.assertEqual(safe_creation.payment, safe_creation.payment_ether)
 
     def test_safe_view(self):
         funder = self.w3.eth.accounts[0]
