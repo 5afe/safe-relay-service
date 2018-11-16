@@ -85,7 +85,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('not found', response_json['paymentToken'][0])
 
-        token_model = TokenFactory(address=payment_token)
+        token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         response_json = response.json()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -98,6 +98,34 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertIn(owner1, safe_creation.owners)
         self.assertEqual(safe_creation.payment_token, payment_token)
+
+        # Check that payment is more than with ether
+        token_payment = response_json['payment']
+        serializer = SafeCreationSerializer(data={
+            's': s,
+            'owners': [owner1, owner2],
+            'threshold': 2,
+        })
+        self.assertTrue(serializer.is_valid())
+        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response_json = response.json()
+        ether_payment = response_json['payment']
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertGreater(token_payment, ether_payment)
+
+        # Check that token with fixed conversion price is the same than with ether
+        token_model = TokenFactory(fixed_eth_conversion=1)
+        serializer = SafeCreationSerializer(data={
+            's': s,
+            'owners': [owner1, owner2],
+            'threshold': 2,
+            'payment_token': token_model.address,
+        })
+        self.assertTrue(serializer.is_valid())
+        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response_json = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response_json['payment'], ether_payment)
 
     def test_safe_view(self):
         funder = self.w3.eth.accounts[0]
