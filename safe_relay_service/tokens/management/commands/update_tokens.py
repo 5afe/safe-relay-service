@@ -39,7 +39,7 @@ class Command(BaseCommand):
                         'decimals': token['decimals'],
                         'logo_uri': token['logo_url'],
                         'website_uri': token['website_url'],
-                        'gas_token': False,
+                        'gas': False,
                         'relevance': relevance
                     }
                 )

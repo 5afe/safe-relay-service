@@ -18,7 +18,7 @@ class Token(models.Model):
     decimals = models.PositiveSmallIntegerField()
     logo_uri = models.URLField(blank=True)
     website_uri = models.URLField(blank=True)
-    gas_token = models.BooleanField(default=False)
+    gas = models.BooleanField(default=False)
     fixed_eth_conversion = models.DecimalField(null=True, default=None, max_digits=25, decimal_places=15)
     relevance = models.PositiveIntegerField(default=1)
 
@@ -51,4 +51,5 @@ class Token(models.Model):
         return math.ceil(gas_price / self.get_eth_value() * price_margin)
 
     def get_full_logo_url(self):
-        return 'https://raw.githubusercontent.com/TrustWallet/tokens/master/images/{}.png'.format(self.address.lower())
+        return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
+               'master/tokens/mainnet/icons/{}.png'.format(self.address)

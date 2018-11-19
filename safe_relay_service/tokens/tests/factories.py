@@ -17,5 +17,5 @@ class TokenFactory(factory_boy.DjangoModelFactory):
     decimals = 18
     logo_uri = ''
     website_uri = ''
-    gas_token = True
+    gas = True
     fixed_eth_conversion = 1
