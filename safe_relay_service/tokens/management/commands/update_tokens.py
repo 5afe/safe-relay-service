@@ -34,7 +34,7 @@ class Command(BaseCommand):
                     address=checksum_encode(token['address']),
                     defaults={
                         'name': token['name'],
-                        'code': symbol,
+                        'symbol': symbol,
                         'description': token['description'],
                         'decimals': token['decimals'],
                         'logo_uri': token['logo_url'],
