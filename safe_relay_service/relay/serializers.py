@@ -19,7 +19,7 @@ from safe_relay_service.tokens.models import Token
 logger = logging.getLogger(__name__)
 
 
-# TODO Maybe refactor into a class
+# TODO Refactor
 def validate_gas_token(address: Union[str, None]) -> str:
     """
     Raises ValidationError if gas token is not valid
@@ -29,7 +29,7 @@ def validate_gas_token(address: Union[str, None]) -> str:
     if address and address != NULL_ADDRESS:
         try:
             token_db = Token.objects.get(address=address)
-            if not token_db.gas_token:
+            if not token_db.gas:
                 raise ValidationError('Token %s - %s cannot be used as gas token' % (token_db.name, address))
         except Token.DoesNotExist:
             raise ValidationError('Token %s not found' % address)
