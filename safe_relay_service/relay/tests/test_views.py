@@ -52,6 +52,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         deployer = response_json['deployer']
         self.assertTrue(check_checksum(deployer))
         self.assertTrue(check_checksum(response_json['safe']))
+        self.assertTrue(check_checksum(response_json['funder']))
         self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
 
         self.assertTrue(SafeContract.objects.filter(address=response.data['safe']))

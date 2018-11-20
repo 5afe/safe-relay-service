@@ -126,7 +126,8 @@ class SafeCreationView(CreateAPIView):
                 'payment': safe_creation.payment,
                 'payment_token': safe_creation.payment_token or NULL_ADDRESS,
                 'safe': safe_creation.safe.address,
-                'deployer': safe_creation.deployer
+                'deployer': safe_creation.deployer,
+                'funder': safe_creation.funder,
             })
             safe_transaction_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)

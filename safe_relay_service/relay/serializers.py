@@ -131,6 +131,7 @@ class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     payment_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     safe = EthereumAddressField()
     deployer = EthereumAddressField()
+    funder = EthereumAddressField()
 
 
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
