@@ -3,9 +3,6 @@ from django.contrib import admin
 from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
 
 
-admin.site.register(SafeFunding)
-
-
 @admin.register(SafeContract)
 class SafeContractAdmin(admin.ModelAdmin):
     list_display = ('address', 'master_copy')
