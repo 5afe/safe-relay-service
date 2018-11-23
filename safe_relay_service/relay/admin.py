@@ -18,7 +18,7 @@ class SafeFundingAdmin(admin.ModelAdmin):
     list_display = ('safe', 'safe_status', 'deployer_funded_tx_hash', 'safe_deployed_tx_hash')
 
     def safe_status(self, obj: SafeFunding):
-        return obj.__str__()
+        return obj.status()
 
 
 @admin.register(SafeMultisigTx)
