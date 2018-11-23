@@ -161,8 +161,10 @@ class SafeView(APIView):
             nonce = safe_service.retrieve_nonce(address)
             threshold = safe_service.retrieve_threshold(address)
             owners = safe_service.retrieve_owners(address)
+            master_copy = safe_service.retrieve_master_copy_address(address)
             serializer = self.serializer_class(data={
                 'address': address,
+                'master_copy': master_copy,
                 'nonce': nonce,
                 'threshold': threshold,
                 'owners': owners,

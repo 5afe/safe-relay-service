@@ -144,6 +144,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         response = self.client.get(reverse('v1:safe', args=(my_safe_address,)), format='json')
         safe_json = response.json()
         self.assertEqual(safe_json['address'], my_safe_address)
+        self.assertEqual(safe_json['masterCopy'], self.safe_service.master_copy_address)
         self.assertEqual(safe_json['nonce'], 0)
         self.assertEqual(safe_json['threshold'], threshold)
         self.assertEqual(safe_json['owners'], owners)
