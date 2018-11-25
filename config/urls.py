@@ -27,7 +27,6 @@ urlpatterns = [
     url(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=None), name='schema-redoc'),
     url(settings.ADMIN_URL, admin.site.urls),
     url(r'^api/v1/', include('safe_relay_service.relay.urls', namespace='v1')),
-    url(r'^api/tokens/', include('safe_relay_service.tokens.urls')),
     url(r'^check/', lambda request: HttpResponse("Ok"), name='check'),
 ]
 

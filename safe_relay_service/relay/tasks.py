@@ -7,6 +7,7 @@ from django.utils import timezone
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.safe_service import EthereumServiceProvider
 
+from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -27,7 +28,7 @@ LOCK_TIMEOUT = 60 * 2
 @app.shared_task(bind=True, max_retries=3)
 def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     """
-    Check if user has sent enough ether to the safe account
+    Check if user has sent enough ether or tokens to the safe account
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
     is called to check that that tx is mined
     :param safe_address: safe account
@@ -66,7 +67,10 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
 
             assert (last_block_number - confirmations) > 0
 
-            safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
+            if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
+                safe_balance = ethereum_service.get_erc20_balance(safe_address, safe_creation.payment_token)
+            else:
+                safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
 
             if safe_balance >= payment:
                 logger.info('Found %d balance for safe=%s',
@@ -78,14 +82,15 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                 # Check deployer has no eth. This should never happen
                 balance = ethereum_service.get_balance(deployer_address)
                 if balance:
-                    logger.error('Deployer=%s for safe=%s has funds already (%d wei)!', deployer_address, safe_address,
+                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)!', deployer_address, safe_address,
                                  balance)
                 else:
                     logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
                                 safe_address,
                                 payment,
                                 deployer_address)
-                    tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price, payment)
+                    tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
+                                                           safe_creation.payment_ether)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',

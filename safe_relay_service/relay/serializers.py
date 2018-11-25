@@ -1,8 +1,10 @@
 import logging
+from typing import Union
 
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeServiceProvider
-from gnosis.safe.serializers import (SafeMultisigTxSerializer,
+from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
+                                     SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -12,8 +14,26 @@ from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
 from django_eth.serializers import (EthereumAddressField, Sha3HashField,
                                     TransactionResponseSerializer)
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
+from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
+
+
+# TODO Refactor
+def validate_gas_token(address: Union[str, None]) -> str:
+    """
+    Raises ValidationError if gas token is not valid
+    :param address: Gas Token address
+    :return: address if everything goes well
+    """
+    if address and address != NULL_ADDRESS:
+        try:
+            token_db = Token.objects.get(address=address)
+            if not token_db.gas:
+                raise ValidationError('Token %s - %s cannot be used as gas token' % (token_db.name, address))
+        except Token.DoesNotExist:
+            raise ValidationError('Token %s not found' % address)
+    return address
 
 
 class SafeCreationSerializer(serializers.Serializer):
@@ -21,6 +41,10 @@ class SafeCreationSerializer(serializers.Serializer):
                                  max_value=SIGNATURE_S_MAX_VALUE)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
+    payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+
+    def validate_payment_token(self, value):
+        return validate_gas_token(value)
 
     def validate(self, data):
         super().validate(data)
@@ -33,6 +57,16 @@ class SafeCreationSerializer(serializers.Serializer):
         return data
 
 
+class SafeRelayMultisigEstimateTxSerializer(SafeMultisigEstimateTxSerializer):
+    def validate_gas_token(self, value):
+        return validate_gas_token(value)
+
+    def validate(self, data):
+        super().validate(data)
+        return data
+
+
+# TODO Rename this
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
@@ -85,6 +119,7 @@ class SignatureResponseSerializer(serializers.Serializer):
 
 class SafeResponseSerializer(serializers.Serializer):
     address = EthereumAddressField()
+    master_copy = EthereumAddressField()
     nonce = serializers.IntegerField(min_value=0)
     threshold = serializers.IntegerField(min_value=1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
@@ -94,8 +129,10 @@ class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()
     payment = serializers.CharField()
+    payment_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     safe = EthereumAddressField()
     deployer = EthereumAddressField()
+    funder = EthereumAddressField()
 
 
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
