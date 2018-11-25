@@ -77,6 +77,7 @@ class AboutView(APIView):
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
                 'SAFE_GAS_PRICE': settings.SAFE_GAS_PRICE,
                 'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
+                'SAFE_VALID_CONTRACT_ADDRESSES': settings.SAFE_VALID_CONTRACT_ADDRESSES,
                 'SAFE_TX_SENDER_PUBLIC_KEY': safe_sender_public_key,
             }
         }
