@@ -31,7 +31,7 @@ class SafeContract(TimeStampedModel):
 
 class SafeCreationManager(models.Manager):
     def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
-                       payment_token_eth_value: float=1.0):
+                       payment_token_eth_value: float=1.0, fixed_creation_cost: Union[int, None]=None):
         """
         Create models for safe tx
         :param s: Random s value for ecdsa signature
@@ -39,7 +39,7 @@ class SafeCreationManager(models.Manager):
         :param threshold: Minimum number of users required to operate the Safe
         :param payment_token: Address of the payment token, if ether is not used
         :param payment_token_eth_value: Value of payment_token per 1 ether
-        :return:
+        :param fixed_creation_cost: Fixed creation cost of Safe (Wei)
         :rtype: SafeCreation
         """
 
@@ -47,7 +47,8 @@ class SafeCreationManager(models.Manager):
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
         safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
-                                                               payment_token_eth_value)
+                                                               payment_token_eth_value=payment_token_eth_value,
+                                                               fixed_creation_cost=fixed_creation_cost)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)

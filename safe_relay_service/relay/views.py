@@ -110,7 +110,8 @@ class SafeCreationView(CreateAPIView):
                 payment_token_eth_value = 1.0
 
             safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
-                                                                payment_token_eth_value=payment_token_eth_value)
+                                                                payment_token_eth_value=payment_token_eth_value,
+                                                                fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
