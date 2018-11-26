@@ -54,11 +54,13 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(check_checksum(response_json['safe']))
         self.assertTrue(check_checksum(response_json['funder']))
         self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
+        self.assertGreater(int(response_json['payment']), 0)
 
         self.assertTrue(SafeContract.objects.filter(address=response.data['safe']))
         self.assertTrue(SafeCreation.objects.filter(owners__contains=[owner1]))
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertEqual(safe_creation.payment_token, None)
+        self.assertEqual(safe_creation.payment, safe_creation.payment_ether)
 
         serializer = SafeCreationSerializer(data={
             's': -1,
@@ -68,6 +70,33 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertFalse(serializer.is_valid())
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    def test_safe_creation_with_fixed_cost(self):
+        s = generate_valid_s()
+        owner1, _ = get_eth_address_with_key()
+        owner2, _ = get_eth_address_with_key()
+        serializer = SafeCreationSerializer(data={
+            's': s,
+            'owners': [owner1, owner2],
+            'threshold': 2
+        })
+        self.assertTrue(serializer.is_valid())
+        fixed_creation_cost = 123
+        with self.settings(SAFE_FIXED_CREATION_COST=fixed_creation_cost):
+            response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response_json = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        deployer = response_json['deployer']
+        self.assertTrue(check_checksum(deployer))
+        self.assertTrue(check_checksum(response_json['safe']))
+        self.assertTrue(check_checksum(response_json['funder']))
+        self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
+        self.assertEqual(int(response_json['payment']), fixed_creation_cost)
+
+        safe_creation = SafeCreation.objects.get(deployer=deployer)
+        self.assertEqual(safe_creation.payment_token, None)
+        self.assertEqual(safe_creation.payment, fixed_creation_cost)
+        self.assertGreater(safe_creation.payment_ether, safe_creation.payment)
 
     def test_safe_creation_with_payment_token(self):
         s = generate_valid_s()

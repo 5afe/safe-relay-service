@@ -72,6 +72,7 @@ class AboutView(APIView):
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
                 'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
                 'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
+                'SAFE_FIXED_CREATION_COST': settings.SAFE_FIXED_CREATION_COST,
                 'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
                 'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
@@ -110,7 +111,8 @@ class SafeCreationView(CreateAPIView):
                 payment_token_eth_value = 1.0
 
             safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
-                                                                payment_token_eth_value=payment_token_eth_value)
+                                                                payment_token_eth_value=payment_token_eth_value,
+                                                                fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
