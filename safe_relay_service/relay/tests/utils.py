@@ -1,4 +1,5 @@
 import os
+
 from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from gnosis.safe.tests.factories import generate_valid_s
