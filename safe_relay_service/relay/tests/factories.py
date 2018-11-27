@@ -1,15 +1,11 @@
-import os
 from logging import getLogger
 
-import factory
 import factory.fuzzy
 from django_eth.constants import (SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from django_eth.tests.factories import get_eth_address_with_key
-from ethereum.transactions import secpk1n
 from ethereum.utils import checksum_encode, mk_contract_address
-from gnosis.safe.tests.factories import generate_valid_s
 from hexbytes import HexBytes
 from web3 import Web3
 
@@ -57,60 +53,3 @@ class SafeFundingFactory(factory.DjangoModelFactory):
         model = SafeFunding
 
     safe = factory.SubFactory(SafeContractFactory)
-
-
-def generate_valid_s():
-    while True:
-        s = int(os.urandom(30).hex(), 16)
-        if s <= (secpk1n // 2):
-            return s
-
-
-def generate_safe(owners=None, number_owners=3, threshold=None, payment_token=None) -> SafeCreation:
-    s = generate_valid_s()
-
-    if not owners:
-        owners = []
-        for _ in range(number_owners):
-            owner, _ = get_eth_address_with_key()
-            owners.append(owner)
-
-    threshold = threshold if threshold else len(owners)
-
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
-    return safe_creation
-
-
-#FIXME Use the functions in gnosis-py
-def deploy_safe(w3, safe_creation, funder: str, initial_funding_wei: int=0) -> str:
-    w3.eth.waitForTransactionReceipt(
-        w3.eth.sendTransaction({
-            'from': funder,
-            'to': safe_creation.deployer,
-            'value': safe_creation.payment
-        })
-    )
-
-    w3.eth.waitForTransactionReceipt(
-        w3.eth.sendTransaction({
-            'from': funder,
-            'to': safe_creation.safe.address,
-            'value': safe_creation.payment
-        })
-    )
-
-    tx_hash = w3.eth.sendRawTransaction(bytes(safe_creation.signed_tx))
-    tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-    assert tx_receipt.contractAddress == safe_creation.safe.address
-    assert tx_receipt.status
-
-    if initial_funding_wei > 0:
-        w3.eth.waitForTransactionReceipt(
-            w3.eth.sendTransaction({
-                'from': funder,
-                'to': safe_creation.safe.address,
-                'value': initial_funding_wei
-            })
-        )
-
-    return safe_creation.safe.address

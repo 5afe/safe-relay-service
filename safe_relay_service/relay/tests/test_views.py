@@ -15,7 +15,7 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
-from .factories import deploy_safe, generate_safe, generate_valid_s
+from .utils import generate_valid_s, generate_safe, deploy_safe
 from .safe_test_case import TestCaseWithSafeContractMixin
 
 faker = Faker()

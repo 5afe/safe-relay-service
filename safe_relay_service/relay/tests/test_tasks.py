@@ -9,7 +9,8 @@ from gnosis.safe.ethereum_service import EthereumServiceProvider
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
-from .factories import SafeCreationFactory, SafeFundingFactory, generate_safe
+from .factories import SafeCreationFactory, SafeFundingFactory
+from .utils import generate_safe
 
 logger = logging.getLogger(__name__)
 

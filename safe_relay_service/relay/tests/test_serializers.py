@@ -9,7 +9,7 @@ from ..models import SafeContract, SafeFunding
 from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)
-from .factories import generate_safe
+from .utils import generate_safe
 
 faker = Faker()
 
