@@ -1,5 +1,4 @@
 import factory as factory_boy
-
 from django_eth.tests.factories import get_eth_address_with_key
 
 from .. import models

@@ -2,7 +2,6 @@ import math
 
 import requests
 from django.db import models
-
 from django_eth.models import EthereumAddressField
 
 

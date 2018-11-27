@@ -9,7 +9,7 @@ from gnosis.safe.ethereum_service import EthereumServiceProvider
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
-from .factories import generate_safe
+from .factories import SafeCreationFactory, SafeFundingFactory, generate_safe
 
 logger = logging.getLogger(__name__)
 
@@ -149,17 +149,40 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
         self.assertFalse(safe_funding.safe_deployed)
 
+        # Set invalid tx_hash for deployer funding tx
         safe_funding.deployer_funded_tx_hash = self.w3.sha3(0).hex()
         safe_funding.save()
 
-        deploy_safes_task.delay().get()
+        deploy_safes_task.delay(retry=False).get()
 
         safe_funding.refresh_from_db()
 
-        # Safe is not deployed if deployer tx is not valid. Deployer tx must be deleted
+        # Safe is deployed even if deployer tx is not valid, if balance is found
         self.assertTrue(safe_funding.safe_funded)
-        self.assertFalse(safe_funding.deployer_funded_tx_hash)
+        self.assertTrue(safe_funding.deployer_funded_tx_hash)
+        self.assertTrue(safe_funding.deployer_funded)
+        self.assertTrue(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        # Try to deploy safe with no balance and invalid tx-hash. It will not be deployed and
+        # `deployer_funded` will be set to `False` and `deployer_funded_tx_hash` to `None`
+        safe_funding = SafeFundingFactory(safe_funded=True,
+                                          deployer_funded=True,
+                                          deployer_funded_tx_hash=self.w3.sha3(1).hex())
+        SafeCreationFactory(safe=safe_funding.safe)
+
+        self.assertTrue(safe_funding.safe_funded)
+        self.assertTrue(safe_funding.deployer_funded)
+        self.assertTrue(safe_funding.deployer_funded_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed)
+
+        deploy_safes_task.delay(retry=False).get()
+        safe_funding.refresh_from_db()
+        self.assertTrue(safe_funding.safe_funded)
         self.assertFalse(safe_funding.deployer_funded)
+        self.assertFalse(safe_funding.deployer_funded_tx_hash)
+        self.assertFalse(safe_funding.safe_deployed_tx_hash)
         self.assertFalse(safe_funding.safe_deployed)
 
     def test_reorg_after_safe_deployed(self):
@@ -199,6 +222,5 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed_tx_hash)
         self.assertFalse(safe_funding.safe_deployed)
 
-        # Raises ValueError because of nonce error when trying to deploy again the contract
-        with self.assertRaises(ValueError):
-            deploy_safes_task.delay().get()
+        # No error when trying to deploy again the contract
+        deploy_safes_task.delay().get()

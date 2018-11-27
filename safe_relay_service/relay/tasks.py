@@ -4,10 +4,10 @@ from celery import app
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
+from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.safe_service import EthereumServiceProvider
 
-from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -31,6 +31,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     Check if user has sent enough ether or tokens to the safe account
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
     is called to check that that tx is mined
+    If everything goes well in SafeFunding `safe_funded=True` and `deployer_funded_tx_hash=tx_hash` are set
     :param safe_address: safe account
     :param retry: if True, retries are allowed, otherwise don't retry
     """
@@ -68,6 +69,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
             assert (last_block_number - confirmations) > 0
 
             if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
+                # FIXME Add block number for confirmations
                 safe_balance = ethereum_service.get_erc20_balance(safe_address, safe_creation.payment_token)
             else:
                 safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
@@ -116,6 +118,12 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                  max_retries=settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
                  default_retry_delay=settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY)
 def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> None:
+    """
+    Check the `deployer_funded_tx_hash`. If receipt can be retrieved, in SafeFunding `deployer_funded=True`.
+    If not, after the number of retries `deployer_funded_tx_hash=None`
+    :param safe_address: safe account
+    :param retry: if True, retries are allowed, otherwise don't retry
+    """
     lock = redis.lock("tasks:check_deployer_funded_task:%s" % safe_address, timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
@@ -124,34 +132,45 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
     try:
         logger.debug('Starting check deployer funded task for safe=%s', safe_address)
         safe_funding = SafeFunding.objects.get(safe=safe_address)
-        tx_hash = safe_funding.deployer_funded_tx_hash
+        deployer_funded_tx_hash = safe_funding.deployer_funded_tx_hash
 
         if safe_funding.deployer_funded:
-            logger.warning('Tx-hash=%s for safe %s is already checked!', tx_hash, safe_address)
+            logger.warning('Tx-hash=%s for safe %s is already checked!', deployer_funded_tx_hash, safe_address)
             return
-        elif not tx_hash:
+        elif not deployer_funded_tx_hash:
             logger.error('No deployer_funded_tx_hash for safe=%s', safe_address)
             return
 
-        logger.debug('Checking safe=%s deployer tx-hash=%s', safe_address, tx_hash)
-        if ethereum_service.get_transaction_receipt(tx_hash):
-            logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address, tx_hash)
+        logger.debug('Checking safe=%s deployer tx-hash=%s', safe_address, deployer_funded_tx_hash)
+        if ethereum_service.get_transaction_receipt(deployer_funded_tx_hash):
+            logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address,
+                        deployer_funded_tx_hash)
             safe_funding.deployer_funded = True
             safe_funding.save()
         else:
-            logger.debug('Not found transaction for receipt %s', tx_hash)
+            logger.debug('Not found transaction receipt for tx-hash=%s', deployer_funded_tx_hash)
             # If no more retries
             if not retry or (self.request.retries == self.max_retries):
                 safe_creation = SafeCreation.objects.get(safe=safe_address)
                 balance = ethereum_service.get_balance(safe_creation.deployer)
-                if not balance:
-                    logger.error('Transaction with receipt %s not mined after %d retries. Setting back to empty',
-                                 tx_hash,
+                if balance >= safe_creation.payment_ether:
+                    logger.error('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
+                                 'but balance is there. This should never happen',
+                                 safe_address,
+                                 safe_creation.deployer)
+                    safe_funding.deployer_funded = True
+                    safe_funding.save()
+                else:
+                    logger.error('Safe=%s. Deployer=%s. Transaction receipt with tx-hash=%s not mined after %d '
+                                 'retries. Setting `deployer_funded_tx_hash` back to `None`',
+                                 safe_address,
+                                 safe_creation.deployer,
+                                 deployer_funded_tx_hash,
                                  self.request.retries)
                     safe_funding.deployer_funded_tx_hash = None
                     safe_funding.save()
             else:
-                logger.debug('Retry finding transaction receipt %s', tx_hash)
+                logger.debug('Retry finding transaction receipt %s', deployer_funded_tx_hash)
                 if retry:
                     raise self.retry(countdown=self.request.retries * 10 + 15)  # More countdown every retry
     finally:
@@ -160,59 +179,66 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
 
 
 @app.shared_task()
-def deploy_safes_task() -> None:
+def deploy_safes_task(retry: bool=True) -> None:
+    """
+    Deploy pending safes (deployer funded and tx-hash checked). Then raw creation tx is sent to the ethereum network.
+    If something goes wrong (maybe a reorg), `deployer_funded` will be set False again and `check_deployer_funded_task`
+    is called again.
+    :param retry: if True, retries are allowed, otherwise don't retry
+    """
     lock = redis.lock("tasks:deploy_safes_task", timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
         return
     try:
         logger.debug('Starting deploy safes task')
-
         pending_to_deploy = SafeFunding.objects.pending_just_to_deploy()
-
         logger.debug('%d safes pending to deploy', len(pending_to_deploy))
 
         for safe_funding in pending_to_deploy:
             safe_contract = safe_funding.safe
+            safe_address = safe_contract.address
             safe_creation = SafeCreation.objects.get(safe=safe_contract)
+            safe_deployed_tx_hash = safe_funding.safe_deployed_tx_hash
 
-            # Check if safe proxy deploy transaction has already been sent to the network
-            tx_hash = safe_funding.safe_deployed_tx_hash
-            if tx_hash:
+            if not safe_deployed_tx_hash:
+                # Deploy the Safe
+                try:
+                    creation_tx_hash = ethereum_service.send_raw_transaction(safe_creation.signed_tx)
+                    if creation_tx_hash:
+                        creation_tx_hash = creation_tx_hash.hex()
+                        logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
+                                    safe_address,
+                                    creation_tx_hash)
+                        safe_funding.safe_deployed_tx_hash = creation_tx_hash
+                        safe_funding.save()
+                except ValueError:
+                    # Usually "ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}"
+                    # A reorg happened
+                    logger.warning("Safe=%s was affected by reorg, let's check again receipt for tx-hash=%s",
+                                   safe_address,
+                                   safe_funding.deployer_funded_tx_hash,
+                                   exc_info=True)
+                    safe_funding.deployer_funded = False
+                    safe_funding.save()
+                    check_deployer_funded_task.apply_async((safe_address,), {'retry': retry}, countdown=20)
+            else:
+                # Check if safe proxy deploy transaction has already been sent to the network
                 logger.debug('Safe=%s creation tx has already been sent to the network with tx-hash=%s',
-                             safe_contract.address,
-                             tx_hash)
+                             safe_address,
+                             safe_deployed_tx_hash)
 
-                if ethereum_service.check_tx_with_confirmations(tx_hash, settings.SAFE_FUNDING_CONFIRMATIONS):
+                if ethereum_service.check_tx_with_confirmations(safe_deployed_tx_hash,
+                                                                settings.SAFE_FUNDING_CONFIRMATIONS):
                     logger.info('Safe=%s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
-                    return
                 elif (safe_funding.modified + timedelta(minutes=10) < timezone.now()
-                      and not ethereum_service.get_transaction_receipt(tx_hash)):
+                      and not ethereum_service.get_transaction_receipt(safe_deployed_tx_hash)):
                     # A reorg happened
                     logger.warning('Safe=%s deploy tx=%s was not found after 10 minutes. Trying deploying again...',
-                                   safe_funding.safe.address, tx_hash)
+                                   safe_funding.safe.address, safe_deployed_tx_hash)
                     safe_funding.safe_deployed_tx_hash = None
-                    safe_funding.save()
-            else:
-                # Check a reorg didn't happen and deployer tx is still valid
-                if ethereum_service.get_transaction_receipt(safe_funding.deployer_funded_tx_hash):
-                    tx_hash = ethereum_service.send_raw_transaction(safe_creation.signed_tx)
-                    if tx_hash:
-                        tx_hash = tx_hash.hex()
-                        logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
-                                    safe_contract.address,
-                                    tx_hash)
-                        safe_funding.safe_deployed_tx_hash = tx_hash
-                        safe_funding.save()
-                else:
-                    # A reorg happened
-                    logger.warning("Safe=%s was affected by reorg, deployer funded tx-hash=%s invalid",
-                                   safe_contract.address,
-                                   safe_funding.deployer_funded_tx_hash)
-                    safe_funding.deployer_funded_tx_hash = None
-                    safe_funding.deployer_funded = False
                     safe_funding.save()
     finally:
         if have_lock:
