@@ -166,10 +166,11 @@ class TestTasks(TestCase):
 
         # Try to deploy safe with no balance and invalid tx-hash. It will not be deployed and
         # `deployer_funded` will be set to `False` and `deployer_funded_tx_hash` to `None`
-        safe_funding = SafeFundingFactory(safe_funded=True,
+        safe_creation = SafeCreationFactory()
+        safe_funding = SafeFundingFactory(safe=safe_creation.safe,
+                                          safe_funded=True,
                                           deployer_funded=True,
                                           deployer_funded_tx_hash=self.w3.sha3(1).hex())
-        SafeCreationFactory(safe=safe_funding.safe)
 
         self.assertTrue(safe_funding.safe_funded)
         self.assertTrue(safe_funding.deployer_funded)

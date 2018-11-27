@@ -8,6 +8,7 @@ from django_eth.constants import (SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
+from ethereum.utils import checksum_encode, mk_contract_address
 from gnosis.safe.tests.factories import generate_valid_s
 from hexbytes import HexBytes
 from web3 import Web3
@@ -30,7 +31,10 @@ class SafeCreationFactory(factory.DjangoModelFactory):
         model = SafeCreation
 
     deployer = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
-    safe = factory.SubFactory(SafeContractFactory)
+    safe = factory.SubFactory(SafeContractFactory,
+                              address=factory.LazyAttribute(lambda o:
+                                                            checksum_encode(mk_contract_address(
+                                                                o.factory_parent.deployer, 0))))
     funder = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
     owners = factory.LazyFunction(lambda: [get_eth_address_with_key()[0], get_eth_address_with_key()[0]])
     threshold = 2
