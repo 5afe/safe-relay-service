@@ -32,7 +32,7 @@ class NotificationService:
         self.notification_uri = urljoin(base_uri, '/api/v1/simple-notifications/')
         self.headers = headers if headers else {'X-Forwarded-Proto': 'https'}
 
-    def send_notification(self, owners: List[str], message: Dict) -> bool:
+    def send_notification(self, message: Dict, owners: List[str]) -> bool:
         if not owners:
             return False
         else:
@@ -48,8 +48,7 @@ class NotificationService:
             "type": "safeCreation",
             "safe": safe_address,
         }
-        for owner in owners:
-            self.send_notification(owner, message)
+        return self.send_notification(message, owners)
 
 
 class NotificationServiceMock(NotificationService):
