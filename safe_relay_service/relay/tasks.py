@@ -257,4 +257,5 @@ def send_create_notification(safe_address: str, owners: List[str]) -> None:
     :param safe_address: Address of the safe created
     :param owners: List of owners of the safe
     """
+    logger.info('Safe=%s creation ended, sending notification to %s', safe_address, owners)
     return notification_service.send_create_notification(safe_address, owners)
