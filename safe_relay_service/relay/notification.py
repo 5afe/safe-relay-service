@@ -40,7 +40,7 @@ class NotificationService:
                 'message': json.dumps(message),
                 'devices': owners,
             }
-            r = requests.post(self.uri, data=data, headers=self.headers)
+            r = requests.post(self.notification_uri, json=data, headers=self.headers)
             return r.ok
 
     def send_create_notification(self, safe_address: str, owners: List[str]) -> bool:
