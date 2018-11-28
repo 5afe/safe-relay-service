@@ -5,7 +5,7 @@ from django.test import TestCase
 from hexbytes import HexBytes
 
 from ..models import SafeFunding
-from .factories import generate_safe
+from .utils import generate_safe
 
 logger = logging.getLogger(__name__)
 

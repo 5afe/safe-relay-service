@@ -1,6 +1,9 @@
 import logging
 
 from django.urls import reverse
+from django_eth.constants import NULL_ADDRESS
+from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
+                                        get_eth_address_with_key)
 from ethereum.utils import check_checksum
 from faker import Faker
 from gnosis.safe.safe_service import SafeServiceProvider
@@ -8,15 +11,12 @@ from gnosis.safe.tests.factories import deploy_example_erc20
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from django_eth.constants import NULL_ADDRESS
-from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
-                                        get_eth_address_with_key)
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
-from .factories import deploy_safe, generate_safe, generate_valid_s
 from .safe_test_case import TestCaseWithSafeContractMixin
+from .utils import deploy_safe, generate_safe, generate_valid_s
 
 faker = Faker()
 
