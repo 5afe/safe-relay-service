@@ -7,7 +7,9 @@ from django.utils import timezone
 from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.safe_service import EthereumServiceProvider
+from typing import List
 
+from .notification import NotificationServiceProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -17,6 +19,7 @@ logger = get_task_logger(__name__)
 
 ethereum_service = EthereumServiceProvider()
 redis = RedisService().redis
+notification_service = NotificationServiceProvider()
 
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
@@ -233,6 +236,8 @@ def deploy_safes_task(retry: bool=True) -> None:
                     logger.info('Safe=%s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
+                    # Send creation notification
+                    send_create_notification.delay(safe_address, safe_creation.owners)
                 elif (safe_funding.modified + timedelta(minutes=10) < timezone.now()
                       and not ethereum_service.get_transaction_receipt(safe_deployed_tx_hash)):
                     # A reorg happened
@@ -243,3 +248,13 @@ def deploy_safes_task(retry: bool=True) -> None:
     finally:
         if have_lock:
             lock.release()
+
+
+@app.shared_task()
+def send_create_notification(safe_address: str, owners: List[str]) -> None:
+    """
+    Send create notification to owner
+    :param safe_address: Address of the safe created
+    :param owners: List of owners of the safe
+    """
+    return notification_service.send_create_notification(safe_address, owners)
