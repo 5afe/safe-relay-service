@@ -5,10 +5,11 @@ from django.db import models
 from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import (InvalidMultisigTx, SafeOperation,
-                                      SafeServiceProvider)
+from gnosis.safe.safe_service import (SafeServiceException, SafeOperation)
+from .relay_service import RelayServiceProvider
 from model_utils.models import TimeStampedModel
 
+from .relay_service import RelayServiceException
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 
@@ -17,10 +18,10 @@ class SafeContract(TimeStampedModel):
     master_copy = EthereumAddressField()
 
     def has_valid_code(self) -> bool:
-        return SafeServiceProvider().check_proxy_code(self.address)
+        return RelayServiceProvider().check_proxy_code(self.address)
 
     def has_valid_master_copy(self) -> bool:
-        return SafeServiceProvider().check_master_copy(self.address)
+        return RelayServiceProvider().check_master_copy(self.address)
 
     def get_balance(self, block_identifier=None):
         return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
@@ -43,12 +44,12 @@ class SafeCreationManager(models.Manager):
         :rtype: SafeCreation
         """
 
-        safe_service = SafeServiceProvider()
+        relay_service = RelayServiceProvider()
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
-                                                               payment_token_eth_value=payment_token_eth_value,
-                                                               fixed_creation_cost=fixed_creation_cost)
+        safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+                                                                payment_token_eth_value=payment_token_eth_value,
+                                                                fixed_creation_cost=fixed_creation_cost)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
@@ -183,8 +184,7 @@ class SafeMultisigTxManager(models.Manager):
                            gas_token: str,
                            refund_receiver: str,
                            nonce: int,
-                           signatures: List[Dict[str, int]],
-                           tx_gas_price: int):
+                           signatures: List[Dict[str, int]]):
         """
         :return: Database model of SafeMultisigTx
         :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
@@ -194,13 +194,13 @@ class SafeMultisigTxManager(models.Manager):
         if self.filter(safe=safe_address, nonce=nonce).exists():
             raise self.SafeMultisigTxExists
 
-        safe_service = SafeServiceProvider()
+        relay_service = RelayServiceProvider()
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = safe_service.signatures_to_bytes(signature_pairs)
+        signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
 
         try:
-            tx_hash, tx = safe_service.send_multisig_tx(
+            tx_hash, tx = relay_service.send_multisig_tx(
                 safe_address,
                 to,
                 value,
@@ -211,10 +211,9 @@ class SafeMultisigTxManager(models.Manager):
                 gas_price,
                 gas_token,
                 refund_receiver,
-                signatures_packed,
-                tx_gas_price=tx_gas_price
+                signatures_packed
             )
-        except InvalidMultisigTx as exc:
+        except (SafeServiceException, RelayServiceException) as exc:
             raise self.SafeMultisigTxError(str(exc)) from exc
 
         safe_contract = SafeContract.objects.get(address=safe_address)
