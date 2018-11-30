@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 
 from celery import app
 from celery.utils.log import get_task_logger
@@ -7,12 +8,11 @@ from django.utils import timezone
 from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.safe_service import EthereumServiceProvider
-from typing import List
 
-from .notification import NotificationServiceProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
+from .notification import NotificationServiceProvider
 from .redis_service import RedisService
 
 logger = get_task_logger(__name__)

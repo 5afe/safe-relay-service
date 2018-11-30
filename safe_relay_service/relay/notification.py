@@ -1,9 +1,9 @@
 import json
-from urllib.parse import urljoin
-from typing import Dict, Union, List
-import requests
 from logging import getLogger
+from typing import Dict, List, Union
+from urllib.parse import urljoin
 
+import requests
 
 logger = getLogger(__name__)
 
