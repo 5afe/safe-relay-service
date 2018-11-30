@@ -6,7 +6,6 @@ from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
 from django_eth.serializers import (EthereumAddressField, Sha3HashField,
                                     TransactionResponseSerializer)
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import SafeServiceProvider
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
@@ -15,6 +14,8 @@ from rest_framework.exceptions import ValidationError
 
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
 from safe_relay_service.tokens.models import Token
+
+from .relay_service import RelayServiceProvider
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +82,16 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
         if len(signatures) < safe_creation.threshold:
             raise ValidationError('Need at least %d signatures' % safe_creation.threshold)
 
-        safe_service = SafeServiceProvider()
+        relay_service = RelayServiceProvider()
 
         refund_receiver = data.get('refund_receiver')
         if refund_receiver and refund_receiver != NULL_ADDRESS:
             raise ValidationError('Refund Receiver is not configurable')
 
-        tx_hash = safe_service.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
-                                                    data['operation'], data['safe_tx_gas'], data['data_gas'],
-                                                    data['gas_price'], data['gas_token'], data['refund_receiver'],
-                                                    data['nonce'])
+        tx_hash = relay_service.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
+                                                     data['operation'], data['safe_tx_gas'], data['data_gas'],
+                                                     data['gas_price'], data['gas_token'], data['refund_receiver'],
+                                                     data['nonce'])
 
         owners = [EthereumServiceProvider().get_signing_address(tx_hash,
                                                                 signature['v'],
@@ -98,7 +99,7 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
                                                                 signature['s']) for signature in signatures]
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        if not safe_service.check_hash(tx_hash, safe_service.signatures_to_bytes(signature_pairs), owners):
+        if not relay_service.check_hash(tx_hash, relay_service.signatures_to_bytes(signature_pairs), owners):
             raise ValidationError('Signatures are not sorted by owner: %s' % owners)
 
         data['owners'] = owners

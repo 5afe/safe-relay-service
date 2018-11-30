@@ -2,10 +2,10 @@ from django.test import TestCase
 from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Faker
-from gnosis.safe.safe_service import SafeServiceProvider
 from hexbytes import HexBytes
 
 from ..models import SafeContract, SafeFunding
+from ..relay_service import RelayServiceProvider
 from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)
@@ -53,8 +53,8 @@ class TestSerializers(TestCase):
         self.assertTrue(s.data)
 
     def test_safe_multisig_tx_serializer(self):
-        safe_service = SafeServiceProvider()
-        w3 = safe_service.w3
+        relay_service = RelayServiceProvider()
+        w3 = relay_service.w3
 
         safe = generate_safe(number_owners=3).safe.address
         to = None
@@ -113,7 +113,7 @@ class TestSerializers(TestCase):
         # Now we fix the signatures
         to = owners[-1]
         data['to'] = to
-        multisig_tx_hash = safe_service.get_hash_for_safe_tx(
+        multisig_tx_hash = relay_service.get_hash_for_safe_tx(
             safe,
             to,
             value,

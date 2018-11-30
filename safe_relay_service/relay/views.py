@@ -2,7 +2,7 @@ import ethereum.utils
 from django.conf import settings
 from django_eth.constants import NULL_ADDRESS
 from drf_yasg.utils import swagger_auto_schema
-from gnosis.safe.safe_service import SafeServiceException, SafeServiceProvider
+from gnosis.safe.safe_service import SafeServiceException
 from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
@@ -11,13 +11,13 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 
-from safe_relay_service.gas_station.gas_station import GasStationProvider
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx)
 from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 
+from .relay_service import RelayServiceException, RelayServiceProvider
 from .serializers import (SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
@@ -34,7 +34,7 @@ def custom_exception_handler(exc, context):
 
     # Now add the HTTP status code to the response.
     if not response:
-        if isinstance(exc, SafeServiceException):
+        if isinstance(exc, (SafeServiceException, RelayServiceException)):
             response = Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             response = Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -161,11 +161,11 @@ class SafeView(APIView):
             except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            safe_service = SafeServiceProvider()
-            nonce = safe_service.retrieve_nonce(address)
-            threshold = safe_service.retrieve_threshold(address)
-            owners = safe_service.retrieve_owners(address)
-            master_copy = safe_service.retrieve_master_copy_address(address)
+            relay_service = RelayServiceProvider()
+            nonce = relay_service.retrieve_nonce(address)
+            threshold = relay_service.retrieve_threshold(address)
+            owners = relay_service.retrieve_owners(address)
+            master_copy = relay_service.retrieve_master_copy_address(address)
             serializer = self.serializer_class(data={
                 'address': address,
                 'master_copy': master_copy,
@@ -241,36 +241,27 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
-            safe_service = SafeServiceProvider()
+            relay_service = RelayServiceProvider()
             data = serializer.validated_data
-            gas_token = data['gas_token'] or NULL_ADDRESS
-            if gas_token != NULL_ADDRESS:
-                try:
-                    gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                except Token.DoesNotExist:
-                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
-            else:
-                gas_token_model = None
 
             last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
-            safe_tx_gas = safe_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
-                                                       data['operation'])
-            safe_data_tx_gas = safe_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
-                                                                 data['operation'], gas_token, safe_tx_gas)
-            safe_operational_tx_gas = safe_service.estimate_tx_operational_gas(address,
-                                                                               len(data['data']) if data['data'] else 0)
-            gas_price = GasStationProvider().get_gas_prices().fast
-
-            if gas_token_model:
-                price_margin = 1 + 1 / 100  # TODO Make it configurable
-                # Gas price needs to be adjusted for the token
-                gas_price = gas_token_model.calculate_gas_price(gas_price, price_margin=price_margin)
+            safe_tx_gas = relay_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
+                                                        data['operation'])
+            safe_data_tx_gas = relay_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
+                                                                  data['operation'], data['gas_token'], safe_tx_gas)
+            safe_operational_tx_gas = relay_service.estimate_tx_operational_gas(address,
+                                                                                len(data['data'])
+                                                                                if data['data'] else 0)
+            try:
+                gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
+            except RelayServiceException as e:
+                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=str(e))
 
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,
                              'operational_gas': safe_operational_tx_gas,
                              'gas_price': gas_price,
-                             'gas_token': gas_token,
+                             'gas_token': data['gas_token'] or NULL_ADDRESS,
                              'last_used_nonce': last_used_nonce}
             response_serializer = SafeMultisigEstimateTxResponseSerializer(data=response_data)
             assert response_serializer.is_valid(), response_serializer.errors
@@ -307,33 +298,6 @@ class SafeMultisigTxView(CreateAPIView):
             else:
                 data = serializer.validated_data
 
-                # If gas_token is specified, we see if the gas_price matches the current token value and use as the
-                # external tx gas the fast gas price from the gas station.
-                # If not, we just use the internal tx gas_price for the gas_price
-                gas_token = data['gas_token'] or NULL_ADDRESS
-                gas_price = data['gas_price']
-                current_gas_prices = GasStationProvider().get_gas_prices()
-                current_fast_gas_price = current_gas_prices.fast
-                current_standard_gas_price = current_gas_prices.standard
-                if gas_token != NULL_ADDRESS:
-                    try:
-                        gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                        estimated_gas_price = gas_token_model.calculate_gas_price(current_fast_gas_price)
-                        if gas_price < estimated_gas_price:
-                            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                            data='Required gas-price>=%d to use gas-token' % estimated_gas_price)
-                        # We use gas station tx gas price. We cannot use internal tx's because is calculated
-                        # based on the gas token
-                        tx_gas_price = current_fast_gas_price
-                    except Token.DoesNotExist:
-                        return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
-                else:
-                    if gas_price < current_standard_gas_price:
-                        return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                        data='Required gas-price>=%d' % current_standard_gas_price)
-                    # We use fast tx gas price, if not txs could we stuck
-                    tx_gas_price = current_fast_gas_price
-
                 try:
                     safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
                         safe_address=data['safe'],
@@ -347,8 +311,7 @@ class SafeMultisigTxView(CreateAPIView):
                         gas_token=data['gas_token'],
                         nonce=data['nonce'],
                         refund_receiver=data['refund_receiver'],
-                        signatures=data['signatures'],
-                        tx_gas_price=tx_gas_price
+                        signatures=data['signatures']
                     )
                     response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
                                                                                  safe_multisig_tx.tx_hash})

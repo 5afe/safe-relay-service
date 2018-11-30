@@ -1,6 +1,6 @@
 import math
 from logging import getLogger
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Union
 
 import numpy as np
 import requests
@@ -151,12 +151,23 @@ class GasStation:
 
 
 class GasStationMock(GasStation):
-    def __init__(self, gas_price: int=1):
-        self.gas_price = gas_price
+    def __init__(self, gas_price: Union[None, int]=None):
+        if gas_price is None:
+            self.lowest = 1
+            self.safe_low = 5
+            self.standard = 10
+            self.fast = 20
+            self.fastest = 50
+        else:
+            self.lowest = gas_price
+            self.safe_low = gas_price
+            self.standard = gas_price
+            self.fast = gas_price
+            self.fastest = gas_price
 
     def calculate_gas_prices(self) -> GasPrice:
-        return GasPrice(lowest=self.gas_price,
-                        safe_low=self.gas_price,
-                        standard=self.gas_price,
-                        fast=self.gas_price,
-                        fastest=self.gas_price)
+        return GasPrice(lowest=self.lowest,
+                        safe_low=self.safe_low,
+                        standard=self.standard,
+                        fast=self.fast,
+                        fastest=self.fastest)
