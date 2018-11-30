@@ -1,8 +1,11 @@
-from django_eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import (SafeService, GasPriceTooLow, InvalidRefundReceiver,
-    SafeServiceProvider)
 from typing import Tuple, Union
-from safe_relay_service.gas_station.gas_station import GasStation, GasStationProvider
+
+from django_eth.constants import NULL_ADDRESS
+from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
+                                      SafeService, SafeServiceProvider)
+
+from safe_relay_service.gas_station.gas_station import (GasStation,
+                                                        GasStationProvider)
 from safe_relay_service.tokens.models import Token
 
 

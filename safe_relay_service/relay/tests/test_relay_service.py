@@ -1,22 +1,30 @@
-from gnosis.safe.tests.test_safe_service import TestSafeService, GAS_PRICE
 import logging
 
 from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import get_eth_address_with_key
-from hexbytes import HexBytes
-
 from gnosis.safe.contracts import get_safe_contract
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
-                                      NotEnoughFundsForMultisigTx, InvalidRefundReceiver)
+                                      InvalidRefundReceiver,
+                                      NotEnoughFundsForMultisigTx)
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
+from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
+from hexbytes import HexBytes
 
-from ..relay_service import RelayService, RefundMustBeEnabled
 from safe_relay_service.gas_station.gas_station import GasStationMock
+
+from ..relay_service import (RefundMustBeEnabled, RelayService,
+                             RelayServiceProvider)
 
 logger = logging.getLogger(__name__)
 
 
 class TestRelayService(TestSafeService):
+
+    def test_relay_provider_singleton(self):
+        relay_service1 = RelayServiceProvider()
+        relay_service2 = RelayServiceProvider()
+        self.assertEqual(relay_service1, relay_service2)
+
     def test_relay_send_multisig_tx(self):
         gas_station = GasStationMock()
         relay_service = RelayService(self.safe_service, gas_station)

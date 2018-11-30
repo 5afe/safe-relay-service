@@ -6,7 +6,6 @@ from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
 from django_eth.serializers import (EthereumAddressField, Sha3HashField,
                                     TransactionResponseSerializer)
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from .relay_service import RelayServiceProvider
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
@@ -15,6 +14,8 @@ from rest_framework.exceptions import ValidationError
 
 from safe_relay_service.relay.models import SafeCreation, SafeFunding
 from safe_relay_service.tokens.models import Token
+
+from .relay_service import RelayServiceProvider
 
 logger = logging.getLogger(__name__)
 

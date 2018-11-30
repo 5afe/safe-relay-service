@@ -2,10 +2,10 @@ from django.test import TestCase
 from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
 from faker import Faker
-from ..relay_service import RelayServiceProvider
 from hexbytes import HexBytes
 
 from ..models import SafeContract, SafeFunding
+from ..relay_service import RelayServiceProvider
 from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)

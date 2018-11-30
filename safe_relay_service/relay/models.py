@@ -5,12 +5,12 @@ from django.db import models
 from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import (SafeServiceException, SafeOperation)
-from .relay_service import RelayServiceProvider
+from gnosis.safe.safe_service import SafeOperation, SafeServiceException
 from model_utils.models import TimeStampedModel
 
-from .relay_service import RelayServiceException
 from safe_relay_service.gas_station.gas_station import GasStationProvider
+
+from .relay_service import RelayServiceException, RelayServiceProvider
 
 
 class SafeContract(TimeStampedModel):

@@ -17,7 +17,7 @@ from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 
-from .relay_service import RelayServiceProvider, RelayServiceException
+from .relay_service import RelayServiceException, RelayServiceProvider
 from .serializers import (SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
