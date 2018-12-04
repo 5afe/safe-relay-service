@@ -1,12 +1,19 @@
 import math
 
-import requests
 from django.db import models
 from django_eth.models import EthereumAddressField
 
+from .exchanges import get_price_oracle, CannotGetTokenPriceFromApi
 
-class CannotGetTokenPriceFromApi(Exception):
-    pass
+
+class PriceOracle(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+
+class PriceOracleTicker(models.Model):
+    price_oracle = models.ForeignKey(PriceOracle, null=True, on_delete=models.CASCADE)
+    token = models.ForeignKey('Token', null=True, on_delete=models.CASCADE)
+    ticker = models.CharField(max_length=90, blank=True)
 
 
 class Token(models.Model):
@@ -18,6 +25,7 @@ class Token(models.Model):
     logo_uri = models.URLField(blank=True)
     website_uri = models.URLField(blank=True)
     gas = models.BooleanField(default=False)
+    price_oracles = models.ManyToManyField(PriceOracle, through=PriceOracleTicker)
     fixed_eth_conversion = models.DecimalField(null=True, default=None, max_digits=25, decimal_places=15)
     relevance = models.PositiveIntegerField(default=1)
 
@@ -27,13 +35,16 @@ class Token(models.Model):
     # TODO Cache
     def get_eth_value(self) -> float:
         if not self.fixed_eth_conversion:  # None or 0 ignored
-            pair = '{}ETH'.format(self.symbol)
-            api_json = requests.get('https://api.kraken.com/0/public/Ticker?pair=' + pair).json()
-            error = api_json.get('error')
-            if error:
-                raise CannotGetTokenPriceFromApi(str(api_json['error']))
-            price = float(api_json['result'][pair]['c'][0])
-            return price
+            prices = []
+            # Get the average price of the price oracles
+            for price_oracle_ticker in self.price_oracles:
+                price_oracle_name = price_oracle_ticker.price_oracle.name
+                ticker = price_oracle_ticker.ticker
+                try:
+                    prices.append(get_price_oracle(price_oracle_name).get_price(ticker))
+                except CannotGetTokenPriceFromApi:
+                    pass
+            return sum(prices) / len(prices)
         else:
             # Ether has 18 decimals, but maybe the token has a different number
             multiplier = 1e18 / 10**self.decimals
@@ -52,3 +63,5 @@ class Token(models.Model):
     def get_full_logo_url(self):
         return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
                'master/tokens/mainnet/icons/{}.png'.format(self.address)
+
+
