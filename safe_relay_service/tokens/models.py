@@ -5,6 +5,11 @@ from django_eth.models import EthereumAddressField
 
 from .exchanges import CannotGetTokenPriceFromApi, get_price_oracle
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 class PriceOracle(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -43,14 +48,19 @@ class Token(models.Model):
         if not self.fixed_eth_conversion:  # None or 0 ignored
             prices = []
             # Get the average price of the price oracles
-            for price_oracle_ticker in self.price_oracles:
+            for price_oracle_ticker in self.price_oracle_tickers.all():
                 price_oracle_name = price_oracle_ticker.price_oracle.name
                 ticker = price_oracle_ticker.ticker
                 try:
                     prices.append(get_price_oracle(price_oracle_name).get_price(ticker))
                 except CannotGetTokenPriceFromApi:
+                    logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
                     pass
-            return sum(prices) / len(prices)
+            number_prices = len(prices)
+            if number_prices == 0:
+                raise CannotGetTokenPriceFromApi('There is no working provider')
+            else:
+                return sum(prices) / number_prices
         else:
             # Ether has 18 decimals, but maybe the token has a different number
             multiplier = 1e18 / 10**self.decimals

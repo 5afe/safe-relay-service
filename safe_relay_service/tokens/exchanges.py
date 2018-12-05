@@ -44,7 +44,17 @@ class Binance:
 
 
 class DutchX:
+    def replace_tokens(self, ticker):
+        symbols = []
+        for symbol in ticker.split('-'):
+            symbol_lower = symbol.lower()
+            if symbol_lower == 'dai':
+                symbol = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
+            symbols.append(symbol)
+        return '-'.join(symbols)
+
     def get_price(self, ticker) -> float:
+        ticker = self.replace_tokens(ticker)
         url = 'https://dutchx.d.exchange/api/v1/markets/{}/price'.format(ticker)
         response = requests.get(url)
         api_json = response.json()

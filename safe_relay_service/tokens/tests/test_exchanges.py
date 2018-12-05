@@ -31,7 +31,7 @@ class TestExchanges(TestCase):
     def test_dutchx(self):
         exchange = DutchX()
         # Dai address is 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359
-        self.exchange_helper(exchange, ['WETH-0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359', 'RDN-WETH'],
+        self.exchange_helper(exchange, ['WETH-0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359', 'RDN-WETH', 'WETH-DAI'],
                              ['WETH-0x11abca6b4ccb1b6faa2625fe562bdd9a23260359'])
 
     def test_kraken(self):
