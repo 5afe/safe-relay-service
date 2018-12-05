@@ -1,7 +1,7 @@
 from django.test import TestCase
 
-from .factories import TokenFactory
 from ..models import PriceOracle
+from .factories import TokenFactory
 
 
 class TestModels(TestCase):

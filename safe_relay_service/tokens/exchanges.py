@@ -1,7 +1,7 @@
 import logging
-import requests
 from abc import ABC, abstractmethod
 
+import requests
 
 logger = logging.getLogger(__name__)
 

@@ -3,17 +3,23 @@ import math
 from django.db import models
 from django_eth.models import EthereumAddressField
 
-from .exchanges import get_price_oracle, CannotGetTokenPriceFromApi
+from .exchanges import CannotGetTokenPriceFromApi, get_price_oracle
 
 
 class PriceOracle(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
+    def __str__(self):
+        return self.name
+
 
 class PriceOracleTicker(models.Model):
-    price_oracle = models.ForeignKey(PriceOracle, null=True, on_delete=models.CASCADE)
-    token = models.ForeignKey('Token', null=True, on_delete=models.CASCADE)
-    ticker = models.CharField(max_length=90, blank=True)
+    price_oracle = models.ForeignKey(PriceOracle, null=True, on_delete=models.CASCADE, related_name='tickers')
+    token = models.ForeignKey('Token', null=True, on_delete=models.CASCADE, related_name='price_oracle_tickers')
+    ticker = models.CharField(max_length=90, blank=False, null=False)
+
+    def __str__(self):
+        return '%s - %s - %s' % (self.price_oracle.name, self.token.symbol, self.ticker)
 
 
 class Token(models.Model):
@@ -63,5 +69,3 @@ class Token(models.Model):
     def get_full_logo_url(self):
         return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
                'master/tokens/mainnet/icons/{}.png'.format(self.address)
-
-
