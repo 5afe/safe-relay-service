@@ -1,20 +1,35 @@
-import factory as factory_boy
+import factory
 from django_eth.tests.factories import get_eth_address_with_key
 
 from .. import models
 
 
-class TokenFactory(factory_boy.DjangoModelFactory):
+class PriceOracleFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.PriceOracle
 
+    name = factory.Faker('company')
+
+
+class TokenFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.Token
 
-    address = factory_boy.LazyFunction(lambda: get_eth_address_with_key()[0])
-    name = factory_boy.Faker('cryptocurrency_name')
-    symbol = factory_boy.Faker('cryptocurrency_code')
-    description = factory_boy.Faker('catch_phrase')
+    address = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
+    name = factory.Faker('cryptocurrency_name')
+    symbol = factory.Faker('cryptocurrency_code')
+    description = factory.Faker('catch_phrase')
     decimals = 18
     logo_uri = ''
     website_uri = ''
     gas = True
     fixed_eth_conversion = 1
+
+
+class PriceOracleTickerFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.PriceOracleTicker
+
+    price_oracle = factory.SubFactory(PriceOracleFactory)
+    token = factory.SubFactory(TokenFactory)
+    ticker = factory.Faker('cryptocurrency_code')

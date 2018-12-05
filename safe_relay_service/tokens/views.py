@@ -10,7 +10,7 @@ class TokenView(generics.ListAPIView):
     serializer_class = TokenSerializer
     filter_backends = (django_filters.rest_framework.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
     filterset_class = TokenFilter
-    search_fields = ('name', 'symbol', 'description')
+    search_fields = ('name', 'symbol')
     ordering_fields = '__all__'
     ordering = ('relevance',)
     queryset = Token.objects.all()
