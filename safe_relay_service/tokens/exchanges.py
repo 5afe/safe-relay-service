@@ -16,21 +16,6 @@ class PriceOracle(ABC):
         pass
 
 
-class Kraken:
-    def get_price(self, ticker) -> float:
-        url = 'https://api.kraken.com/0/public/Ticker?pair=' + ticker
-        response = requests.get(url)
-        api_json = response.json()
-        error = api_json.get('error')
-        if not response.ok or error:
-            logger.warning('Cannot get price from url=%s' % url)
-            raise CannotGetTokenPriceFromApi(str(api_json['error']))
-
-        result = api_json['result']
-        for new_ticker in result:
-            return float(result[new_ticker]['c'][0])
-
-
 class Binance:
     def get_price(self, ticker) -> float:
         # Remember to use always USDT instead of USD
@@ -64,13 +49,45 @@ class DutchX:
         return float(api_json)
 
 
+class Huobi:
+    """
+    Get valid symbols from https://api.huobi.pro/v1/common/symbols
+    """
+    def get_price(self, ticker) -> float:
+        url = 'https://api.huobi.pro/market/detail/merged?symbol=%s' % ticker
+        response = requests.get(url)
+        api_json = response.json()
+        error = api_json.get('err-msg')
+        if not response.ok or error:
+            logger.warning('Cannot get price from url=%s' % url)
+            raise CannotGetTokenPriceFromApi(error)
+        return float(api_json['tick']['close'])
+
+
+class Kraken:
+    def get_price(self, ticker) -> float:
+        url = 'https://api.kraken.com/0/public/Ticker?pair=' + ticker
+        response = requests.get(url)
+        api_json = response.json()
+        error = api_json.get('error')
+        if not response.ok or error:
+            logger.warning('Cannot get price from url=%s' % url)
+            raise CannotGetTokenPriceFromApi(str(api_json['error']))
+
+        result = api_json['result']
+        for new_ticker in result:
+            return float(result[new_ticker]['c'][0])
+
+
 def get_price_oracle(name) -> PriceOracle:
     name = name.lower()
-    if name == 'kraken':
-        return Kraken()
-    elif name == 'binance':
+    if name == 'binance':
         return Binance()
     elif name == 'dutchx':
         return DutchX()
+    elif name == 'huobi':
+        return Huobi()
+    elif name == 'kraken':
+        return Kraken()
     else:
         raise NotImplementedError

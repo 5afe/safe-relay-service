@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from ..exchanges import (Binance, CannotGetTokenPriceFromApi, DutchX, Kraken,
-                         get_price_oracle)
+                         get_price_oracle, Huobi)
 
 
 class TestExchanges(TestCase):
@@ -11,6 +11,8 @@ class TestExchanges(TestCase):
         self.assertIsInstance(get_price_oracle('KRAKEN'), Kraken)
         self.assertIsInstance(get_price_oracle('kraKen'), Kraken)
         self.assertIsInstance(get_price_oracle('DutchX'), DutchX)
+        self.assertIsInstance(get_price_oracle('Huobi'), Huobi)
+        self.assertIsInstance(get_price_oracle('huobI'), Huobi)
         with self.assertRaises(NotImplementedError):
             get_price_oracle('Another')
 
@@ -33,6 +35,11 @@ class TestExchanges(TestCase):
         # Dai address is 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359
         self.exchange_helper(exchange, ['WETH-0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359', 'RDN-WETH', 'WETH-DAI'],
                              ['WETH-0x11abca6b4ccb1b6faa2625fe562bdd9a23260359'])
+
+    def test_huobi(self):
+        exchange = Huobi()
+        # Dai address is 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359
+        self.exchange_helper(exchange, ['ethusdt', 'btcusdt'], ['BADTICKER'])
 
     def test_kraken(self):
         exchange = Kraken()
