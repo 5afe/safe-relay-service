@@ -7,7 +7,7 @@ from .factories import TokenFactory, PriceOracleTickerFactory, PriceOracleFactor
 
 class TestModels(TestCase):
     def test_price_oracles(self):
-        self.assertEqual(PriceOracle.objects.count(), 3)
+        self.assertEqual(PriceOracle.objects.count(), 4)
 
     def test_token_eth_value(self):
         fixed_eth_conversion = 0.1

@@ -9,6 +9,7 @@ def create_price_oracles(apps, schema_editor):
         PriceOracle(name='Kraken'),
         PriceOracle(name='Binance'),
         PriceOracle(name='DutchX'),
+        PriceOracle(name='Huobi'),
     ])
 
 
