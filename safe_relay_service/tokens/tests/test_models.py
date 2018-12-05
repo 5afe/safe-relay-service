@@ -1,9 +1,13 @@
 from django.test import TestCase
 
 from .factories import TokenFactory
+from ..models import PriceOracle
 
 
 class TestModels(TestCase):
+    def test_price_oracles(self):
+        self.assertEqual(PriceOracle.objects.count(), 3)
+
     def test_token_eth_value(self):
         fixed_eth_conversion = 0.1
         token = TokenFactory(fixed_eth_conversion=fixed_eth_conversion)
