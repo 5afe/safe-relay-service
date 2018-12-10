@@ -17,8 +17,11 @@ class PriceOracle(ABC):
 
 
 class Binance:
+    """
+    Get valid symbols from https://api.binance.com/api/v1/exchangeInfo
+    Remember to always use USDT instead of USD
+    """
     def get_price(self, ticker) -> float:
-        # Remember to use always USDT instead of USD
         url = 'https://api.binance.com/api/v3/avgPrice?symbol=' + ticker
         response = requests.get(url)
         api_json = response.json()
