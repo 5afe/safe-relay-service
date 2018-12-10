@@ -95,7 +95,8 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                                 payment,
                                 deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
-                                                           safe_creation.payment_ether)
+                                                           safe_creation.payment_ether,
+                                                           retry=True, block_identifier='pending')
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',
