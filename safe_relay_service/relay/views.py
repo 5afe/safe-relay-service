@@ -1,7 +1,7 @@
-import ethereum.utils
 from django.conf import settings
 from django_eth.constants import NULL_ADDRESS
 from drf_yasg.utils import swagger_auto_schema
+from eth_account.account import Account
 from gnosis.safe.safe_service import SafeServiceException
 from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
+from web3 import Web3
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx)
@@ -51,16 +52,10 @@ class AboutView(APIView):
     renderer_classes = (JSONRenderer,)
 
     def get(self, request, format=None):
-        if settings.SAFE_FUNDER_PRIVATE_KEY:
-            safe_funder_public_key = ethereum.utils.checksum_encode(ethereum.utils.privtoaddr(
-                settings.SAFE_FUNDER_PRIVATE_KEY))
-        else:
-            safe_funder_public_key = None
-        if settings.SAFE_TX_SENDER_PRIVATE_KEY:
-            safe_sender_public_key = ethereum.utils.checksum_encode(ethereum.utils.privtoaddr(
-                settings.SAFE_TX_SENDER_PRIVATE_KEY))
-        else:
-            safe_sender_public_key = None
+        safe_funder_public_key = Account.privateKeyToAccount(settings.SAFE_FUNDER_PRIVATE_KEY).address \
+            if settings.SAFE_FUNDER_PRIVATE_KEY else None
+        safe_sender_public_key = Account.privateKeyToAccount(settings.SAFE_TX_SENDER_PRIVATE_KEY).address \
+            if settings.SAFE_TX_SENDER_PRIVATE_KEY else None
         content = {
             'name': 'Safe Relay Service',
             'version': __version__,
@@ -153,12 +148,12 @@ class SafeView(APIView):
         """
         Get status of the safe
         """
-        if not ethereum.utils.check_checksum(address):
+        if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
+                SafeFunding.objects.get(safe=address, safe_deployed=True)
+            except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             relay_service = RelayServiceProvider()
@@ -187,7 +182,7 @@ class SafeSignalView(APIView):
         """
         Get status of the safe creation
         """
-        if not ethereum.utils.check_checksum(address):
+        if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -205,7 +200,7 @@ class SafeSignalView(APIView):
         """
         Force check of a safe balance to start the safe creation
         """
-        if not ethereum.utils.check_checksum(address):
+        if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -229,7 +224,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         Estimates a Safe Multisig Transaction
         """
-        if not ethereum.utils.check_checksum(address):
+        if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         try:
@@ -282,7 +277,7 @@ class SafeMultisigTxView(CreateAPIView):
         """
         Send a Safe Multisig Transaction
         """
-        if not ethereum.utils.check_checksum(address):
+        if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:

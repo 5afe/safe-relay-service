@@ -1,8 +1,9 @@
 from django.test import TestCase
 
-from ..models import PriceOracle
 from ..exchanges import CannotGetTokenPriceFromApi
-from .factories import TokenFactory, PriceOracleTickerFactory, PriceOracleFactory
+from ..models import PriceOracle
+from .factories import (PriceOracleFactory, PriceOracleTickerFactory,
+                        TokenFactory)
 
 
 class TestModels(TestCase):
