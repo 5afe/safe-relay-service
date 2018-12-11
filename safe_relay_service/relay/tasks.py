@@ -1,4 +1,5 @@
 from datetime import timedelta
+from gnosis.safe.ethereum_service import TransactionAlreadyImported, EthereumServiceProvider
 from typing import List
 
 from celery import app
@@ -7,7 +8,6 @@ from django.conf import settings
 from django.utils import timezone
 from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
-from gnosis.safe.safe_service import EthereumServiceProvider
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
@@ -216,6 +216,9 @@ def deploy_safes_task(retry: bool=True) -> None:
                                     creation_tx_hash)
                         safe_funding.safe_deployed_tx_hash = creation_tx_hash
                         safe_funding.save()
+                except TransactionAlreadyImported:
+                    logger.warning("Safe=%s transaction was already imported by the node")
+                    return
                 except ValueError:
                     # Usually "ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}"
                     # A reorg happened
