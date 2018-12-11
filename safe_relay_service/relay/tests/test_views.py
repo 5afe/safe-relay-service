@@ -15,6 +15,7 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..relay_service import RelayServiceProvider
 from ..serializers import SafeCreationSerializer
+from .factories import SafeFundingFactory
 from .safe_test_case import TestCaseWithSafeContractMixin
 from .utils import deploy_safe, generate_safe, generate_valid_s
 
@@ -170,6 +171,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         threshold = len(owners) - 1
         safe_creation = generate_safe(owners=owners, threshold=threshold)
         my_safe_address = deploy_safe(self.w3, safe_creation, funder)
+        SafeFundingFactory(safe=SafeContract.objects.get(address=my_safe_address), safe_deployed=True)
         response = self.client.get(reverse('v1:safe', args=(my_safe_address,)), format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         safe_json = response.json()
@@ -178,6 +180,10 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(safe_json['nonce'], 0)
         self.assertEqual(safe_json['threshold'], threshold)
         self.assertEqual(safe_json['owners'], owners)
+
+        random_address, _ = get_eth_address_with_key()
+        response = self.client.get(reverse('v1:safe', args=(random_address,)), format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         response = self.client.get(reverse('v1:safe', args=(my_safe_address + ' ',)), format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)

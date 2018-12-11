@@ -152,8 +152,8 @@ class SafeView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
+                SafeFunding.objects.get(safe=address, safe_deployed=True)
+            except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             relay_service = RelayServiceProvider()
