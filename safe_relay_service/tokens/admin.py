@@ -24,4 +24,4 @@ class PriceOracleTicker(admin.ModelAdmin):
 
 @admin.register(Token)
 class TokenAdmin(admin.ModelAdmin):
-    list_display = ('address', 'name', 'symbol', 'decimals', 'fixed_eth_conversion', 'relevance')
+    list_display = ('address', 'name', 'symbol', 'decimals', 'fixed_eth_conversion', 'relevance', 'gas')
