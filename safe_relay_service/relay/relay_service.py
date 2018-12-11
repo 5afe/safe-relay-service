@@ -52,22 +52,16 @@ class RelayService:
     # FIXME Estimate everything in one method, same with Safe info
     def estimate_tx_gas_price(self, gas_token: Union[str, None]=None):
         gas_token = gas_token or NULL_ADDRESS
-        gas_price = self.gas_station.get_gas_prices().fast
+        gas_price_fast = self.gas_station.get_gas_prices().fast
 
         if gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
+                return gas_token_model.calculate_gas_price(gas_price_fast)
             except Token.DoesNotExist:
                 raise InvalidGasToken('Gas token %s not valid' % gas_token)
         else:
-            gas_token_model = None
-
-        if gas_token_model:
-            price_margin = 1 + 1 / 100  # TODO Make it configurable
-            # Gas price needs to be adjusted for the token
-            gas_price = gas_token_model.calculate_gas_price(gas_price, price_margin=price_margin)
-
-        return gas_price
+            return gas_price_fast
 
     def send_multisig_tx(self,
                          safe_address: str,
@@ -113,7 +107,7 @@ class RelayService:
         if gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                estimated_gas_price = gas_token_model.calculate_gas_price(current_fast_gas_price)
+                estimated_gas_price = gas_token_model.calculate_gas_price(current_standard_gas_price)
                 if gas_price < estimated_gas_price:
                     raise GasPriceTooLow('Required gas-price>=%d to use gas-token' % estimated_gas_price)
                 # We use gas station tx gas price. We cannot use internal tx's because is calculated
