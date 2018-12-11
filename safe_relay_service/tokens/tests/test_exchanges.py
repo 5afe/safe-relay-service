@@ -1,7 +1,7 @@
 from django.test import TestCase
 
-from ..exchanges import (Binance, CannotGetTokenPriceFromApi, DutchX, Kraken,
-                         get_price_oracle, Huobi)
+from ..exchanges import (Binance, CannotGetTokenPriceFromApi, DutchX, Huobi,
+                         Kraken, get_price_oracle)
 
 
 class TestExchanges(TestCase):

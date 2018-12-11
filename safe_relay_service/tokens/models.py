@@ -1,12 +1,10 @@
+import logging
 import math
 
 from django.db import models
 from django_eth.models import EthereumAddressField
 
 from .exchanges import CannotGetTokenPriceFromApi, get_price_oracle
-
-import logging
-
 
 logger = logging.getLogger(__name__)
 

@@ -179,6 +179,15 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertEqual(safe_json['threshold'], threshold)
         self.assertEqual(safe_json['owners'], owners)
 
+        response = self.client.get(reverse('v1:safe', args=(my_safe_address + ' ',)), format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        response = self.client.get(reverse('v1:safe', args=('0xabfG',)), format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        response = self.client.get(reverse('v1:safe', args=('batman',)), format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
     def test_safe_multisig_tx(self):
         # Create Safe ------------------------------------------------
         relay_service = RelayServiceProvider()
