@@ -21,6 +21,10 @@ class InvalidGasToken(RelayServiceException):
     pass
 
 
+class SignaturesNotFound(RelayServiceException):
+    pass
+
+
 class RelayServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
@@ -95,6 +99,11 @@ class RelayService:
 
         if gas_price == 0:
             raise RefundMustBeEnabled('Tx internal gas price cannot be 0')
+
+        threshold = self.retrieve_threshold(safe_address)
+        number_signatures = len(signatures) // 65  # One signature = 65 bytes
+        if number_signatures < threshold:
+            raise SignaturesNotFound('Need at least %d signatures' % threshold)
 
         # If gas_token is specified, we see if the `gas_price` matches the current token value and use as the
         # external tx gas the fast gas price from the gas station.
