@@ -1,5 +1,4 @@
 from datetime import timedelta
-from gnosis.safe.ethereum_service import TransactionAlreadyImported, EthereumServiceProvider
 from typing import List
 
 from celery import app
@@ -8,6 +7,8 @@ from django.conf import settings
 from django.utils import timezone
 from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
+from gnosis.safe.ethereum_service import (EthereumServiceProvider,
+                                          TransactionAlreadyImported)
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)

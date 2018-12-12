@@ -20,9 +20,10 @@ class PriceOracleTicker(models.Model):
     price_oracle = models.ForeignKey(PriceOracle, null=True, on_delete=models.CASCADE, related_name='tickers')
     token = models.ForeignKey('Token', null=True, on_delete=models.CASCADE, related_name='price_oracle_tickers')
     ticker = models.CharField(max_length=90, blank=False, null=False)
+    inverse = models.BooleanField(default=False)
 
     def __str__(self):
-        return '%s - %s - %s' % (self.price_oracle.name, self.token.symbol, self.ticker)
+        return '%s - %s - %s - Inverse %s' % (self.price_oracle.name, self.token.symbol, self.ticker, self.inverse)
 
 
 class Token(models.Model):
@@ -50,7 +51,10 @@ class Token(models.Model):
                 price_oracle_name = price_oracle_ticker.price_oracle.name
                 ticker = price_oracle_ticker.ticker
                 try:
-                    prices.append(get_price_oracle(price_oracle_name).get_price(ticker))
+                    price = get_price_oracle(price_oracle_name).get_price(ticker)
+                    if price and price_oracle_ticker.inverse:  # Avoid 1 / 0
+                        price = 1 / price
+                    prices.append(price)
                 except CannotGetTokenPriceFromApi:
                     logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
                     pass
@@ -75,5 +79,8 @@ class Token(models.Model):
         return math.ceil(gas_price / self.get_eth_value() * price_margin)
 
     def get_full_logo_url(self):
-        return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
-               'master/tokens/mainnet/icons/{}.png'.format(self.address)
+        if self.logo_uri:
+            return self.logo_uri
+        else:
+            return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
+                   'master/tokens/mainnet/icons/{}.png'.format(self.address)
