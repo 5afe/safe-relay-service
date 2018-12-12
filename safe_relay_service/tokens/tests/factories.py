@@ -33,3 +33,4 @@ class PriceOracleTickerFactory(factory.DjangoModelFactory):
     price_oracle = factory.SubFactory(PriceOracleFactory)
     token = factory.SubFactory(TokenFactory)
     ticker = factory.Faker('cryptocurrency_code')
+    inverse = False

@@ -10,7 +10,7 @@ class PriceOracleAdmin(admin.ModelAdmin):
 
 @admin.register(PriceOracleTicker)
 class PriceOracleTicker(admin.ModelAdmin):
-    list_display = ('price_oracle_name', 'token_symbol', 'ticker')
+    list_display = ('price_oracle_name', 'token_symbol', 'ticker', 'inverse')
 
     def price_oracle_name(self, obj):
         return obj.price_oracle.name
