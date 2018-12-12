@@ -75,5 +75,8 @@ class Token(models.Model):
         return math.ceil(gas_price / self.get_eth_value() * price_margin)
 
     def get_full_logo_url(self):
-        return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
-               'master/tokens/mainnet/icons/{}.png'.format(self.address)
+        if self.logo_uri:
+            return self.logo_uri
+        else:
+            return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
+                   'master/tokens/mainnet/icons/{}.png'.format(self.address)
