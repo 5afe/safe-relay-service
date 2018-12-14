@@ -116,9 +116,25 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         response_json = response.json()
         self.assertIn('not found', response_json['paymentToken'][0])
 
+        # It will fail, because token is on DB but not in blockchain, so gas cannot be estimated
+        token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
+        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.json()['exception'], 'InvalidPaymentToken: Invalid payment token %s' % payment_token)
+
+        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        payment_token = erc20_contract.address
+        serializer = SafeCreationSerializer(data={
+            's': s,
+            'owners': [owner1, owner2],
+            'threshold': 2,
+            'payment_token': payment_token,
+        })
+        self.assertFalse(serializer.is_valid())
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
         response_json = response.json()
         deployer = response_json['deployer']
         self.assertTrue(check_checksum(deployer))
@@ -142,23 +158,27 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
-        payment_ether = response_json['payment']
-        self.assertGreater(token_payment, payment_ether)
+        payment_using_ether = response_json['payment']
+        self.assertGreater(token_payment, payment_using_ether)
 
-        # Check that token with fixed conversion price is the same than with ether
-        token_model = TokenFactory(fixed_eth_conversion=1)
+        # Check that token with fixed conversion price to 1 is a little higher than with ether
+        # (We need to pay for storage for token transfer, as funder does not own any token yet)
+        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        payment_token = erc20_contract.address
+        token_model = TokenFactory(address=payment_token, fixed_eth_conversion=1)
         serializer = SafeCreationSerializer(data={
             's': s,
             'owners': [owner1, owner2],
             'threshold': 2,
-            'payment_token': token_model.address,
+            'payment_token': payment_token
         })
         self.assertTrue(serializer.is_valid())
         response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         deployer = response_json['deployer']
-        self.assertEqual(response_json['payment'], payment_ether)
+        payment_using_token = response_json['payment']
+        self.assertGreater(payment_using_token, payment_using_ether)
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertEqual(safe_creation.payment, safe_creation.payment_ether)
 
