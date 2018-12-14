@@ -218,8 +218,11 @@ def deploy_safes_task(retry: bool=True) -> None:
                         safe_funding.safe_deployed_tx_hash = creation_tx_hash
                         safe_funding.save()
                 except TransactionAlreadyImported:
-                    logger.warning("Safe=%s transaction was already imported by the node")
-                    return
+                    logger.warning("Safe=%s transaction was already imported by the node", safe_address)
+                    safe_funding.safe_deployed_tx_hash = safe_creation.tx_hash
+                    safe_funding.safe_deployed = False
+                    safe_funding.save()
+                    continue
                 except ValueError:
                     # Usually "ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}"
                     # A reorg happened
