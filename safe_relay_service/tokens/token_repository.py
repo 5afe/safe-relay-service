@@ -99,7 +99,7 @@ class TokenRepository:
             "symbol": token.get('symbol'),
             "description": token.get('description'),
             "decimals": token.get('decimals'),
-            "logo_url": to_checksum_address(token.get('address')) + ".png",
+            "logo_url": None,
             "website_url": token.get('website')
         } for token in all_tokens]
         return tokens
