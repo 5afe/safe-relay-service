@@ -373,7 +373,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        self.assertIn('Gas token', response.json())
+        self.assertIn('Gas token %s not valid' % gas_token, response.json()['exception'])
 
         # Create token
         token_model = TokenFactory(address=gas_token)
