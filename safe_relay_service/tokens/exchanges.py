@@ -6,7 +6,15 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-class CannotGetTokenPriceFromApi(Exception):
+class ExchangeApiException(Exception):
+    pass
+
+
+class CannotGetTokenPriceFromApi(ExchangeApiException):
+    pass
+
+
+class InvalidTicker(ExchangeApiException):
     pass
 
 
@@ -41,7 +49,21 @@ class DutchX:
             symbols.append(symbol)
         return '-'.join(symbols)
 
-    def get_price(self, ticker) -> float:
+    def validate_ticker(self, ticker: str):
+        if '-' not in ticker:
+            raise InvalidTicker(ticker)
+
+    def reverse_ticker(self, ticker: str):
+        return '-'.join(reversed(ticker.split('-')))
+
+    def get_price(self, ticker: str) -> float:
+        self.validate_ticker(ticker)
+        try:
+            return self._get_price(ticker)
+        except CannotGetTokenPriceFromApi:
+            return 1 / self._get_price(self.reverse_ticker(ticker))
+
+    def _get_price(self, ticker: str):
         ticker = self.replace_tokens(ticker)
         url = 'https://dutchx.d.exchange/api/v1/markets/{}/price'.format(ticker)
         response = requests.get(url)

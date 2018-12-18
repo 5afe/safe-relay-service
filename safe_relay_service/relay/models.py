@@ -66,12 +66,12 @@ class SafeCreationManager(models.Manager):
             gas=safe_creation_tx.gas,
             gas_price=safe_creation_tx.gas_price,
             payment_token=None if safe_creation_tx.payment_token == NULL_ADDRESS else safe_creation_tx.payment_token,
-            value=safe_creation_tx.contract_creation_tx.value,
+            value=safe_creation_tx.tx_pyethereum.value,
             v=safe_creation_tx.v,
             r=safe_creation_tx.r,
             s=safe_creation_tx.s,
-            data=safe_creation_tx.contract_creation_tx.data,
-            signed_tx=safe_creation_tx.raw_tx
+            data=safe_creation_tx.tx_pyethereum.data,
+            signed_tx=safe_creation_tx.tx_raw
         )
 
 

@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from ..exchanges import (Binance, CannotGetTokenPriceFromApi, DutchX, Huobi,
+from ..exchanges import (Binance, ExchangeApiException, DutchX, Huobi,
                          Kraken, get_price_oracle)
 
 
@@ -23,7 +23,7 @@ class TestExchanges(TestCase):
             self.assertGreater(price, .0)
 
         for ticker in bad_tickers:
-            with self.assertRaises(CannotGetTokenPriceFromApi):
+            with self.assertRaises(ExchangeApiException):
                 exchange.get_price(ticker)
 
     def test_binance(self):

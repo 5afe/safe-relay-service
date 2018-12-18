@@ -1,10 +1,12 @@
+from urllib.parse import urljoin
 import logging
 import math
 
+from django.conf import settings
 from django.db import models
 from django_eth.models import EthereumAddressField
 
-from .exchanges import CannotGetTokenPriceFromApi, get_price_oracle
+from .exchanges import ExchangeApiException, get_price_oracle, CannotGetTokenPriceFromApi
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ class Token(models.Model):
                     if price and price_oracle_ticker.inverse:  # Avoid 1 / 0
                         price = 1 / price
                     prices.append(price)
-                except CannotGetTokenPriceFromApi:
+                except ExchangeApiException:
                     logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
                     pass
             number_prices = len(prices)
@@ -82,5 +84,4 @@ class Token(models.Model):
         if self.logo_uri:
             return self.logo_uri
         else:
-            return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
-                   'master/tokens/mainnet/icons/{}.png'.format(self.address)
+            return urljoin(settings.TOKEN_LOGO_BASE_URI, self.address + settings.TOKEN_LOGO_EXTENSION)

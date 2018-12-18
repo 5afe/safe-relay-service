@@ -39,6 +39,7 @@ def custom_exception_handler(exc, context):
             response = Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             response = Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         if str(exc):
             exception_str = '{}: {}'.format(exc.__class__.__name__, exc)
         else:
@@ -247,10 +248,8 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             safe_operational_tx_gas = relay_service.estimate_tx_operational_gas(address,
                                                                                 len(data['data'])
                                                                                 if data['data'] else 0)
-            try:
-                gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
-            except RelayServiceException as e:
-                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=str(e))
+            # Can throw RelayServiceException
+            gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
 
             response_data = {'safe_tx_gas': safe_tx_gas,
                              'data_gas': safe_data_tx_gas,

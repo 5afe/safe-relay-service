@@ -37,7 +37,7 @@ class Command(BaseCommand):
                         'symbol': symbol,
                         'description': token['description'],
                         'decimals': token['decimals'],
-                        'logo_uri': token['logo_url'],
+                        'logo_uri': token['logo_url'] if token['logo_url'] else '',
                         'website_uri': token['website_url'],
                         'gas': False,
                         'relevance': relevance
