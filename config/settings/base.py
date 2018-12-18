@@ -289,3 +289,7 @@ SAFE_CHECK_DEPLOYER_FUNDED_RETRIES = env.int('SAFE_CHECK_DEPLOYER_FUNDED_RETRIES
 SAFE_FIXED_CREATION_COST = env.int('SAFE_FIXED_CREATION_COST', default=None)
 
 NOTIFICATION_SERVICE_URI = env('NOTIFICATION_SERVICE_URI', default=None)
+
+TOKEN_LOGO_BASE_URI = env('TOKEN_LOGO_BASE_URI', default='https://raw.githubusercontent.com/rmeissner/'
+                                                         'crypto_resources/master/tokens/mainnet/icons/')
+TOKEN_LOGO_EXTENSION = env('TOKEN_LOGO_EXTENSION', default='.png')

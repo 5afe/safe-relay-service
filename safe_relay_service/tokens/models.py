@@ -1,6 +1,8 @@
+from urllib.parse import urljoin
 import logging
 import math
 
+from django.conf import settings
 from django.db import models
 from django_eth.models import EthereumAddressField
 
@@ -82,5 +84,4 @@ class Token(models.Model):
         if self.logo_uri:
             return self.logo_uri
         else:
-            return 'https://raw.githubusercontent.com/rmeissner/crypto_resources/' \
-                   'master/tokens/mainnet/icons/{}.png'.format(self.address)
+            return urljoin(settings.TOKEN_LOGO_BASE_URI, self.address + settings.TOKEN_LOGO_EXTENSION)
