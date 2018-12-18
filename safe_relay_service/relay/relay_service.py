@@ -80,7 +80,8 @@ class RelayService:
                          refund_receiver: str,
                          signatures: bytes,
                          tx_sender_private_key=None,
-                         tx_gas=None) -> Tuple[str, any]:
+                         tx_gas=None,
+                         block_identifier='pending') -> Tuple[str, any]:
         """
         This function calls the `send_multisig_tx` of the SafeService, but has some limitations to prevent abusing
         the relay
@@ -144,4 +145,5 @@ class RelayService:
             signatures,
             tx_sender_private_key=tx_sender_private_key,
             tx_gas=tx_gas,
-            tx_gas_price=tx_gas_price)
+            tx_gas_price=tx_gas_price,
+            block_identifier=block_identifier)
