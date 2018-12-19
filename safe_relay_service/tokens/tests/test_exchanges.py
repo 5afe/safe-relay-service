@@ -1,3 +1,4 @@
+import pytest
 from django.test import TestCase
 
 from ..exchanges import (Binance, ExchangeApiException, DutchX, Huobi,
@@ -30,6 +31,7 @@ class TestExchanges(TestCase):
         exchange = Binance()
         self.exchange_helper(exchange, ['BTCUSDT', 'ETHUSDT'], ['BADTICKER'])
 
+    @pytest.mark.xfail
     def test_dutchx(self):
         exchange = DutchX()
         # Dai address is 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359
