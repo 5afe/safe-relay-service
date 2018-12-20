@@ -2,10 +2,11 @@ import math
 from logging import getLogger
 from typing import Dict, Iterable, Union
 
-import numpy as np
-import requests
 from django.conf import settings
 from django.core.cache import cache
+
+import numpy as np
+import requests
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 

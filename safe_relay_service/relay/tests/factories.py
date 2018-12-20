@@ -35,7 +35,6 @@ class SafeCreationFactory(factory.DjangoModelFactory):
     owners = factory.LazyFunction(lambda: [get_eth_address_with_key()[0], get_eth_address_with_key()[0]])
     threshold = 2
     payment = factory.fuzzy.FuzzyInteger(100, 1000)
-    payment_ether = factory.fuzzy.FuzzyInteger(100, 1000)
     tx_hash = factory.Sequence(lambda n: Web3.sha3(n))
     gas = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price = factory.fuzzy.FuzzyInteger(Web3.toWei(1, 'gwei'), Web3.toWei(20, 'gwei'))

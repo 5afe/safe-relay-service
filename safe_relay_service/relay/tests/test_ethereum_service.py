@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
+
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from hexbytes import HexBytes
 

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+
 from ethereum.utils import check_checksum
 
 

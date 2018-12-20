@@ -11,7 +11,6 @@ from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeSignatureSerializer)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-
 from safe_relay_service.relay.models import SafeFunding
 from safe_relay_service.tokens.models import Token
 

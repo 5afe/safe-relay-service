@@ -1,8 +1,8 @@
 import os
 
 from django.test import TestCase
-from jsonschema.exceptions import ValidationError
 
+from jsonschema.exceptions import ValidationError
 from safe_relay_service.schema_validator.validator import Validator
 
 

@@ -1,10 +1,11 @@
+from urllib.parse import urljoin, urlparse
+
 from django.conf import settings
 from django.test import TestCase
 
-from urllib.parse import urljoin, urlparse
 from ..exchanges import CannotGetTokenPriceFromApi
 from ..models import PriceOracle
-from .factories import (PriceOracleTickerFactory, TokenFactory)
+from .factories import PriceOracleTickerFactory, TokenFactory
 
 
 class TestModels(TestCase):

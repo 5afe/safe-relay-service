@@ -1,6 +1,7 @@
 import logging
 
 from django.urls import reverse
+
 from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
                                         get_eth_address_with_key)
@@ -9,7 +10,6 @@ from faker import Faker
 from gnosis.safe.tests.factories import deploy_example_erc20
 from rest_framework import status
 from rest_framework.test import APITestCase
-
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
@@ -61,7 +61,8 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         self.assertTrue(SafeCreation.objects.filter(owners__contains=[owner1]))
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertEqual(safe_creation.payment_token, None)
-        self.assertEqual(safe_creation.payment, safe_creation.payment_ether)
+        # Payment includes deployment gas + gas to send eth to the deployer
+        self.assertGreater(safe_creation.payment, safe_creation.wei_deploy_cost())
 
         serializer = SafeCreationSerializer(data={
             's': -1,
@@ -97,7 +98,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertEqual(safe_creation.payment_token, None)
         self.assertEqual(safe_creation.payment, fixed_creation_cost)
-        self.assertGreater(safe_creation.payment_ether, safe_creation.payment)
+        self.assertGreater(safe_creation.wei_deploy_cost(), safe_creation.payment)
 
     def test_safe_creation_with_payment_token(self):
         s = generate_valid_s()
@@ -145,7 +146,7 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         self.assertIn(owner1, safe_creation.owners)
         self.assertEqual(safe_creation.payment_token, payment_token)
-        self.assertGreater(safe_creation.payment, safe_creation.payment_ether)
+        self.assertGreater(safe_creation.payment, safe_creation.wei_deploy_cost())
 
         # Check that payment is more than with ether
         token_payment = response_json['payment']
@@ -180,7 +181,8 @@ class TestViews(APITestCase, TestCaseWithSafeContractMixin):
         payment_using_token = response_json['payment']
         self.assertGreater(payment_using_token, payment_using_ether)
         safe_creation = SafeCreation.objects.get(deployer=deployer)
-        self.assertEqual(safe_creation.payment, safe_creation.payment_ether)
+        # Payment includes also the gas to send ether to the safe deployer
+        self.assertGreater(safe_creation.payment, safe_creation.wei_deploy_cost())
 
     def test_safe_view(self):
         funder = self.w3.eth.accounts[0]

@@ -1,15 +1,15 @@
 from datetime import timedelta
 from typing import List
 
-from celery import app
-from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
+
+from celery import app
+from celery.utils.log import get_task_logger
 from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.ethereum_service import (EthereumServiceProvider,
                                           TransactionAlreadyImported)
-
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -89,15 +89,15 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                     logger.error('Deployer=%s for safe=%s has eth already (%d wei)!',
                                  deployer_address, safe_address, balance)
                 else:
-                    logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
-                                safe_address, payment, deployer_address)
+                    logger.info('Safe=%s. Transferring deployment-cost=%d to deployer=%s',
+                                safe_address, safe_creation.wei_deploy_cost(), deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
-                                                           safe_creation.payment_ether,
+                                                           safe_creation.wei_deploy_cost(),
                                                            retry=True, block_identifier='pending')
                     if tx_hash:
                         tx_hash = tx_hash.hex()
-                        logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',
-                                    safe_address, payment, deployer_address, tx_hash)
+                        logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
+                                    safe_address, safe_creation.wei_deploy_cost(), deployer_address, tx_hash)
                         safe_funding.deployer_funded_tx_hash = tx_hash
                         safe_funding.save()
                         logger.debug('Safe=%s deployer has just been funded. tx_hash=%s', safe_address, tx_hash)
@@ -151,11 +151,10 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
             if not retry or (self.request.retries == self.max_retries):
                 safe_creation = SafeCreation.objects.get(safe=safe_address)
                 balance = ethereum_service.get_balance(safe_creation.deployer)
-                if balance >= safe_creation.payment_ether:
-                    logger.error('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
-                                 'but balance is there. This should never happen',
-                                 safe_address,
-                                 safe_creation.deployer)
+                if balance >= safe_creation.wei_deploy_cost():
+                    logger.warning('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
+                                   'but balance is there. This should never happen',
+                                   safe_address, safe_creation.deployer, deployer_funded_tx_hash)
                     safe_funding.deployer_funded = True
                     safe_funding.save()
                 else:

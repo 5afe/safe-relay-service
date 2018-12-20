@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
+
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 
 from ..models import SafeContract, SafeFunding

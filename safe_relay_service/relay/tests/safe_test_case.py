@@ -1,7 +1,6 @@
 from gnosis.safe.contracts import get_safe_contract
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeServiceProvider
-
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 from ..relay_service import RelayServiceProvider
