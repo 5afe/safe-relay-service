@@ -2,6 +2,7 @@ import os
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+
 from ethereum.utils import checksum_encode
 
 from ...models import Token

@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.test import TestCase
+
 from hexbytes import HexBytes
 
 from ..models import SafeFunding

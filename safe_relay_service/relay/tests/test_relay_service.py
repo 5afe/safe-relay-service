@@ -9,7 +9,6 @@ from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
 from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
 from hexbytes import HexBytes
-
 from safe_relay_service.gas_station.gas_station import GasStationMock
 
 from ..relay_service import (RefundMustBeEnabled, RelayService,

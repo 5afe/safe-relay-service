@@ -1,5 +1,6 @@
-import pytest
 from django.test import TestCase
+
+import pytest
 
 from ..exchanges import (Binance, DutchX, ExchangeApiException, Huobi, Kraken,
                          get_price_oracle)

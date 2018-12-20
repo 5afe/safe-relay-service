@@ -1,14 +1,13 @@
 from logging import getLogger
 
 import factory.fuzzy
-from ethereum.utils import checksum_encode, mk_contract_address
-from hexbytes import HexBytes
-from web3 import Web3
-
 from django_eth.constants import (SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from django_eth.tests.factories import get_eth_address_with_key
+from ethereum.utils import checksum_encode, mk_contract_address
+from hexbytes import HexBytes
+from web3 import Web3
 
 from ..models import SafeContract, SafeCreation, SafeFunding
 
