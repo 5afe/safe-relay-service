@@ -89,15 +89,15 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                     logger.error('Deployer=%s for safe=%s has eth already (%d wei)!',
                                  deployer_address, safe_address, balance)
                 else:
-                    logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
-                                safe_address, payment, deployer_address)
+                    logger.info('Safe=%s. Transferring deployment-cost=%d to deployer=%s',
+                                safe_address, safe_creation.wei_deploy_cost(), deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
                                                            safe_creation.wei_deploy_cost(),
                                                            retry=True, block_identifier='pending')
                     if tx_hash:
                         tx_hash = tx_hash.hex()
-                        logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',
-                                    safe_address, payment, deployer_address, tx_hash)
+                        logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
+                                    safe_address, safe_creation.wei_deploy_cost(), deployer_address, tx_hash)
                         safe_funding.deployer_funded_tx_hash = tx_hash
                         safe_funding.save()
                         logger.debug('Safe=%s deployer has just been funded. tx_hash=%s', safe_address, tx_hash)
@@ -152,10 +152,9 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
                 safe_creation = SafeCreation.objects.get(safe=safe_address)
                 balance = ethereum_service.get_balance(safe_creation.deployer)
                 if balance >= safe_creation.wei_deploy_cost():
-                    logger.error('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
-                                 'but balance is there. This should never happen',
-                                 safe_address,
-                                 safe_creation.deployer)
+                    logger.warning('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
+                                   'but balance is there. This should never happen',
+                                   safe_address, safe_creation.deployer, deployer_funded_tx_hash)
                     safe_funding.deployer_funded = True
                     safe_funding.save()
                 else:
