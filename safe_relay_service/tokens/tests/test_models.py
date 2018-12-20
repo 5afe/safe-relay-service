@@ -1,9 +1,10 @@
+from django.conf import settings
 from django.test import TestCase
 
+from urllib.parse import urljoin, urlparse
 from ..exchanges import CannotGetTokenPriceFromApi
 from ..models import PriceOracle
-from .factories import (PriceOracleFactory, PriceOracleTickerFactory,
-                        TokenFactory)
+from .factories import (PriceOracleTickerFactory, TokenFactory)
 
 
 class TestModels(TestCase):
@@ -54,3 +55,17 @@ class TestModels(TestCase):
 
         token = TokenFactory(decimals=19, fixed_eth_conversion=fixed_eth_conversion)
         self.assertEqual(token.get_eth_value(), fixed_eth_conversion / 10)
+
+    def test_token_logo_uri(self):
+        logo_uri = ''
+        token = TokenFactory(logo_uri=logo_uri)
+        self.assertEqual(token.get_full_logo_uri(),
+                         urljoin(settings.TOKEN_LOGO_BASE_URI, token.address + settings.TOKEN_LOGO_EXTENSION))
+
+        logo_uri = 'hola.gif'
+        token = TokenFactory(logo_uri=logo_uri)
+        self.assertEqual(token.get_full_logo_uri(), urljoin(settings.TOKEN_LOGO_BASE_URI, token.logo_uri))
+
+        logo_uri = 'http://absoluteurl.com/file.jpg'
+        token = TokenFactory(logo_uri=logo_uri)
+        self.assertEqual(token.get_full_logo_uri(), logo_uri)

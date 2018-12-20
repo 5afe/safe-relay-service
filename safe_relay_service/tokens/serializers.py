@@ -12,7 +12,7 @@ class TokenSerializer(serializers.ModelSerializer):
         exclude = ['fixed_eth_conversion', 'relevance']
 
     def get_logo_uri(self, obj: Token):
-        return obj.get_full_logo_url()
+        return obj.get_full_logo_uri()
 
     def get_default(self, obj: Token):
         return obj.gas

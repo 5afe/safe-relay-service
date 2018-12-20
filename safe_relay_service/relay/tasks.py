@@ -79,32 +79,25 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                 safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
 
             if safe_balance >= payment:
-                logger.info('Found %d balance for safe=%s',
-                            safe_balance,
-                            safe_address)
+                logger.info('Found %d balance for safe=%s', safe_balance, safe_address)
                 safe_funding.safe_funded = True
                 safe_funding.save()
 
                 # Check deployer has no eth. This should never happen
                 balance = ethereum_service.get_balance(deployer_address)
                 if balance:
-                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)!', deployer_address, safe_address,
-                                 balance)
+                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)!',
+                                 deployer_address, safe_address, balance)
                 else:
                     logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
-                                safe_address,
-                                payment,
-                                deployer_address)
+                                safe_address, payment, deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
                                                            safe_creation.payment_ether,
                                                            retry=True, block_identifier='pending')
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred payment=%d to deployer=%s with tx-hash=%s',
-                                    safe_address,
-                                    payment,
-                                    deployer_address,
-                                    tx_hash)
+                                    safe_address, payment, deployer_address, tx_hash)
                         safe_funding.deployer_funded_tx_hash = tx_hash
                         safe_funding.save()
                         logger.debug('Safe=%s deployer has just been funded. tx_hash=%s', safe_address, tx_hash)
@@ -213,8 +206,7 @@ def deploy_safes_task(retry: bool=True) -> None:
                     if creation_tx_hash:
                         creation_tx_hash = creation_tx_hash.hex()
                         logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
-                                    safe_address,
-                                    creation_tx_hash)
+                                    safe_address, creation_tx_hash)
                         safe_funding.safe_deployed_tx_hash = creation_tx_hash
                         safe_funding.save()
                 except TransactionAlreadyImported:
@@ -225,17 +217,14 @@ def deploy_safes_task(retry: bool=True) -> None:
                     # Usually "ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}"
                     # A reorg happened
                     logger.warning("Safe=%s was affected by reorg, let's check again receipt for tx-hash=%s",
-                                   safe_address,
-                                   safe_funding.deployer_funded_tx_hash,
-                                   exc_info=True)
+                                   safe_address, safe_funding.deployer_funded_tx_hash, exc_info=True)
                     safe_funding.deployer_funded = False
                     safe_funding.save()
                     check_deployer_funded_task.apply_async((safe_address,), {'retry': retry}, countdown=20)
             else:
                 # Check if safe proxy deploy transaction has already been sent to the network
                 logger.debug('Safe=%s creation tx has already been sent to the network with tx-hash=%s',
-                             safe_address,
-                             safe_deployed_tx_hash)
+                             safe_address, safe_deployed_tx_hash)
 
                 if ethereum_service.check_tx_with_confirmations(safe_deployed_tx_hash,
                                                                 settings.SAFE_FUNDING_CONFIRMATIONS):
