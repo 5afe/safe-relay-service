@@ -1,8 +1,8 @@
 import pytest
 from django.test import TestCase
 
-from ..exchanges import (Binance, ExchangeApiException, DutchX, Huobi,
-                         Kraken, get_price_oracle)
+from ..exchanges import (Binance, DutchX, ExchangeApiException, Huobi, Kraken,
+                         get_price_oracle)
 
 
 class TestExchanges(TestCase):

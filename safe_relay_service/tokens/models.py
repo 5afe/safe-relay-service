@@ -1,12 +1,13 @@
-from urllib.parse import urljoin
 import logging
 import math
+from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.db import models
 from django_eth.models import EthereumAddressField
 
-from .exchanges import ExchangeApiException, get_price_oracle, CannotGetTokenPriceFromApi
+from .exchanges import (CannotGetTokenPriceFromApi, ExchangeApiException,
+                        get_price_oracle)
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,13 @@ class Token(models.Model):
         """
         return math.ceil(gas_price / self.get_eth_value() * price_margin)
 
-    def get_full_logo_url(self):
-        if self.logo_uri:
+    def get_full_logo_uri(self):
+        if urlparse(self.logo_uri).netloc:
+            # Absolute uri stored
             return self.logo_uri
+        elif self.logo_uri:
+            # Just path/filename with extension stored
+            return urljoin(settings.TOKEN_LOGO_BASE_URI, self.logo_uri)
         else:
+            # Generate logo uri based on configuration
             return urljoin(settings.TOKEN_LOGO_BASE_URI, self.address + settings.TOKEN_LOGO_EXTENSION)
