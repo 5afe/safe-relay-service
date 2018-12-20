@@ -2,12 +2,12 @@ from typing import Dict, Iterable, List, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django_eth.constants import NULL_ADDRESS
-from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeOperation, SafeServiceException
 from model_utils.models import TimeStampedModel
 
+from django_eth.constants import NULL_ADDRESS
+from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 from .relay_service import RelayServiceException, RelayServiceProvider
@@ -61,7 +61,6 @@ class SafeCreationManager(models.Manager):
             owners=owners,
             threshold=threshold,
             payment=safe_creation_tx.payment,
-            payment_ether=safe_creation_tx.payment_ether,
             tx_hash=safe_creation_tx.tx_hash.hex(),
             gas=safe_creation_tx.gas,
             gas_price=safe_creation_tx.gas_price,
@@ -83,7 +82,6 @@ class SafeCreation(TimeStampedModel):
     owners = ArrayField(EthereumAddressField())
     threshold = Uint256Field()
     payment = Uint256Field()
-    payment_ether = Uint256Field()
     tx_hash = Sha3HashField(unique=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
@@ -97,6 +95,12 @@ class SafeCreation(TimeStampedModel):
 
     def __str__(self):
         return 'Safe {} - Deployer {}'.format(self.safe, self.deployer)
+
+    def wei_deploy_cost(self) -> int:
+        """
+        :return: int: Cost to deploy the contract in wei
+        """
+        return self.gas * self.gas_price
 
 
 class SafeFundingManager(models.Manager):

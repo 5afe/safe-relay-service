@@ -1,16 +1,20 @@
 from django.contrib import admin
+from web3 import Web3
 
 from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
 
 
 @admin.register(SafeContract)
 class SafeContractAdmin(admin.ModelAdmin):
-    list_display = ('address', 'master_copy')
+    list_display = ('created', 'address', 'master_copy')
 
 
 @admin.register(SafeCreation)
 class SafeCreationAdmin(admin.ModelAdmin):
-    list_display = ('safe', 'deployer', 'threshold', 'payment', 'payment_ether', 'payment_token')
+    list_display = ('created', 'safe', 'deployer', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
+
+    def ether_deploy_cost(self, obj: SafeCreation):
+        return Web3.fromWei(obj.wei_deploy_cost(), 'ether')
 
 
 @admin.register(SafeFunding)

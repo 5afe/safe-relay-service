@@ -5,11 +5,11 @@ from celery import app
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.utils import timezone
-from django_eth.constants import NULL_ADDRESS
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from gnosis.safe.ethereum_service import (EthereumServiceProvider,
                                           TransactionAlreadyImported)
 
+from django_eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
@@ -92,7 +92,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                     logger.info('Safe=%s. Transferring payment=%d to deployer=%s',
                                 safe_address, payment, deployer_address)
                     tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
-                                                           safe_creation.payment_ether,
+                                                           safe_creation.wei_deploy_cost(),
                                                            retry=True, block_identifier='pending')
                     if tx_hash:
                         tx_hash = tx_hash.hex()
@@ -151,7 +151,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
             if not retry or (self.request.retries == self.max_retries):
                 safe_creation = SafeCreation.objects.get(safe=safe_address)
                 balance = ethereum_service.get_balance(safe_creation.deployer)
-                if balance >= safe_creation.payment_ether:
+                if balance >= safe_creation.wei_deploy_cost():
                     logger.error('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
                                  'but balance is there. This should never happen',
                                  safe_address,

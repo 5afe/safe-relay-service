@@ -1,13 +1,14 @@
 from logging import getLogger
 
 import factory.fuzzy
+from ethereum.utils import checksum_encode, mk_contract_address
+from hexbytes import HexBytes
+from web3 import Web3
+
 from django_eth.constants import (SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from django_eth.tests.factories import get_eth_address_with_key
-from ethereum.utils import checksum_encode, mk_contract_address
-from hexbytes import HexBytes
-from web3 import Web3
 
 from ..models import SafeContract, SafeCreation, SafeFunding
 
@@ -35,7 +36,6 @@ class SafeCreationFactory(factory.DjangoModelFactory):
     owners = factory.LazyFunction(lambda: [get_eth_address_with_key()[0], get_eth_address_with_key()[0]])
     threshold = 2
     payment = factory.fuzzy.FuzzyInteger(100, 1000)
-    payment_ether = factory.fuzzy.FuzzyInteger(100, 1000)
     tx_hash = factory.Sequence(lambda n: Web3.sha3(n))
     gas = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price = factory.fuzzy.FuzzyInteger(Web3.toWei(1, 'gwei'), Web3.toWei(20, 'gwei'))
