@@ -2,13 +2,14 @@ import logging
 
 from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import get_eth_address_with_key
-from gnosis.safe.contracts import get_safe_contract
+from gnosis.eth.contracts import get_safe_contract
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
                                       InvalidRefundReceiver,
                                       NotEnoughFundsForMultisigTx)
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
 from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
 from hexbytes import HexBytes
+
 from safe_relay_service.gas_station.gas_station import GasStationMock
 
 from ..relay_service import (RefundMustBeEnabled, RelayService,

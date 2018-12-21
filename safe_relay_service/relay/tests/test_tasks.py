@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.eth import EthereumServiceProvider
 
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 from safe_relay_service.tokens.models import Token
 
 
