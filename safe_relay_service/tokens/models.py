@@ -36,7 +36,7 @@ class Token(models.Model):
     symbol = models.CharField(max_length=30)
     description = models.TextField(blank=True)
     decimals = models.PositiveSmallIntegerField()
-    logo_uri = models.URLField(blank=True)
+    logo_uri = models.CharField(max_length=300)
     website_uri = models.URLField(blank=True)
     gas = models.BooleanField(default=False)
     price_oracles = models.ManyToManyField(PriceOracle, through=PriceOracleTicker)
