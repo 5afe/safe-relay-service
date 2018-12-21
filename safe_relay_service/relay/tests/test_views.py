@@ -17,7 +17,7 @@ from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..relay_service import RelayServiceProvider
 from ..serializers import SafeCreationSerializer
 from .factories import SafeFundingFactory
-from .safe_test_case import TestCaseWithSafeContractMixin
+from .safe_test_case import RelaySafeTestCaseMixin
 from .utils import deploy_safe, generate_safe, generate_valid_s
 
 faker = Faker()
@@ -25,7 +25,7 @@ faker = Faker()
 logger = logging.getLogger(__name__)
 
 
-class TestViews(APITestCase, TestCaseWithSafeContractMixin):
+class TestViews(APITestCase, RelaySafeTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         cls.prepare_safe_tests()

@@ -7,7 +7,7 @@ from safe_relay_service.gas_station.gas_station import GasStationProvider
 from ..relay_service import RelayServiceProvider
 
 
-class TestCaseWithSafeContractMixin:
+class RelaySafeTestCaseMixin:
     @classmethod
     def prepare_safe_tests(cls):
         cls.safe_service = SafeServiceProvider()
