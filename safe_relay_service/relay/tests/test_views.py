@@ -2,14 +2,15 @@ import logging
 
 from django.urls import reverse
 
+from ethereum.utils import check_checksum
+from faker import Faker
+from rest_framework import status
+from rest_framework.test import APITestCase
+
 from django_eth.constants import NULL_ADDRESS
 from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
                                         get_eth_address_with_key)
-from ethereum.utils import check_checksum
-from faker import Faker
 from gnosis.eth.tests.utils import deploy_example_erc20
-from rest_framework import status
-from rest_framework.test import APITestCase
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 

@@ -3,11 +3,12 @@ from typing import Dict, Iterable, List, Union
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
+from model_utils.models import TimeStampedModel
+
 from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.eth import EthereumServiceProvider
 from gnosis.safe.safe_service import SafeOperation, SafeServiceException
-from model_utils.models import TimeStampedModel
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 

@@ -1,10 +1,7 @@
 from django.conf import settings
 
-from django_eth.constants import NULL_ADDRESS
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
-from gnosis.safe.safe_service import SafeServiceException
-from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -12,6 +9,10 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 from web3 import Web3
+
+from django_eth.constants import NULL_ADDRESS
+from gnosis.safe.safe_service import SafeServiceException
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx)

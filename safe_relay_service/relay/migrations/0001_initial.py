@@ -5,8 +5,9 @@ import django.db.models.deletion
 import django.utils.timezone
 from django.db import migrations, models
 
-import django_eth.models
 import model_utils.fields
+
+import django_eth.models
 
 
 class Migration(migrations.Migration):
