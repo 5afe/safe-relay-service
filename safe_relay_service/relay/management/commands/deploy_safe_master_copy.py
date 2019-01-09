@@ -28,11 +28,15 @@ class Command(BaseCommand):
         elif deployer_account:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer account'))
             master_copy_address = safe_service.deploy_master_contract(deployer_account=deployer_account)
+            subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_account=deployer_account)
         elif account == self.GANACHE_FIRST_ACCOUNT:
             self.stdout.write(self.style.SUCCESS('Ganache detected, deploying master copy if not deployed'))
             code = safe_service.w3.eth.getCode(safe_service.master_copy_address)
             if code == b'\x00':
                 master_copy_address = safe_service.deploy_master_contract(deployer_account=account)
+                subscription_module_address = safe_service.deploy_subscription_module_contract(
+                    deployer_account=deployer_account
+                )
             else:
                 self.stdout.write(self.style.NOTICE('Master copy already deployed'))
         else:
