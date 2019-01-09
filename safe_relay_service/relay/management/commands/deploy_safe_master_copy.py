@@ -21,6 +21,10 @@ class Command(BaseCommand):
         if deployer_key:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer key'))
             master_copy_address = safe_service.deploy_master_contract(deployer_key=deployer_key)
+            #proxy_contract_address = safe_service.deploy_proxy_contract(deployer_key=deployer_key)
+            subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_key=deployer_key)
+
+
         elif deployer_account:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer account'))
             master_copy_address = safe_service.deploy_master_contract(deployer_account=deployer_account)
@@ -36,5 +40,7 @@ class Command(BaseCommand):
 
         if master_copy_address:
             self.stdout.write(self.style.SUCCESS('Master copy deployed on %s' % master_copy_address))
+            #self.stdout.write(self.style.SUCCESS('Proxy contract deployed on %s' % proxy_contract_address))
+            self.stdout.write(self.style.SUCCESS('Subscription contract deployed on %s' % subscription_module_address))
         else:
             self.stdout.write(self.style.NOTICE('Master copy not deployed'))
