@@ -2,7 +2,7 @@
 
 from django.db import migrations
 
-import django_eth.models
+import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='safecreation',
             name='funder',
-            field=django_eth.models.EthereumAddressField(null=True),
+            field=gnosis.eth.django.models.EthereumAddressField(null=True),
         ),
     ]

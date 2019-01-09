@@ -4,7 +4,7 @@ from ethereum.transactions import secpk1n
 from faker import Faker
 from hexbytes import HexBytes
 
-from django_eth.tests.factories import get_eth_address_with_key
+from gnosis.eth.utils import get_eth_address_with_key
 
 from ..models import SafeContract, SafeFunding
 from ..relay_service import RelayServiceProvider

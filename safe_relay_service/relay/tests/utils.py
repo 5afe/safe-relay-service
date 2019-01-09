@@ -2,7 +2,7 @@ import os
 
 from ethereum.transactions import secpk1n
 
-from django_eth.tests.factories import get_eth_address_with_key
+from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.tests.factories import generate_valid_s
 
 from ..models import SafeCreation

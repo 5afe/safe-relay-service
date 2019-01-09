@@ -2,9 +2,9 @@ import logging
 
 from hexbytes import HexBytes
 
-from django_eth.constants import NULL_ADDRESS
-from django_eth.tests.factories import get_eth_address_with_key
+from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
+from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
                                       InvalidRefundReceiver,
                                       NotEnoughFundsForMultisigTx)

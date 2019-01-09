@@ -1,6 +1,6 @@
 import factory
 
-from django_eth.tests.factories import get_eth_address_with_key
+from gnosis.eth.utils import get_eth_address_with_key
 
 from .. import models
 

@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 from web3 import Web3
 
-from django_eth.constants import NULL_ADDRESS
+from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import SafeServiceException
 from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 

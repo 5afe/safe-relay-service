@@ -8,8 +8,8 @@ from celery import app
 from celery.utils.log import get_task_logger
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 
-from django_eth.constants import NULL_ADDRESS
 from gnosis.eth import EthereumServiceProvider, TransactionAlreadyImported
+from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)

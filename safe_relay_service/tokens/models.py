@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 from django.conf import settings
 from django.db import models
 
-from django_eth.models import EthereumAddressField
+from gnosis.eth.django.models import EthereumAddressField
 
 from .exchanges import (CannotGetTokenPriceFromApi, ExchangeApiException,
                         get_price_oracle)

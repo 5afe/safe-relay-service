@@ -7,10 +7,10 @@ from faker import Faker
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from django_eth.constants import NULL_ADDRESS
-from django_eth.tests.factories import (get_eth_address_with_invalid_checksum,
-                                        get_eth_address_with_key)
+from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.tests.utils import deploy_example_erc20
+from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
+                              get_eth_address_with_key)
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 

@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 import model_utils.fields
 
-import django_eth.models
+import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
@@ -23,8 +23,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('address', django_eth.models.EthereumAddressField(primary_key=True, serialize=False)),
-                ('master_copy', django_eth.models.EthereumAddressField()),
+                ('address', gnosis.eth.django.models.EthereumAddressField(primary_key=True, serialize=False)),
+                ('master_copy', gnosis.eth.django.models.EthereumAddressField()),
             ],
             options={
                 'abstract': False,
@@ -35,17 +35,17 @@ class Migration(migrations.Migration):
             fields=[
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('deployer', django_eth.models.EthereumAddressField(primary_key=True, serialize=False)),
-                ('owners', django.contrib.postgres.fields.ArrayField(base_field=django_eth.models.EthereumAddressField(), size=None)),
-                ('threshold', django_eth.models.Uint256Field()),
-                ('payment', django_eth.models.Uint256Field()),
-                ('tx_hash', django_eth.models.Sha3HashField(unique=True)),
-                ('gas', django_eth.models.Uint256Field()),
-                ('gas_price', django_eth.models.Uint256Field()),
-                ('value', django_eth.models.Uint256Field()),
+                ('deployer', gnosis.eth.django.models.EthereumAddressField(primary_key=True, serialize=False)),
+                ('owners', django.contrib.postgres.fields.ArrayField(base_field=gnosis.eth.django.models.EthereumAddressField(), size=None)),
+                ('threshold', gnosis.eth.django.models.Uint256Field()),
+                ('payment', gnosis.eth.django.models.Uint256Field()),
+                ('tx_hash', gnosis.eth.django.models.Sha3HashField(unique=True)),
+                ('gas', gnosis.eth.django.models.Uint256Field()),
+                ('gas_price', gnosis.eth.django.models.Uint256Field()),
+                ('value', gnosis.eth.django.models.Uint256Field()),
                 ('v', models.PositiveSmallIntegerField()),
-                ('r', django_eth.models.Uint256Field()),
-                ('s', django_eth.models.Uint256Field()),
+                ('r', gnosis.eth.django.models.Uint256Field()),
+                ('s', gnosis.eth.django.models.Uint256Field()),
                 ('data', models.BinaryField(null=True)),
                 ('signed_tx', models.BinaryField(null=True)),
             ],
@@ -59,18 +59,18 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('to', django_eth.models.EthereumAddressField(null=True)),
-                ('value', django_eth.models.Uint256Field()),
+                ('to', gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ('value', gnosis.eth.django.models.Uint256Field()),
                 ('data', models.BinaryField(null=True)),
                 ('operation', models.PositiveSmallIntegerField(choices=[(0, 'CALL'), (1, 'DELEGATE_CALL'), (2, 'CREATE')])),
-                ('safe_tx_gas', django_eth.models.Uint256Field()),
-                ('data_gas', django_eth.models.Uint256Field()),
-                ('gas_price', django_eth.models.Uint256Field()),
-                ('gas_token', django_eth.models.EthereumAddressField(null=True)),
+                ('safe_tx_gas', gnosis.eth.django.models.Uint256Field()),
+                ('data_gas', gnosis.eth.django.models.Uint256Field()),
+                ('gas_price', gnosis.eth.django.models.Uint256Field()),
+                ('gas_token', gnosis.eth.django.models.EthereumAddressField(null=True)),
                 ('signatures', models.BinaryField()),
-                ('gas', django_eth.models.Uint256Field()),
-                ('nonce', django_eth.models.Uint256Field()),
-                ('tx_hash', django_eth.models.Sha3HashField(unique=True)),
+                ('gas', gnosis.eth.django.models.Uint256Field()),
+                ('nonce', gnosis.eth.django.models.Uint256Field()),
+                ('tx_hash', gnosis.eth.django.models.Sha3HashField(unique=True)),
                 ('tx_mined', models.BooleanField(default=False)),
             ],
         ),
@@ -82,9 +82,9 @@ class Migration(migrations.Migration):
                 ('safe', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, serialize=False, to='relay.SafeContract')),
                 ('safe_funded', models.BooleanField(default=False)),
                 ('deployer_funded', models.BooleanField(db_index=True, default=False)),
-                ('deployer_funded_tx_hash', django_eth.models.Sha3HashField(blank=True, null=True, unique=True)),
+                ('deployer_funded_tx_hash', gnosis.eth.django.models.Sha3HashField(blank=True, null=True, unique=True)),
                 ('safe_deployed', models.BooleanField(db_index=True, default=False)),
-                ('safe_deployed_tx_hash', django_eth.models.Sha3HashField(blank=True, null=True, unique=True)),
+                ('safe_deployed_tx_hash', gnosis.eth.django.models.Sha3HashField(blank=True, null=True, unique=True)),
             ],
             options={
                 'abstract': False,

@@ -4,11 +4,11 @@ from typing import Union
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from django_eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
-                                  SIGNATURE_S_MIN_VALUE)
-from django_eth.serializers import (EthereumAddressField, Sha3HashField,
-                                    TransactionResponseSerializer)
 from gnosis.eth import EthereumService
+from gnosis.eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
+                                  SIGNATURE_S_MIN_VALUE)
+from gnosis.eth.django.serializers import (EthereumAddressField, Sha3HashField,
+                                           TransactionResponseSerializer)
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)

@@ -1,6 +1,6 @@
 from typing import Tuple, Union
 
-from django_eth.constants import NULL_ADDRESS
+from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
                                       SafeService, SafeServiceProvider)
 

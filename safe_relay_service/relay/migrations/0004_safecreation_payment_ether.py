@@ -2,7 +2,7 @@
 
 from django.db import migrations
 
-import django_eth.models
+import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='safecreation',
             name='payment_ether',
-            field=django_eth.models.Uint256Field(default=0),
+            field=gnosis.eth.django.models.Uint256Field(default=0),
             preserve_default=False,
         ),
     ]
