@@ -14,10 +14,10 @@ from .relay_service import RelayServiceException, RelayServiceProvider
 
 
 class SafeContract(TimeStampedModel):
-    address = EthereumAddressField(primary_key=True)
+    address = EthereumAddressField(null=True)
     master_copy = EthereumAddressField()
     subscription_module_address = EthereumAddressField(null=True)
-    salt = models.CharField(null=True, max_length=100)
+    salt = models.AutoField(primary_key=True)
 
     def has_valid_code(self) -> bool:
         return RelayServiceProvider().check_proxy_code(self.address)
