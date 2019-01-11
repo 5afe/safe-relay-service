@@ -54,6 +54,8 @@ class SafeCreationManager(models.Manager):
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=fixed_creation_cost)
 
+        print(safe_creation_tx.subscription_module_address)
+        print('xxxxxxxxx')
         safe_contract = SafeContract.objects.create(
             master_copy=safe_creation_tx.master_copy,
             salt=safe_creation_tx.salt,
