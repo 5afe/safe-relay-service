@@ -23,8 +23,9 @@ class Migration(migrations.Migration):
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
                 ('address', django_eth.models.EthereumAddressField()),
                 ('master_copy', django_eth.models.EthereumAddressField()),
-                ('salt', models.AutoField(auto_created=True, primary_key=True, serialize=False)),
-                ('subscription_module_address', django_eth.models.EthereumAddressField())
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False)),
+                ('subscription_module_address', django_eth.models.EthereumAddressField()),
+                ('salt', django_eth.models.Uint256Field(unique=True))
             ],
             options={
                 'abstract': False,

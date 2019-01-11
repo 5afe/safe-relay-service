@@ -17,7 +17,8 @@ class SafeContract(TimeStampedModel):
     address = EthereumAddressField(null=True)
     master_copy = EthereumAddressField()
     subscription_module_address = EthereumAddressField(null=True)
-    salt = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    salt = Uint256Field(unique=True)
 
     def has_valid_code(self) -> bool:
         return RelayServiceProvider().check_proxy_code(self.address)
@@ -52,13 +53,12 @@ class SafeCreationManager(models.Manager):
         safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=fixed_creation_cost)
-        # todo add in determined module address
-        # todo add in salt value
+
         safe_contract = SafeContract.objects.create(
-            address=safe_creation_tx.safe_address,
             master_copy=safe_creation_tx.master_copy,
+            salt=safe_creation_tx.salt,
             subscription_module_address=safe_creation_tx.subscription_module_address,
-            salt=''
+            address=safe_creation_tx.safe_address
         )
 
         # todo add in salt and module address?
