@@ -10,11 +10,13 @@ from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
                                       NotEnoughFundsForMultisigTx)
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
 from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
+from gnosis.eth.tests.utils import deploy_example_erc20
 
 from safe_relay_service.gas_station.gas_station import GasStationMock
 
 from ..relay_service import (RefundMustBeEnabled, RelayService,
-                             RelayServiceProvider)
+                             RelayServiceProvider, InvalidGasToken)
+from safe_relay_service.tokens.tests.factories import TokenFactory
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,40 @@ class TestRelayService(TestSafeService):
         relay_service2 = RelayServiceProvider()
         self.assertEqual(relay_service1, relay_service2)
 
-    def test_relay_send_multisig_tx(self):
+    def test_estimate_safe_creation(self):
+        gas_station = GasStationMock()
+        gas_price = gas_station.get_gas_prices().fast
+        relay_service = RelayService(self.safe_service, gas_station)
+
+        number_owners = 4
+        payment_token = None
+        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
+        self.assertGreater(safe_creation_estimate.gas, 0)
+        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
+        self.assertGreater(safe_creation_estimate.payment, 0)
+        estimated_payment = safe_creation_estimate.payment
+
+        number_owners = 8
+        payment_token = None
+        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
+        self.assertGreater(safe_creation_estimate.gas, 0)
+        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
+        self.assertGreater(safe_creation_estimate.payment, estimated_payment)
+
+        payment_token = get_eth_address_with_key()[0]
+        with self.assertRaisesMessage(InvalidGasToken, payment_token):
+            relay_service.estimate_safe_creation(number_owners, payment_token)
+
+        erc20 = deploy_example_erc20(self.w3, 1000, self.w3.eth.accounts[0])
+        number_owners = 4
+        payment_token = erc20.address
+        payment_token_db = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
+        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
+        self.assertGreater(safe_creation_estimate.gas, 0)
+        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
+        self.assertGreater(safe_creation_estimate.payment, estimated_payment)
+
+    def test_send_multisig_tx(self):
         gas_station = GasStationMock()
         relay_service = RelayService(self.safe_service, gas_station)
         # Create Safe
@@ -185,6 +220,8 @@ class TestRelayService(TestSafeService):
                 tx_sender_private_key=keys[0]
             )
 
+        owner0_balance = w3.eth.getBalance(owners[0])
+
         sent_tx_hash, tx = relay_service.send_multisig_tx(
             my_safe_address,
             to,
@@ -206,9 +243,10 @@ class TestRelayService(TestSafeService):
         gas_used = tx_receipt['gasUsed']
         gas_cost = gas_used * GAS_PRICE
         estimated_payment = (data_gas + gas_used) * gas_price
-        real_payment = owner0_new_balance - (owner0_balance - gas_cost)
+        real_payment = owner0_new_balance - owner0_balance - gas_cost
         # Estimated payment will be bigger, because it uses all the tx gas. Real payment only uses gas left
         # in the point of calculation of the payment, so it will be slightly lower
-        self.assertTrue(estimated_payment > real_payment > 0)
+        self.assertGreater(estimated_payment, real_payment)
+        self.assertGreater(real_payment, 0)
         self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * GAS_PRICE)
         self.assertEqual(relay_service.retrieve_nonce(my_safe_address), 1)

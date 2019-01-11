@@ -59,6 +59,18 @@ class SafeCreationSerializer(serializers.Serializer):
         return data
 
 
+class SafeCreationEstimateSerializer(serializers.Serializer):
+    number_owners = serializers.IntegerField(min_value=1)
+    payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+
+    def validate_payment_token(self, value):
+        return validate_gas_token(value)
+
+    def validate(self, data):
+        super().validate(data)
+        return data
+
+
 class SafeRelayMultisigEstimateTxSerializer(SafeMultisigEstimateTxSerializer):
     def validate_gas_token(self, value):
         return validate_gas_token(value)
@@ -120,7 +132,13 @@ class SafeResponseSerializer(serializers.Serializer):
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
 
 
-class SafeTransactionCreationResponseSerializer(serializers.Serializer):
+class SafeCreationEstimateResponseSerializer(serializers.Serializer):
+    gas = serializers.IntegerField(min_value=0)
+    gas_price = serializers.IntegerField(min_value=0)
+    payment = serializers.IntegerField(min_value=0)
+
+
+class SafeCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()
     payment = serializers.CharField()

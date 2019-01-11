@@ -16,7 +16,7 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..relay_service import RelayServiceProvider
-from ..serializers import SafeCreationSerializer
+from ..serializers import SafeCreationSerializer, SafeCreationEstimateSerializer
 from .factories import SafeFundingFactory
 from .safe_test_case import RelaySafeTestCaseMixin
 from .utils import deploy_safe, generate_safe, generate_valid_s
@@ -49,7 +49,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'threshold': 2
         })
         self.assertTrue(serializer.is_valid())
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         response_json = response.json()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         deployer = response_json['deployer']
@@ -72,7 +72,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'threshold': 2
         })
         self.assertFalse(serializer.is_valid())
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     def test_safe_creation_with_fixed_cost(self):
@@ -87,7 +87,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         self.assertTrue(serializer.is_valid())
         fixed_creation_cost = 123
         with self.settings(SAFE_FIXED_CREATION_COST=fixed_creation_cost):
-            response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+            response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         response_json = response.json()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         deployer = response_json['deployer']
@@ -114,14 +114,14 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'payment_token': payment_token,
         })
         self.assertFalse(serializer.is_valid())
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         response_json = response.json()
         self.assertIn('not found', response_json['paymentToken'][0])
 
         # It will fail, because token is on DB but not in blockchain, so gas cannot be estimated
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertEqual(response.json()['exception'], 'InvalidPaymentToken: Invalid payment token %s' % payment_token)
 
@@ -135,7 +135,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         })
         self.assertFalse(serializer.is_valid())
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         response_json = response.json()
@@ -158,7 +158,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'threshold': 2,
         })
         self.assertTrue(serializer.is_valid())
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         payment_using_ether = response_json['payment']
@@ -176,7 +176,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'payment_token': payment_token
         })
         self.assertTrue(serializer.is_valid())
-        response = self.client.post(reverse('v1:safes'), data=serializer.data, format='json')
+        response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         deployer = response_json['deployer']
@@ -185,6 +185,35 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         safe_creation = SafeCreation.objects.get(deployer=deployer)
         # Payment includes also the gas to send ether to the safe deployer
         self.assertGreater(safe_creation.payment, safe_creation.wei_deploy_cost())
+
+    def test_safe_creation_estimate(self):
+        data = {
+            'number_owners': 4,
+            'payment_token': None,
+        }
+
+        response = self.client.post(reverse('v1:safe-creation-estimate'), data=data, format='json')
+        response_json = response.json()
+        for field in ['payment', 'gasPrice', 'gas']:
+            self.assertIn(field, response_json)
+            self.assertGreater(response_json[field], 0)
+        estimated_payment = response_json['payment']
+
+        # With payment token
+        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        payment_token = erc20_contract.address
+        token_model = TokenFactory(address=payment_token, gas=True, fixed_eth_conversion=0.1)
+        data = {
+            'number_owners': 4,
+            'payment_token': payment_token,
+        }
+
+        response = self.client.post(reverse('v1:safe-creation-estimate'), data=data, format='json')
+        response_json = response.json()
+        for field in ['payment', 'gasPrice', 'gas']:
+            self.assertIn(field, response_json)
+            self.assertGreater(response_json[field], 0)
+        self.assertGreater(response_json['payment'], estimated_payment)
 
     def test_safe_view(self):
         funder = self.w3.eth.accounts[0]

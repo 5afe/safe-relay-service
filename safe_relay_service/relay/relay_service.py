@@ -1,8 +1,9 @@
+from django.conf import settings
 from typing import Tuple, Union
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      SafeService, SafeServiceProvider)
+                                      SafeService, SafeServiceProvider, SafeCreationEstimate)
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
@@ -52,6 +53,22 @@ class RelayService:
         This would prevent that anybody can front-run our service
         """
         return refund_receiver == NULL_ADDRESS
+
+    def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:
+        if payment_token and payment_token != NULL_ADDRESS:
+            try:
+                token = Token.objects.get(address=payment_token, gas=True)
+                payment_token_eth_value = token.get_eth_value()
+            except Token.DoesNotExist:
+                raise InvalidGasToken(payment_token)
+        else:
+            payment_token_eth_value = 1.0
+
+        gas_price = self.gas_station.get_gas_prices().fast
+        fixed_creation_cost = settings.SAFE_FIXED_CREATION_COST
+        return self.safe_service.estimate_safe_creation(number_owners, gas_price, payment_token,
+                                                        payment_token_eth_value=payment_token_eth_value,
+                                                        fixed_creation_cost=fixed_creation_cost)
 
     # FIXME Estimate everything in one method, same with Safe info
     def estimate_tx_gas_price(self, gas_token: Union[str, None]=None):

@@ -27,7 +27,8 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
                           SafeResponseSerializer,
-                          SafeTransactionCreationResponseSerializer)
+                          SafeCreationResponseSerializer, SafeCreationEstimateSerializer,
+                          SafeCreationEstimateResponseSerializer)
 
 
 def custom_exception_handler(exc, context):
@@ -88,7 +89,7 @@ class SafeCreationView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeCreationSerializer
 
-    @swagger_auto_schema(responses={201: SafeTransactionCreationResponseSerializer(),
+    @swagger_auto_schema(responses={201: SafeCreationResponseSerializer(),
                                     400: 'Invalid data',
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
@@ -112,7 +113,7 @@ class SafeCreationView(CreateAPIView):
             safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
-            safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
+            safe_creation_response_data = SafeCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
                     'r': safe_creation.r,
@@ -132,12 +133,40 @@ class SafeCreationView(CreateAPIView):
                 'deployer': safe_creation.deployer,
                 'funder': safe_creation.funder,
             })
-            safe_transaction_response_data.is_valid(raise_exception=True)
-            return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)
+            safe_creation_response_data.is_valid(raise_exception=True)
+            return Response(status=status.HTTP_201_CREATED, data=safe_creation_response_data.data)
         else:
             http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \
                 if 's' in serializer.errors else status.HTTP_400_BAD_REQUEST
             return Response(status=http_status, data=serializer.errors)
+
+
+class SafeCreationEstimateView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeCreationEstimateSerializer
+
+    @swagger_auto_schema(responses={201: SafeCreationEstimateResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
+    def post(self, request, *args, **kwargs):
+        """
+        Begins creation of a Safe
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            number_owners, payment_token = serializer.data['number_owners'], serializer.data['payment_token']
+            relay_service = RelayServiceProvider()
+            safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
+
+            safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(data={
+                'gas': safe_creation_estimate.gas,
+                'gas_price': safe_creation_estimate.gas_price,
+                'payment': safe_creation_estimate.payment,
+            })
+            safe_creation_estimate_response_data.is_valid(raise_exception=True)
+            return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
+        else:
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
 
 class SafeView(APIView):
