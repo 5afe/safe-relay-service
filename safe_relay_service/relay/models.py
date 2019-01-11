@@ -14,10 +14,9 @@ from .relay_service import RelayServiceException, RelayServiceProvider
 
 
 class SafeContract(TimeStampedModel):
-    address = EthereumAddressField(null=True)
+    address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
     subscription_module_address = EthereumAddressField(null=True)
-    id = models.AutoField(primary_key=True)
     salt = Uint256Field(unique=True)
 
     def has_valid_code(self) -> bool:
