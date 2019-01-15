@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='safemultisigtx',
             name='safe_tx_hash',
-            field=gnosis.eth.django.models.Sha3HashField(default='', unique=True),
+            field=gnosis.eth.django.models.Sha3HashField(default=None, unique=True),
             preserve_default=False,
         ),
     ]
