@@ -60,6 +60,7 @@ class SafeCreationManager(models.Manager):
         return super().create(
             deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
+            master_copy=safe_creation_tx.master_copy,
             funder=safe_creation_tx.funder,
             owners=owners,
             threshold=threshold,
@@ -81,6 +82,7 @@ class SafeCreation(TimeStampedModel):
     objects = SafeCreationManager()
     deployer = EthereumAddressField(primary_key=True)
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
+    master_copy = EthereumAddressField()
     funder = EthereumAddressField(null=True)
     owners = ArrayField(EthereumAddressField())
     threshold = Uint256Field()
