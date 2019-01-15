@@ -1,9 +1,11 @@
-from django.conf import settings
 from typing import Tuple, Union
+
+from django.conf import settings
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      SafeService, SafeServiceProvider, SafeCreationEstimate)
+                                      SafeCreationEstimate, SafeService,
+                                      SafeServiceProvider)
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)

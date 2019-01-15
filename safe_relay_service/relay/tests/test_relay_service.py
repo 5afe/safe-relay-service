@@ -4,19 +4,19 @@ from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
+from gnosis.eth.tests.utils import deploy_example_erc20
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
                                       InvalidRefundReceiver,
                                       NotEnoughFundsForMultisigTx)
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
 from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
-from gnosis.eth.tests.utils import deploy_example_erc20
 
 from safe_relay_service.gas_station.gas_station import GasStationMock
-
-from ..relay_service import (RefundMustBeEnabled, RelayService,
-                             RelayServiceProvider, InvalidGasToken)
 from safe_relay_service.tokens.tests.factories import TokenFactory
+
+from ..relay_service import (InvalidGasToken, RefundMustBeEnabled,
+                             RelayService, RelayServiceProvider)
 
 logger = logging.getLogger(__name__)
 

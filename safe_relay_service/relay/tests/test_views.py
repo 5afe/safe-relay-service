@@ -11,13 +11,16 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.tests.utils import deploy_example_erc20
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
+from gnosis.safe import SafeOperation
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..relay_service import RelayServiceProvider
-from ..serializers import SafeCreationSerializer, SafeCreationEstimateSerializer
-from .factories import SafeFundingFactory
+from ..serializers import (SafeCreationEstimateSerializer,
+                           SafeCreationSerializer)
+from .factories import (SafeContractFactory, SafeFundingFactory,
+                        SafeMultisigTxFactory)
 from .safe_test_case import RelaySafeTestCaseMixin
 from .utils import deploy_safe, generate_safe, generate_valid_s
 
@@ -247,7 +250,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         response = self.client.get(reverse('v1:safe', args=('batman',)), format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    def test_safe_multisig_tx(self):
+    def test_safe_multisig_tx_post(self):
         # Create Safe ------------------------------------------------
         relay_service = RelayServiceProvider()
         w3 = relay_service.w3
@@ -334,9 +337,10 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             "signatures": signatures_json
         }
 
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data=data,
                                     format='json')
+        print(response.content)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         tx_hash = response.json()['transactionHash'][2:]  # Remove leading 0x
         safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=tx_hash)
@@ -354,13 +358,39 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
 
         # Send the same tx again
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertTrue('exists' in response.data)
 
-    def test_safe_multisig_tx_gas_token(self):
+    def test_safe_multisig_tx_get(self):
+        safe = SafeContractFactory()
+        my_safe_address = safe.address
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        safe_multisig_tx = SafeMultisigTxFactory(safe=safe)
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_json = response.json()
+        self.assertEqual(response_json['count'], 1)
+        self.assertEqual(len(response_json['results']), 1)
+        response_tx = response_json['results'][0]
+        self.assertIsNone(response_tx['gasToken'])
+        self.assertEqual(response_tx['data'], safe_multisig_tx.data.hex())
+        self.assertEqual(response_tx['dataGas'], safe_multisig_tx.data_gas)
+        self.assertEqual(response_tx['gas'], safe_multisig_tx.gas)
+        self.assertEqual(response_tx['nonce'], safe_multisig_tx.nonce)
+        self.assertEqual(response_tx['operation'], SafeOperation(safe_multisig_tx.operation).name)
+        self.assertEqual(response_tx['refundReceiver'], safe_multisig_tx.refund_receiver)
+        self.assertEqual(response_tx['safeTxGas'], safe_multisig_tx.safe_tx_gas)
+        self.assertEqual(response_tx['safeTxHash'], safe_multisig_tx.safe_tx_hash.hex())
+        self.assertEqual(response_tx['to'], safe_multisig_tx.to)
+        self.assertEqual(response_tx['txHash'], safe_multisig_tx.tx_hash.hex())
+        self.assertEqual(response_tx['value'], safe_multisig_tx.value)
+
+    def test_safe_multisig_tx_post_gas_token(self):
         # Create Safe ------------------------------------------------
         relay_service = RelayServiceProvider()
         w3 = relay_service.w3
@@ -451,7 +481,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             "signatures": signatures_json
         }
 
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -469,19 +499,19 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
 
     def test_safe_multisig_tx_errors(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         my_safe_address, _ = get_eth_address_with_key()
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         my_safe_address = generate_safe().safe.address
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -547,7 +577,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         my_safe_address = generate_safe().safe.address
-        response = self.client.post(reverse('v1:safe-multisig-tx', args=(my_safe_address,)),
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -3,7 +3,7 @@ from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
@@ -20,15 +20,17 @@ from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 
+from .filters import DefaultPagination
 from .relay_service import RelayServiceException, RelayServiceProvider
-from .serializers import (SafeCreationSerializer,
+from .serializers import (SafeCreationEstimateResponseSerializer,
+                          SafeCreationEstimateSerializer,
+                          SafeCreationResponseSerializer,
+                          SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
-                          SafeResponseSerializer,
-                          SafeCreationResponseSerializer, SafeCreationEstimateSerializer,
-                          SafeCreationEstimateResponseSerializer)
+                          SafeResponseSerializer)
 
 
 def custom_exception_handler(exc, context):
@@ -294,9 +296,37 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class SafeMultisigTxView(CreateAPIView):
+class SafeMultisigTxView(ListAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeRelayMultisigTxSerializer
+    pagination_class = DefaultPagination
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return SafeMultisigTxResponseSerializer
+        elif self.request.method == 'POST':
+            return SafeRelayMultisigTxSerializer
+
+    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found/No txs for that Safe',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def get(self, request, address, format=None):
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+        transactions = SafeMultisigTx.objects.filter(safe=address)
+        if transactions.count() == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer_class()(transactions, many=True)
+        page = self.paginate_queryset(serializer.data)
+        pagination = self.get_paginated_response(page)
+        return Response(status=status.HTTP_200_OK, data=pagination.data)
 
     @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -315,7 +345,7 @@ class SafeMultisigTxView(CreateAPIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             request.data['safe'] = address
-            serializer = self.serializer_class(data=request.data)
+            serializer = self.get_serializer_class()(data=request.data)
 
             if not serializer.is_valid():
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -337,9 +367,7 @@ class SafeMultisigTxView(CreateAPIView):
                         refund_receiver=data['refund_receiver'],
                         signatures=data['signatures']
                     )
-                    response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
-                                                                                 safe_multisig_tx.tx_hash})
-                    assert response_serializer.is_valid(), response_serializer.errors
+                    response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
                     return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -7,8 +7,10 @@ from rest_framework.exceptions import ValidationError
 from gnosis.eth import EthereumService
 from gnosis.eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
                                   SIGNATURE_S_MIN_VALUE)
-from gnosis.eth.django.serializers import (EthereumAddressField, Sha3HashField,
+from gnosis.eth.django.serializers import (EthereumAddressField,
+                                           HexadecimalField, Sha3HashField,
                                            TransactionResponseSerializer)
+from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
@@ -155,7 +157,28 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
 
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
-    transaction_hash = Sha3HashField()
+    to = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    value = serializers.IntegerField(min_value=0)
+    data = HexadecimalField()
+    operation = serializers.SerializerMethodField()
+    safe_tx_gas = serializers.IntegerField(min_value=0)
+    data_gas = serializers.IntegerField(min_value=0)
+    gas_price = serializers.IntegerField(min_value=0)
+    gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    refund_receiver = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    gas = serializers.IntegerField(min_value=0)
+    nonce = serializers.IntegerField(min_value=0)
+    safe_tx_hash = Sha3HashField()
+    tx_hash = Sha3HashField()
+    transaction_hash = Sha3HashField(source='tx_hash')  # Retro compatibility
+
+    def get_operation(self, obj):
+        """
+        Filters confirmations queryset
+        :param obj: MultisigConfirmation instance
+        :return: serialized queryset
+        """
+        return SafeOperation(obj.operation).name
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
