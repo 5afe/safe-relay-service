@@ -207,6 +207,9 @@ class SafeMultisigTxManager(models.Manager):
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
+        safe_tx_hash = relay_service.get_hash_for_safe_tx(safe_address, to, value, data,
+                                                          operation, safe_tx_gas, data_gas, gas_price,
+                                                          gas_token, refund_receiver, nonce)
 
         try:
             tx_hash, tx = relay_service.send_multisig_tx(
@@ -241,6 +244,7 @@ class SafeMultisigTxManager(models.Manager):
             nonce=nonce,
             signatures=signatures_packed,
             gas=tx['gas'],
+            safe_tx_hash=safe_tx_hash,
             tx_hash=tx_hash.hex(),
             tx_mined=False
         )
@@ -261,6 +265,7 @@ class SafeMultisigTx(TimeStampedModel):
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
+    safe_tx_hash = Sha3HashField(unique=True)
     tx_hash = Sha3HashField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
