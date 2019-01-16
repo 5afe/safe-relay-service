@@ -219,11 +219,10 @@ class SafeSignalView(APIView):
         else:
             try:
                 safe_funding = SafeFunding.objects.get(safe=address)
+                serializer = SafeFundingResponseSerializer(safe_funding)
+                return Response(status=status.HTTP_200_OK, data=serializer.data)
             except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
-
-            serializer = SafeFundingResponseSerializer(safe_funding)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
 
     @swagger_auto_schema(responses={202: 'Task was queued',
                                     404: 'Safe not found',
@@ -258,11 +257,11 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        try:
-            SafeContract.objects.get(address=address)
-        except SafeContract.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.serializer_class(data=request.data)
