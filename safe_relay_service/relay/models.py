@@ -265,7 +265,7 @@ class SafeMultisigTx(TimeStampedModel):
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
-    safe_tx_hash = Sha3HashField(unique=True)
+    safe_tx_hash = Sha3HashField(unique=True, null=True)
     tx_hash = Sha3HashField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
