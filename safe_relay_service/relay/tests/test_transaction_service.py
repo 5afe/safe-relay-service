@@ -4,66 +4,31 @@ from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
-from gnosis.eth.tests.utils import deploy_example_erc20
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe.safe_service import (GasPriceTooLow, InvalidMasterCopyAddress,
-                                      InvalidRefundReceiver,
+from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
                                       NotEnoughFundsForMultisigTx)
 from gnosis.safe.tests.factories import deploy_safe, generate_safe
 from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
 
 from safe_relay_service.gas_station.gas_station import GasStationMock
-from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..relay_service import (InvalidGasToken, RefundMustBeEnabled,
-                             RelayService, RelayServiceProvider)
+from ..services.transaction_service import (RefundMustBeEnabled,
+                                            TransactionService,
+                                            TransactionServiceProvider)
 
 logger = logging.getLogger(__name__)
 
 
-class TestRelayService(TestSafeService):
+class TestTransactionService(TestSafeService):
 
-    def test_relay_provider_singleton(self):
-        relay_service1 = RelayServiceProvider()
-        relay_service2 = RelayServiceProvider()
-        self.assertEqual(relay_service1, relay_service2)
-
-    def test_estimate_safe_creation(self):
-        gas_station = GasStationMock()
-        gas_price = gas_station.get_gas_prices().fast
-        relay_service = RelayService(self.safe_service, gas_station)
-
-        number_owners = 4
-        payment_token = None
-        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
-        self.assertGreater(safe_creation_estimate.gas, 0)
-        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
-        self.assertGreater(safe_creation_estimate.payment, 0)
-        estimated_payment = safe_creation_estimate.payment
-
-        number_owners = 8
-        payment_token = None
-        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
-        self.assertGreater(safe_creation_estimate.gas, 0)
-        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
-        self.assertGreater(safe_creation_estimate.payment, estimated_payment)
-
-        payment_token = get_eth_address_with_key()[0]
-        with self.assertRaisesMessage(InvalidGasToken, payment_token):
-            relay_service.estimate_safe_creation(number_owners, payment_token)
-
-        erc20 = deploy_example_erc20(self.w3, 1000, self.w3.eth.accounts[0])
-        number_owners = 4
-        payment_token = erc20.address
-        payment_token_db = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
-        safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
-        self.assertGreater(safe_creation_estimate.gas, 0)
-        self.assertEqual(safe_creation_estimate.gas_price, gas_price)
-        self.assertGreater(safe_creation_estimate.payment, estimated_payment)
+    def test_transaction_provider_singleton(self):
+        service1 = TransactionServiceProvider()
+        service2 = TransactionServiceProvider()
+        self.assertEqual(service1, service2)
 
     def test_send_multisig_tx(self):
         gas_station = GasStationMock()
-        relay_service = RelayService(self.safe_service, gas_station)
+        transaction_service = TransactionService(self.safe_service, gas_station)
         # Create Safe
         w3 = self.w3
         funder = w3.eth.accounts[0]
@@ -74,7 +39,7 @@ class TestRelayService(TestSafeService):
         keys = [x[1] for x in owners_with_keys]
         threshold = len(owners_with_keys)
 
-        safe_creation = generate_safe(relay_service, owners=owners, threshold=threshold)
+        safe_creation = generate_safe(self.safe_service, owners=owners, threshold=threshold)
         my_safe_address = deploy_safe(w3, safe_creation, funder)
 
         # The balance we will send to the safe
@@ -99,18 +64,18 @@ class TestRelayService(TestSafeService):
         gas_price = gas_station.get_gas_prices().standard
         gas_token = NULL_ADDRESS
         refund_receiver = NULL_ADDRESS
-        nonce = relay_service.retrieve_nonce(my_safe_address)
-        safe_multisig_tx_hash = relay_service.get_hash_for_safe_tx(safe_address=my_safe_address,
-                                                                   to=to,
-                                                                   value=value,
-                                                                   data=data,
-                                                                   operation=operation,
-                                                                   safe_tx_gas=safe_tx_gas,
-                                                                   data_gas=data_gas,
-                                                                   gas_price=gas_price,
-                                                                   gas_token=gas_token,
-                                                                   refund_receiver=refund_receiver,
-                                                                   nonce=nonce)
+        nonce = self.safe_service.retrieve_nonce(my_safe_address)
+        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address=my_safe_address,
+                                                                       to=to,
+                                                                       value=value,
+                                                                       data=data,
+                                                                       operation=operation,
+                                                                       safe_tx_gas=safe_tx_gas,
+                                                                       data_gas=data_gas,
+                                                                       gas_price=gas_price,
+                                                                       gas_token=gas_token,
+                                                                       refund_receiver=refund_receiver,
+                                                                       nonce=nonce)
 
         # Just to make sure we are not miscalculating tx_hash
         contract_multisig_tx_hash = my_safe_contract.functions.getTransactionHash(
@@ -129,7 +94,7 @@ class TestRelayService(TestSafeService):
 
         signatures = [w3.eth.account.signHash(safe_multisig_tx_hash, private_key) for private_key in keys]
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
+        signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
 
         # {bytes32 r}{bytes32 s}{uint8 v} = 65 bytes
         self.assertEqual(len(signatures_packed), 65 * len(owners))
@@ -140,7 +105,7 @@ class TestRelayService(TestSafeService):
         #    recovered_owner = my_safe_contract.functions.recoverKey(safe_multisig_tx_hash, signatures_packed, i).call()
         #    self.assertEqual(owner, recovered_owner)
 
-        self.assertTrue(relay_service.check_hash(safe_multisig_tx_hash, signatures_packed, owners))
+        self.assertTrue(self.safe_service.check_hash(safe_multisig_tx_hash, signatures_packed, owners))
 
         # Check owners are the same
         contract_owners = my_safe_contract.functions.getOwners().call()
@@ -148,7 +113,7 @@ class TestRelayService(TestSafeService):
         self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
 
         with self.assertRaises(NotEnoughFundsForMultisigTx):
-            relay_service.send_multisig_tx(
+            transaction_service.send_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -172,7 +137,7 @@ class TestRelayService(TestSafeService):
 
         bad_refund_receiver = get_eth_address_with_key()[0]
         with self.assertRaises(InvalidRefundReceiver):
-            relay_service.send_multisig_tx(
+            transaction_service.send_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -189,7 +154,7 @@ class TestRelayService(TestSafeService):
 
         invalid_gas_price = 0
         with self.assertRaises(RefundMustBeEnabled):
-            relay_service.send_multisig_tx(
+            transaction_service.send_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -205,7 +170,7 @@ class TestRelayService(TestSafeService):
             )
 
         with self.assertRaises(GasPriceTooLow):
-            relay_service.send_multisig_tx(
+            transaction_service.send_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -222,7 +187,7 @@ class TestRelayService(TestSafeService):
 
         owner0_balance = w3.eth.getBalance(owners[0])
 
-        sent_tx_hash, tx = relay_service.send_multisig_tx(
+        sent_tx_hash, tx = transaction_service.send_multisig_tx(
             my_safe_address,
             to,
             value,
@@ -249,4 +214,4 @@ class TestRelayService(TestSafeService):
         self.assertGreater(estimated_payment, real_payment)
         self.assertGreater(real_payment, 0)
         self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * GAS_PRICE)
-        self.assertEqual(relay_service.retrieve_nonce(my_safe_address), 1)
+        self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)

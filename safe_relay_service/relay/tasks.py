@@ -15,7 +15,7 @@ from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
 from .notification import NotificationServiceProvider
-from .redis_service import RedisService
+from .services.redis_service import RedisService
 
 logger = get_task_logger(__name__)
 

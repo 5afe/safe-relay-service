@@ -1,48 +1,39 @@
-from typing import Tuple, Union, NamedTuple, List, Iterable, Dict
-
-from django.conf import settings
+from typing import Dict, List, NamedTuple, Tuple, Union
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      SafeCreationEstimate, SafeService,
-                                      SafeServiceProvider, SafeServiceException)
+                                      SafeService, SafeServiceException,
+                                      SafeServiceProvider)
 
-from .models import SafeMultisigTx, SafeContract, SafeCreation
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 
+from ..models import SafeContract, SafeMultisigTx
 
-class RelayServiceException(Exception):
+
+class TransactionServiceException(Exception):
     pass
 
 
-class RefundMustBeEnabled(RelayServiceException):
+class RefundMustBeEnabled(TransactionServiceException):
     pass
 
 
-class InvalidGasToken(RelayServiceException):
+class InvalidGasToken(TransactionServiceException):
     pass
 
 
-class SignaturesNotFound(RelayServiceException):
+class SignaturesNotFound(TransactionServiceException):
     pass
 
 
-class SafeMultisigTxExists(Exception):
+class SafeMultisigTxExists(TransactionServiceException):
     pass
 
 
-class SafeMultisigTxError(Exception):
+class SafeMultisigTxError(TransactionServiceException):
     pass
-
-
-class SafeInfo(NamedTuple):
-    address: str
-    nonce: int
-    threshold: int
-    owners: List[str]
-    master_copy: str
 
 
 class TransactionEstimation(NamedTuple):
@@ -54,10 +45,10 @@ class TransactionEstimation(NamedTuple):
     last_used_nonce: int
 
 
-class RelayServiceProvider:
+class TransactionServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = RelayService(SafeServiceProvider(), GasStationProvider())
+            cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider())
         return cls.instance
 
     @classmethod
@@ -66,13 +57,10 @@ class RelayServiceProvider:
             del cls.instance
 
 
-class RelayService:
+class TransactionService:
     def __init__(self, safe_service: SafeService, gas_station: GasStation):
         self.safe_service = safe_service
         self.gas_station = gas_station
-
-    def __getattr__(self, attr):
-        return getattr(self.safe_service, attr)
 
     def _check_refund_receiver(self, refund_receiver: str) -> bool:
         """
@@ -91,53 +79,9 @@ class RelayService:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
                 return gas_token_model.calculate_gas_price(gas_price_fast)
             except Token.DoesNotExist:
-                raise InvalidGasToken('Gas token %s not valid' % gas_token)
+                raise InvalidGasToken('Gas token %s not found' % gas_token)
         else:
             return gas_price_fast
-
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
-                       payment_token_eth_value: float = 1.0,
-                       fixed_creation_cost: Union[int, None] = None) -> SafeCreation:
-        """
-        Create models for safe tx
-        :param s: Random s value for ecdsa signature
-        :param owners: Owners of the new Safe
-        :param threshold: Minimum number of users required to operate the Safe
-        :param payment_token: Address of the payment token, if ether is not used
-        :param payment_token_eth_value: Value of payment_token per 1 ether
-        :param fixed_creation_cost: Fixed creation cost of Safe (Wei)
-        :rtype: SafeCreation
-        """
-
-        relay_service = RelayServiceProvider()
-        gas_station = GasStationProvider()
-        fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
-                                                                payment_token_eth_value=payment_token_eth_value,
-                                                                fixed_creation_cost=fixed_creation_cost)
-
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
-                                                    master_copy=safe_creation_tx.master_copy)
-
-        return SafeCreation.objects.create(
-            deployer=safe_creation_tx.deployer_address,
-            safe=safe_contract,
-            master_copy=safe_creation_tx.master_copy,
-            funder=safe_creation_tx.funder,
-            owners=owners,
-            threshold=threshold,
-            payment=safe_creation_tx.payment,
-            tx_hash=safe_creation_tx.tx_hash.hex(),
-            gas=safe_creation_tx.gas,
-            gas_price=safe_creation_tx.gas_price,
-            payment_token=None if safe_creation_tx.payment_token == NULL_ADDRESS else safe_creation_tx.payment_token,
-            value=safe_creation_tx.tx_pyethereum.value,
-            v=safe_creation_tx.v,
-            r=safe_creation_tx.r,
-            s=safe_creation_tx.s,
-            data=safe_creation_tx.tx_pyethereum.data,
-            signed_tx=safe_creation_tx.tx_raw
-        )
 
     def create_multisig_tx(self,
                            safe_address: str,
@@ -181,7 +125,7 @@ class RelayService:
                 refund_receiver,
                 signatures_packed
             )
-        except (SafeServiceException, RelayServiceException) as exc:
+        except (SafeServiceException, TransactionServiceException) as exc:
             raise SafeMultisigTxError(str(exc)) from exc
 
         safe_contract = SafeContract.objects.get(address=safe_address)
@@ -204,29 +148,6 @@ class RelayService:
             tx_hash=tx_hash.hex(),
             tx_mined=False
         )
-
-    def retrieve_safe_info(self, address: str) -> SafeInfo:
-        nonce = self.safe_service.retrieve_nonce(address)
-        threshold = self.safe_service.retrieve_threshold(address)
-        owners = self.safe_service.retrieve_owners(address)
-        master_copy = self.safe_service.retrieve_master_copy_address(address)
-        return SafeInfo(address, nonce, threshold, owners, master_copy)
-
-    def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:
-        if payment_token and payment_token != NULL_ADDRESS:
-            try:
-                token = Token.objects.get(address=payment_token, gas=True)
-                payment_token_eth_value = token.get_eth_value()
-            except Token.DoesNotExist:
-                raise InvalidGasToken(payment_token)
-        else:
-            payment_token_eth_value = 1.0
-
-        gas_price = self.gas_station.get_gas_prices().fast
-        fixed_creation_cost = settings.SAFE_FIXED_CREATION_COST
-        return self.safe_service.estimate_safe_creation(number_owners, gas_price, payment_token,
-                                                        payment_token_eth_value=payment_token_eth_value,
-                                                        fixed_creation_cost=fixed_creation_cost)
 
     def estimate_tx_cost(self, address: str, to: str, value: int, data: str, operation: int,
                          gas_token: Union[str, None]) -> TransactionEstimation:
@@ -275,7 +196,7 @@ class RelayService:
         if gas_price == 0:
             raise RefundMustBeEnabled('Tx internal gas price cannot be 0')
 
-        threshold = self.retrieve_threshold(safe_address)
+        threshold = self.safe_service.retrieve_threshold(safe_address)
         number_signatures = len(signatures) // 65  # One signature = 65 bytes
         if number_signatures < threshold:
             raise SignaturesNotFound('Need at least %d signatures' % threshold)

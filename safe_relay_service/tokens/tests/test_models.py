@@ -44,7 +44,7 @@ class TestModels(TestCase):
         PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='RDN-WETH', inverse=True)
         price_inverted = token.get_eth_value()
 
-        self.assertAlmostEqual(1 / price, price_inverted, delta=1.0)
+        self.assertAlmostEqual(1 / price, price_inverted, delta=5.0)
 
     def test_token_eth_value_with_fixed_conversion(self):
         fixed_eth_conversion = 0.1
