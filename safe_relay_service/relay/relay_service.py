@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, NamedTuple, List
 
 from django.conf import settings
 
@@ -28,6 +28,14 @@ class SignaturesNotFound(RelayServiceException):
     pass
 
 
+class SafeInfo(NamedTuple):
+    address: str
+    nonce: int
+    threshold: int
+    owners: List[str]
+    master_copy: str
+
+
 class RelayServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
@@ -55,6 +63,13 @@ class RelayService:
         This would prevent that anybody can front-run our service
         """
         return refund_receiver == NULL_ADDRESS
+
+    def retrieve_safe_info(self, address: str) -> SafeInfo:
+        nonce = self.safe_service.retrieve_nonce(address)
+        threshold = self.safe_service.retrieve_threshold(address)
+        owners = self.safe_service.retrieve_owners(address)
+        master_copy = self.safe_service.retrieve_master_copy_address(address)
+        return SafeInfo(address, nonce, threshold, owners, master_copy)
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:
         if payment_token and payment_token != NULL_ADDRESS:

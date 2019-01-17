@@ -33,6 +33,9 @@ from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeResponseSerializer)
 
 
+relay_service = RelayServiceProvider()
+
+
 def custom_exception_handler(exc, context):
     # Call REST framework's default exception handler first,
     # to get the standard error response.
@@ -157,7 +160,6 @@ class SafeCreationEstimateView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             number_owners, payment_token = serializer.data['number_owners'], serializer.data['payment_token']
-            relay_service = RelayServiceProvider()
             safe_creation_estimate = relay_service.estimate_safe_creation(number_owners, payment_token)
 
             safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(data={
@@ -190,19 +192,8 @@ class SafeView(APIView):
             except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            relay_service = RelayServiceProvider()
-            nonce = relay_service.retrieve_nonce(address)
-            threshold = relay_service.retrieve_threshold(address)
-            owners = relay_service.retrieve_owners(address)
-            master_copy = relay_service.retrieve_master_copy_address(address)
-            serializer = self.serializer_class(data={
-                'address': address,
-                'master_copy': master_copy,
-                'nonce': nonce,
-                'threshold': threshold,
-                'owners': owners,
-            })
-            assert serializer.is_valid(), serializer.errors
+            safe_info = relay_service.retrieve_safe_info(address)
+            serializer = self.serializer_class(safe_info)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
@@ -269,7 +260,6 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
-            relay_service = RelayServiceProvider()
             data = serializer.validated_data
 
             last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
