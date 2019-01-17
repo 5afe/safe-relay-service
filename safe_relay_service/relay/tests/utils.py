@@ -4,6 +4,7 @@ from ethereum.transactions import secpk1n
 
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.tests.factories import generate_valid_s
+from ..relay_service import RelayServiceProvider
 
 from ..models import SafeCreation
 
@@ -27,7 +28,7 @@ def generate_safe(owners=None, number_owners=3, threshold=None, payment_token=No
 
     threshold = threshold if threshold else len(owners)
 
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
+    safe_creation = RelayServiceProvider().create_safe_tx(s, owners, threshold, payment_token)
     return safe_creation
 
 

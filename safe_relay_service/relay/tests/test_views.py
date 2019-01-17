@@ -340,7 +340,6 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data=data,
                                     format='json')
-        print(response.content)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         tx_hash = response.json()['transactionHash'][2:]  # Remove leading 0x
         safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=tx_hash)

@@ -21,7 +21,7 @@ from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination
-from .relay_service import RelayServiceException, RelayServiceProvider
+from .relay_service import RelayServiceException, RelayServiceProvider, SafeMultisigTxExists, SafeMultisigTxError
 from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
@@ -115,9 +115,9 @@ class SafeCreationView(CreateAPIView):
             else:
                 payment_token_eth_value = 1.0
 
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
-                                                                payment_token_eth_value=payment_token_eth_value,
-                                                                fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
+            safe_creation = relay_service.create_safe_tx(s, owners, threshold, payment_token,
+                                                         payment_token_eth_value=payment_token_eth_value,
+                                                         fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
             safe_creation_response_data = SafeCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
@@ -262,25 +262,10 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         if serializer.is_valid():
             data = serializer.validated_data
 
-            last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
-            safe_tx_gas = relay_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
-                                                        data['operation'])
-            safe_data_tx_gas = relay_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
-                                                                  data['operation'], data['gas_token'], safe_tx_gas)
-            safe_operational_tx_gas = relay_service.estimate_tx_operational_gas(address,
-                                                                                len(data['data'])
-                                                                                if data['data'] else 0)
-            # Can throw RelayServiceException
-            gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
+            transaction_estimation = relay_service.estimate_tx_cost(address, data['to'], data['value'], data['data'],
+                                                                    data['operation'], data['gas_token'])
 
-            response_data = {'safe_tx_gas': safe_tx_gas,
-                             'data_gas': safe_data_tx_gas,
-                             'operational_gas': safe_operational_tx_gas,
-                             'gas_price': gas_price,
-                             'gas_token': data['gas_token'] or NULL_ADDRESS,
-                             'last_used_nonce': last_used_nonce}
-            response_serializer = SafeMultisigEstimateTxResponseSerializer(data=response_data)
-            assert response_serializer.is_valid(), response_serializer.errors
+            response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -343,7 +328,7 @@ class SafeMultisigTxView(ListAPIView):
                 data = serializer.validated_data
 
                 try:
-                    safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
+                    safe_multisig_tx = relay_service.create_multisig_tx(
                         safe_address=data['safe'],
                         to=data['to'],
                         value=data['value'],
@@ -359,9 +344,9 @@ class SafeMultisigTxView(ListAPIView):
                     )
                     response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
                     return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
-                except SafeMultisigTx.objects.SafeMultisigTxExists:
+                except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
-                except SafeMultisigTx.objects.SafeMultisigTxError as exc:
+                except SafeMultisigTxError as exc:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Error procesing tx: ' + str(exc))
