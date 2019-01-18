@@ -1,3 +1,5 @@
+from logging import getLogger
+
 from django.conf import settings
 
 from drf_yasg.utils import swagger_auto_schema
@@ -35,6 +37,8 @@ from .services.transaction_service import (SafeMultisigTxError,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
 
+logger = getLogger(__name__)
+
 
 def custom_exception_handler(exc, context):
     # Call REST framework's default exception handler first,
@@ -54,6 +58,9 @@ def custom_exception_handler(exc, context):
             exception_str = exc.__class__.__name__
         response.data = {'exception':  exception_str}
 
+        logger.warning('%s - Exception: %s - Data received %s' % (context['request'].build_absolute_uri(),
+                                                                  exception_str,
+                                                                  context['request'].data))
     return response
 
 

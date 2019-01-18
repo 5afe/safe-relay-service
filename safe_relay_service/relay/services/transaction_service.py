@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Dict, List, NamedTuple, Tuple, Union
 
 from gnosis.eth.constants import NULL_ADDRESS
@@ -10,6 +11,8 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 
 from ..models import SafeContract, SafeMultisigTx
+
+logger = getLogger(__name__)
 
 
 class TransactionServiceException(Exception):
@@ -209,6 +212,7 @@ class TransactionService:
         current_fast_gas_price = current_gas_prices.fast
         current_standard_gas_price = current_gas_prices.standard
 
+        # TODO Maybe refactor this
         if gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)

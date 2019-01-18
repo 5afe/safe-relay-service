@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Iterable, List, NamedTuple, Union
 
 from django.conf import settings
@@ -11,6 +12,8 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 
 from ..models import SafeContract, SafeCreation
+
+logger = getLogger(__name__)
 
 
 class SafeCreationServiceException(Exception):
@@ -48,13 +51,22 @@ class SafeCreationService:
         self.gas_station = gas_station
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
-    def _check_refund_receiver(self, refund_receiver: str) -> bool:
+    def _get_token_eth_value_or_raise(self, address: str) -> float:
         """
-        We only support tx.origin as refund receiver right now
-        In the future we can also accept transactions where it is set to our service account to receive the payments.
-        This would prevent that anybody can front-run our service
+        :param address: Token address
+        :return: Current eth value of the token
+        :raises: InvalidPaymentToken
         """
-        return refund_receiver == NULL_ADDRESS
+        address = address or NULL_ADDRESS
+        if address == NULL_ADDRESS:
+            return 1.0
+
+        try:
+            token = Token.objects.get(address=address, gas=True)
+            return token.get_eth_value()
+        except Token.DoesNotExist:
+            logger.warning('Cannot get value of token in eth: Gas token %s not valid' % address)
+            raise InvalidPaymentToken(address)
 
     def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int,
                        payment_token: Union[str, None]) -> SafeCreation:
@@ -69,18 +81,9 @@ class SafeCreationService:
         """
 
         payment_token = payment_token or NULL_ADDRESS
-
-        if payment_token == NULL_ADDRESS:
-            payment_token_eth_value = 1.0
-        else:
-            try:
-                token = Token.objects.get(address=payment_token, gas=True)
-                payment_token_eth_value = token.get_eth_value()
-            except Token.DoesNotExist:
-                raise InvalidPaymentToken('Gas token %s not valid' % payment_token)
-
-        gas_station = GasStationProvider()
-        fast_gas_price: int = gas_station.get_gas_prices().fast
+        payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
+        fast_gas_price: int = self.gas_station.get_gas_prices().fast
+        logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
         safe_creation_tx = self.safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
                                                                     payment_token_eth_value=payment_token_eth_value,
                                                                     fixed_creation_cost=self.safe_fixed_creation_cost)
@@ -109,15 +112,14 @@ class SafeCreationService:
         )
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:
-        if payment_token and payment_token != NULL_ADDRESS:
-            try:
-                token = Token.objects.get(address=payment_token, gas=True)
-                payment_token_eth_value = token.get_eth_value()
-            except Token.DoesNotExist:
-                raise InvalidPaymentToken(payment_token)
-        else:
-            payment_token_eth_value = 1.0
-
+        """
+        :param number_owners:
+        :param payment_token:
+        :return:
+        :raises: InvalidPaymentToken
+        """
+        payment_token = payment_token or NULL_ADDRESS
+        payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price = self.gas_station.get_gas_prices().fast
         fixed_creation_cost = self.safe_fixed_creation_cost
         return self.safe_service.estimate_safe_creation(number_owners, gas_price, payment_token,
