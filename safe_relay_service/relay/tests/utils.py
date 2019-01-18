@@ -1,10 +1,12 @@
 import os
 
-from django_eth.tests.factories import get_eth_address_with_key
 from ethereum.transactions import secpk1n
+
+from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.tests.factories import generate_valid_s
 
 from ..models import SafeCreation
+from ..services.safe_creation_service import SafeCreationServiceProvider
 
 
 #FIXME Use the functions in gnosis-py
@@ -26,7 +28,7 @@ def generate_safe(owners=None, number_owners=3, threshold=None, payment_token=No
 
     threshold = threshold if threshold else len(owners)
 
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
+    safe_creation = SafeCreationServiceProvider().create_safe_tx(s, owners, threshold, payment_token)
     return safe_creation
 
 

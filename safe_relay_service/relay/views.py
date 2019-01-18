@@ -1,31 +1,43 @@
+from logging import getLogger
+
 from django.conf import settings
 
-from django_eth.constants import NULL_ADDRESS
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
-from gnosis.safe.safe_service import SafeServiceException
-from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
-from safe_relay_service.relay.models import (SafeContract, SafeCreation,
-                                             SafeFunding, SafeMultisigTx)
-from safe_relay_service.relay.tasks import fund_deployer_task
-from safe_relay_service.tokens.models import Token
-from safe_relay_service.version import __version__
 from web3 import Web3
 
-from .relay_service import RelayServiceException, RelayServiceProvider
-from .serializers import (SafeCreationSerializer,
+from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.safe.safe_service import SafeServiceException
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
+
+from safe_relay_service.version import __version__
+
+from .filters import DefaultPagination
+from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
+from .serializers import (SafeCreationEstimateResponseSerializer,
+                          SafeCreationEstimateSerializer,
+                          SafeCreationResponseSerializer,
+                          SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
-                          SafeResponseSerializer,
-                          SafeTransactionCreationResponseSerializer)
+                          SafeResponseSerializer)
+from .services.safe_creation_service import (SafeCreationServiceException,
+                                             SafeCreationServiceProvider)
+from .services.transaction_service import (SafeMultisigTxError,
+                                           SafeMultisigTxExists,
+                                           TransactionServiceException,
+                                           TransactionServiceProvider)
+from .tasks import fund_deployer_task
+
+logger = getLogger(__name__)
 
 
 def custom_exception_handler(exc, context):
@@ -35,7 +47,7 @@ def custom_exception_handler(exc, context):
 
     # Now add the HTTP status code to the response.
     if not response:
-        if isinstance(exc, (SafeServiceException, RelayServiceException)):
+        if isinstance(exc, (SafeServiceException, SafeCreationServiceException, TransactionServiceException)):
             response = Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             response = Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -46,6 +58,9 @@ def custom_exception_handler(exc, context):
             exception_str = exc.__class__.__name__
         response.data = {'exception':  exception_str}
 
+        logger.warning('%s - Exception: %s - Data received %s' % (context['request'].build_absolute_uri(),
+                                                                  exception_str,
+                                                                  context['request'].data))
     return response
 
 
@@ -86,7 +101,7 @@ class SafeCreationView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeCreationSerializer
 
-    @swagger_auto_schema(responses={201: SafeTransactionCreationResponseSerializer(),
+    @swagger_auto_schema(responses={201: SafeCreationResponseSerializer(),
                                     400: 'Invalid data',
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
@@ -98,19 +113,8 @@ class SafeCreationView(CreateAPIView):
             s, owners, threshold, payment_token = (serializer.data['s'], serializer.data['owners'],
                                                    serializer.data['threshold'], serializer.data['payment_token'])
 
-            if payment_token and payment_token != NULL_ADDRESS:
-                try:
-                    token = Token.objects.get(address=payment_token, gas=True)
-                    payment_token_eth_value = token.get_eth_value()
-                except Token.DoesNotExist:
-                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
-            else:
-                payment_token_eth_value = 1.0
-
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
-                                                                payment_token_eth_value=payment_token_eth_value,
-                                                                fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
-            safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
+            safe_creation = SafeCreationServiceProvider().create_safe_tx(s, owners, threshold, payment_token)
+            safe_creation_response_data = SafeCreationResponseSerializer(data={
                 'signature': {
                     'v': safe_creation.v,
                     'r': safe_creation.r,
@@ -130,12 +134,33 @@ class SafeCreationView(CreateAPIView):
                 'deployer': safe_creation.deployer,
                 'funder': safe_creation.funder,
             })
-            safe_transaction_response_data.is_valid(raise_exception=True)
-            return Response(status=status.HTTP_201_CREATED, data=safe_transaction_response_data.data)
+            safe_creation_response_data.is_valid(raise_exception=True)
+            return Response(status=status.HTTP_201_CREATED, data=safe_creation_response_data.data)
         else:
             http_status = status.HTTP_422_UNPROCESSABLE_ENTITY \
                 if 's' in serializer.errors else status.HTTP_400_BAD_REQUEST
             return Response(status=http_status, data=serializer.errors)
+
+
+class SafeCreationEstimateView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeCreationEstimateSerializer
+
+    @swagger_auto_schema(responses={201: SafeCreationEstimateResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
+    def post(self, request, *args, **kwargs):
+        """
+        Begins creation of a Safe
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            number_owners, payment_token = serializer.data['number_owners'], serializer.data['payment_token']
+            safe_creation_estimate = SafeCreationServiceProvider().estimate_safe_creation(number_owners, payment_token)
+            safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(safe_creation_estimate)
+            return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
+        else:
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
 
 class SafeView(APIView):
@@ -157,19 +182,8 @@ class SafeView(APIView):
             except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            relay_service = RelayServiceProvider()
-            nonce = relay_service.retrieve_nonce(address)
-            threshold = relay_service.retrieve_threshold(address)
-            owners = relay_service.retrieve_owners(address)
-            master_copy = relay_service.retrieve_master_copy_address(address)
-            serializer = self.serializer_class(data={
-                'address': address,
-                'master_copy': master_copy,
-                'nonce': nonce,
-                'threshold': threshold,
-                'owners': owners,
-            })
-            assert serializer.is_valid(), serializer.errors
+            safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
+            serializer = self.serializer_class(safe_info)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
@@ -188,11 +202,10 @@ class SafeSignalView(APIView):
         else:
             try:
                 safe_funding = SafeFunding.objects.get(safe=address)
+                serializer = SafeFundingResponseSerializer(safe_funding)
+                return Response(status=status.HTTP_200_OK, data=serializer.data)
             except SafeFunding.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
-
-            serializer = SafeFundingResponseSerializer(safe_funding)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
 
     @swagger_auto_schema(responses={202: 'Task was queued',
                                     404: 'Safe not found',
@@ -227,46 +240,58 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        try:
-            SafeContract.objects.get(address=address)
-        except SafeContract.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
-            relay_service = RelayServiceProvider()
             data = serializer.validated_data
 
-            last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
-            safe_tx_gas = relay_service.estimate_tx_gas(address, data['to'], data['value'], data['data'],
-                                                        data['operation'])
-            safe_data_tx_gas = relay_service.estimate_tx_data_gas(address, data['to'], data['value'], data['data'],
-                                                                  data['operation'], data['gas_token'], safe_tx_gas)
-            safe_operational_tx_gas = relay_service.estimate_tx_operational_gas(address,
-                                                                                len(data['data'])
-                                                                                if data['data'] else 0)
-            # Can throw RelayServiceException
-            gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
-
-            response_data = {'safe_tx_gas': safe_tx_gas,
-                             'data_gas': safe_data_tx_gas,
-                             'operational_gas': safe_operational_tx_gas,
-                             'gas_price': gas_price,
-                             'gas_token': data['gas_token'] or NULL_ADDRESS,
-                             'last_used_nonce': last_used_nonce}
-            response_serializer = SafeMultisigEstimateTxResponseSerializer(data=response_data)
-            assert response_serializer.is_valid(), response_serializer.errors
+            transaction_estimation = TransactionServiceProvider().estimate_tx_cost(address, data['to'], data['value'],
+                                                                                   data['data'], data['operation'],
+                                                                                   data['gas_token'])
+            response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class SafeMultisigTxView(CreateAPIView):
+class SafeMultisigTxView(ListAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeRelayMultisigTxSerializer
+    pagination_class = DefaultPagination
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return SafeMultisigTxResponseSerializer
+        elif self.request.method == 'POST':
+            return SafeRelayMultisigTxSerializer
+
+    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found/No txs for that Safe',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def get(self, request, address, format=None):
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+        transactions = SafeMultisigTx.objects.filter(safe=address)
+        if transactions.count() == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer_class()(transactions, many=True)
+        page = self.paginate_queryset(serializer.data)
+        pagination = self.get_paginated_response(page)
+        return Response(status=status.HTTP_200_OK, data=pagination.data)
 
     @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -285,7 +310,7 @@ class SafeMultisigTxView(CreateAPIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             request.data['safe'] = address
-            serializer = self.serializer_class(data=request.data)
+            serializer = self.get_serializer_class()(data=request.data)
 
             if not serializer.is_valid():
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -293,7 +318,7 @@ class SafeMultisigTxView(CreateAPIView):
                 data = serializer.validated_data
 
                 try:
-                    safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
+                    safe_multisig_tx = TransactionServiceProvider().create_multisig_tx(
                         safe_address=data['safe'],
                         to=data['to'],
                         value=data['value'],
@@ -307,13 +332,11 @@ class SafeMultisigTxView(CreateAPIView):
                         refund_receiver=data['refund_receiver'],
                         signatures=data['signatures']
                     )
-                    response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
-                                                                                 safe_multisig_tx.tx_hash})
-                    assert response_serializer.is_valid(), response_serializer.errors
+                    response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
                     return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
-                except SafeMultisigTx.objects.SafeMultisigTxExists:
+                except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
-                except SafeMultisigTx.objects.SafeMultisigTxError as exc:
+                except SafeMultisigTxError as exc:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Error procesing tx: ' + str(exc))

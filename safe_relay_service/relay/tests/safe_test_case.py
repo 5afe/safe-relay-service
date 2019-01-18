@@ -1,19 +1,20 @@
-from gnosis.safe.contracts import get_safe_contract
-from gnosis.safe.ethereum_service import EthereumServiceProvider
+from gnosis.eth import EthereumServiceProvider
+from gnosis.eth.contracts import get_safe_contract
 from gnosis.safe.safe_service import SafeServiceProvider
+
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
-from ..relay_service import RelayServiceProvider
+from ..services.safe_creation_service import SafeCreationServiceProvider
 
 
-class TestCaseWithSafeContractMixin:
+class RelaySafeTestCaseMixin:
     @classmethod
     def prepare_safe_tests(cls):
         cls.safe_service = SafeServiceProvider()
         cls.ethereum_service = EthereumServiceProvider()
         cls.gas_station = GasStationProvider()
-        RelayServiceProvider.del_singleton()
-        cls.relay_service = RelayServiceProvider()
+        SafeCreationServiceProvider.del_singleton()
+        cls.relay_service = SafeCreationServiceProvider()
         cls.w3 = cls.ethereum_service.w3
 
         cls.safe_deployer = cls.w3.eth.accounts[0]
