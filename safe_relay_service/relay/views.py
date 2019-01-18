@@ -246,8 +246,8 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             data = serializer.validated_data
 
             transaction_estimation = TransactionServiceProvider().estimate_tx_cost(address, data['to'], data['value'],
-                                                                          data['data'], data['operation'],
-                                                                          data['gas_token'])
+                                                                                   data['data'], data['operation'],
+                                                                                   data['gas_token'])
             response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:

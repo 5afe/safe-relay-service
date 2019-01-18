@@ -11,8 +11,7 @@ from gnosis.eth.django.serializers import (EthereumAddressField,
                                            HexadecimalField, Sha3HashField,
                                            TransactionResponseSerializer)
 from gnosis.safe import SafeOperation, SafeService
-from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
-                                     SafeMultisigTxSerializer,
+from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
 from safe_relay_service.relay.models import SafeFunding
@@ -59,22 +58,6 @@ class SafeCreationSerializer(serializers.Serializer):
 class SafeCreationEstimateSerializer(serializers.Serializer):
     number_owners = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
-
-    def validate_payment_token(self, value):
-        return validate_gas_token(value)
-
-    def validate(self, data):
-        super().validate(data)
-        return data
-
-
-class SafeRelayMultisigEstimateTxSerializer(SafeMultisigEstimateTxSerializer):
-    def validate_gas_token(self, value):
-        return validate_gas_token(value)
-
-    def validate(self, data):
-        super().validate(data)
-        return data
 
 
 # TODO Rename this
