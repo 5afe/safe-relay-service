@@ -137,6 +137,7 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
+    timestamp = serializers.DateTimeField(source='created')
     operation = serializers.SerializerMethodField()
     safe_tx_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)

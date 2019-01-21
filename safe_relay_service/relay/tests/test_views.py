@@ -392,6 +392,41 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         self.assertEqual(response_tx['txHash'], safe_multisig_tx.tx_hash.hex())
         self.assertEqual(response_tx['value'], safe_multisig_tx.value)
 
+        safe_multisig_tx2 = SafeMultisigTxFactory(safe=safe)
+        safe_multisig_tx3 = SafeMultisigTxFactory(safe=safe)
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 3)
+
+        # Test filter by `to`
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                   {'to': safe_multisig_tx3.to})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 1)
+
+        value = safe_multisig_tx.value + safe_multisig_tx2.value + safe_multisig_tx3.value
+        safe_multisig_tx4 = SafeMultisigTxFactory(safe=safe, value=value)
+
+        # Test filter by `value >`
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                   {'value__gt': value - 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 1)
+        self.assertEqual(response.json()['results'][0]['to'], safe_multisig_tx4.to)
+
+        # Test sorting
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 4)
+        self.assertEqual(response.json()['results'][0]['to'], safe_multisig_tx4.to)
+
+        # Test reverse sorting
+        response = self.client.get(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                   {'ordering': 'created'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 4)
+        self.assertEqual(response.json()['results'][0]['to'], safe_multisig_tx.to)
+
     def test_safe_multisig_tx_post_gas_token(self):
         # Create Safe ------------------------------------------------
         relay_service = SafeCreationServiceProvider()
