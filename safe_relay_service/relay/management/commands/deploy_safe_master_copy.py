@@ -5,7 +5,7 @@ from gnosis.safe.safe_service import SafeServiceProvider
 class Command(BaseCommand):
     help = 'Deploys master copy using first unlocked account on the node if `ganache -d` is found and contract ' \
            'is not deployed. If not you need to set a private key or an unlocked account on the node'
-    GANACHE_FIRST_ACCOUNT = '0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab'
+    GANACHE_FIRST_ACCOUNT = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
 
     def add_arguments(self, parser):
         # Positional arguments
