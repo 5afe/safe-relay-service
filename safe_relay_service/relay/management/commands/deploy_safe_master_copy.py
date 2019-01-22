@@ -5,7 +5,7 @@ from gnosis.safe.safe_service import SafeServiceProvider
 class Command(BaseCommand):
     help = 'Deploys master copy using first unlocked account on the node if `ganache -d` is found and contract ' \
            'is not deployed. If not you need to set a private key or an unlocked account on the node'
-    GANACHE_FIRST_ACCOUNT = '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1'
+    GANACHE_FIRST_ACCOUNT = '0x54d02535f72177efcb14f053b3fa3addb81467fa'
 
     def add_arguments(self, parser):
         # Positional arguments
@@ -24,6 +24,7 @@ class Command(BaseCommand):
         ds_feed_contract_address = None
         oracle_registry_contract_address = None
 
+        self.stdout.write("TEST!!!!!!!!!!!")
         if deployer_key:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer key'))
             master_copy_address = safe_service.deploy_master_contract(deployer_key=deployer_key)
