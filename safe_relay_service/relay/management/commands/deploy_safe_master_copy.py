@@ -21,6 +21,8 @@ class Command(BaseCommand):
         proxy_contract_address = None
         subscription_module_address = None
         create_add_modules_address = None
+        ds_feed_contract_address = None
+        oracle_registry_contract_address = None
 
         if deployer_key:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer key'))
@@ -28,6 +30,9 @@ class Command(BaseCommand):
             proxy_contract_address = safe_service.deploy_proxy_contract(deployer_key=deployer_key)
             subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_key=deployer_key)
             create_add_modules_address = safe_service.deploy_create_add_modules_contract(deployer_key=deployer_key)
+            ds_feed_contract_address = safe_service.deploy_ds_feed_contract(deployer_key=deployer_key)
+            oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_key=deployer_key)
+
 
         elif deployer_account:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer account'))
@@ -35,6 +40,8 @@ class Command(BaseCommand):
             proxy_contract_address = safe_service.deploy_proxy_contract(deployer_account=deployer_account)
             subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_account=deployer_account)
             create_add_modules_address = safe_service.deploy_create_add_modules_contract(deployer_account=deployer_account)
+            ds_feed_contract_address = safe_service.deploy_ds_feed_contract(deployer_account=deployer_account)
+            oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_account=deployer_account)
         elif account == self.GANACHE_FIRST_ACCOUNT:
             self.stdout.write(self.style.SUCCESS('Ganache detected, deploying master copy if not deployed'))
             code = safe_service.w3.eth.getCode(safe_service.master_copy_address)
@@ -43,6 +50,8 @@ class Command(BaseCommand):
                 proxy_contract_address = safe_service.deploy_proxy_contract(deployer_account=account)
                 subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_account=account)
                 create_add_modules_address = safe_service.deploy_create_add_modules_contract(deployer_account=account)
+                ds_feed_contract_address = safe_service.deploy_ds_feed_contract(deployer_account=account)
+                oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_account=account)
             else:
                 self.stdout.write(self.style.NOTICE('Master copies already deployed'))
         else:
@@ -53,5 +62,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Proxy contract deployed on %s' % proxy_contract_address))
             self.stdout.write(self.style.SUCCESS('Subscription contract deployed on %s' % subscription_module_address))
             self.stdout.write(self.style.SUCCESS('Get Create Add Modules contract deployed on %s' % create_add_modules_address))
+            self.stdout.write(self.style.SUCCESS('DS Feed contract deployed on %s' % ds_feed_contract_address))
+            self.stdout.write(self.style.SUCCESS('Oracle Registry contract deployed on %s' % oracle_registry_contract_address))
         else:
             self.stdout.write(self.style.NOTICE('Master copy not deployed'))
