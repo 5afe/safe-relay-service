@@ -25,6 +25,9 @@ class Command(BaseCommand):
         oracle_registry_contract_address = None
 
         self.stdout.write("TEST!!!!!!!!!!!")
+        self.stdout.write(account)
+        self.stdout.write(self.GANACHE_FIRST_ACCOUNT)
+        self.stdout.write("TEST!!!!!!!!!!!")
         if deployer_key:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer key'))
             master_copy_address = safe_service.deploy_master_contract(deployer_key=deployer_key)
