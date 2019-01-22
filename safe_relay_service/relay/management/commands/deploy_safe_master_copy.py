@@ -45,16 +45,12 @@ class Command(BaseCommand):
             oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_account=deployer_account, ds_feed_contract_address=ds_feed_contract_address)
         elif account == self.GANACHE_FIRST_ACCOUNT:
             self.stdout.write(self.style.SUCCESS('Ganache detected, deploying master copy if not deployed'))
-            code = safe_service.w3.eth.getCode(safe_service.master_copy_address)
-            if code == b'\x00':
-                master_copy_address = safe_service.deploy_master_contract(deployer_account=account)
-                proxy_contract_address = safe_service.deploy_proxy_contract(deployer_account=account)
-                subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_account=account)
-                create_add_modules_address = safe_service.deploy_create_add_modules_contract(deployer_account=account)
-                ds_feed_contract_address = safe_service.deploy_ds_feed_contract(deployer_account=account)
-                oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_account=account, ds_feed_contract_address=ds_feed_contract_address)
-            else:
-                self.stdout.write(self.style.NOTICE('Master copies already deployed'))
+            master_copy_address = safe_service.deploy_master_contract(deployer_account=account)
+            proxy_contract_address = safe_service.deploy_proxy_contract(deployer_account=account)
+            subscription_module_address = safe_service.deploy_subscription_module_contract(deployer_account=account)
+            create_add_modules_address = safe_service.deploy_create_add_modules_contract(deployer_account=account)
+            ds_feed_contract_address = safe_service.deploy_ds_feed_contract(deployer_account=account)
+            oracle_registry_contract_address = safe_service.deploy_oracle_registry_contract(deployer_account=account, ds_feed_contract_address=ds_feed_contract_address)
         else:
             self.stdout.write(self.style.NOTICE('Nothing done'))
 
