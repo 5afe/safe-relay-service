@@ -73,6 +73,22 @@ class TransactionService:
         """
         return refund_receiver == NULL_ADDRESS
 
+    def _is_valid_gas_token(self, address: str) -> float:
+        """
+        :param address: Token address
+        :return: bool if gas token, false otherwise
+        """
+        address = address or NULL_ADDRESS
+        if address == NULL_ADDRESS:
+            return True
+
+        try:
+            Token.objects.get(address=address, gas=True)
+            return True
+        except Token.DoesNotExist:
+            logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % address)
+            return False
+
     def _estimate_tx_gas_price(self, gas_token: Union[str, None]=None):
         gas_token = gas_token or NULL_ADDRESS
         gas_price_fast = self.gas_station.get_gas_prices().fast
@@ -102,11 +118,15 @@ class TransactionService:
         """
         :return: Database model of SafeMultisigTx
         :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
+        :raises: InvalidGasToken: If Gas Token is not valid
         :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
         """
 
         if SafeMultisigTx.objects.filter(safe=safe_address, nonce=nonce).exists():
             raise SafeMultisigTxExists
+
+        if not self._is_valid_gas_token(gas_token):
+            raise InvalidGasToken(gas_token)
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
@@ -154,6 +174,12 @@ class TransactionService:
 
     def estimate_tx_cost(self, address: str, to: str, value: int, data: str, operation: int,
                          gas_token: Union[str, None]) -> TransactionEstimation:
+        """
+        :return: TransactionEstimation with costs and last used nonce of safe
+        :raises: InvalidGasToken: If Gas Token is not valid
+        """
+        if not self._is_valid_gas_token(gas_token):
+            raise InvalidGasToken(gas_token)
         last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
         safe_tx_gas = self.safe_service.estimate_tx_gas(address, to, value, data, operation)
         safe_data_tx_gas = self.safe_service.estimate_tx_data_gas(address, to, value, data, operation, gas_token,

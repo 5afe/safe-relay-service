@@ -12,7 +12,6 @@ from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)
 from ..services.safe_creation_service import SafeCreationServiceProvider
-from .utils import generate_safe
 
 faker = Faker()
 
@@ -59,7 +58,7 @@ class TestSerializers(TestCase):
         relay_service = SafeCreationServiceProvider()
         w3 = relay_service.safe_service.w3
 
-        safe = generate_safe(number_owners=3).safe.address
+        safe = get_eth_address_with_key()[0]
         to = None
         value = int(10e18)
         tx_data = None
@@ -102,7 +101,7 @@ class TestSerializers(TestCase):
         owners = [x[0] for x in owners_with_keys]
         keys = [x[1] for x in owners_with_keys]
 
-        safe = generate_safe(owners=owners).safe.address
+        safe = get_eth_address_with_key()[0]
         data['safe'] = safe
 
         serializer = SafeRelayMultisigTxSerializer(data=data)

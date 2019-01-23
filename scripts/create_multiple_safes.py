@@ -1,11 +1,12 @@
 import argparse
 import logging
-import os
 from urllib.parse import urljoin
 
 import requests
 from ethereum.utils import checksum_encode, privtoaddr
 from web3 import HTTPProvider, Web3
+
+from gnosis.safe.tests.utils import generate_valid_s
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,10 +39,6 @@ def send_eth(private_key, to, value, nonce):
 
     signed_tx = w3.eth.account.signTransaction(tx, private_key=private_key)
     return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-
-
-def generate_valid_s():
-    return int(os.urandom(31).hex(), 16)
 
 
 def generate_payload(owners, threshold=None):

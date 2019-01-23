@@ -18,7 +18,7 @@ class TestGasStation(TestCase):
         account1 = w3.eth.accounts[-1]
         account2 = w3.eth.accounts[-2]
 
-        if w3.eth.blockNumber < number_of_blocks:
+        if w3.eth.blockNumber < number_of_blocks and w3.eth.accounts:  # Ganache
             # Mine some blocks
             eth_balance = w3.toWei(0.00001, 'ether')
             for _ in range(number_of_blocks - w3.eth.blockNumber + 2):

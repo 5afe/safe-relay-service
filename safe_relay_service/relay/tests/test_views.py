@@ -12,27 +12,26 @@ from gnosis.eth.tests.utils import deploy_example_erc20
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
+from gnosis.safe.tests.utils import generate_valid_s
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
-from ..serializers import (SafeCreationEstimateSerializer,
-                           SafeCreationSerializer)
+from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
 from .factories import (SafeContractFactory, SafeFundingFactory,
                         SafeMultisigTxFactory)
-from .safe_test_case import RelaySafeTestCaseMixin
-from .utils import deploy_safe, generate_safe, generate_valid_s
+from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
 
 logger = logging.getLogger(__name__)
 
 
-class TestViews(APITestCase, RelaySafeTestCaseMixin):
+class TestViews(APITestCase, RelayTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
-        cls.prepare_safe_tests()
+        cls.prepare_tests()
 
     def test_about(self):
         response = self.client.get(reverse('v1:about'))
@@ -222,14 +221,14 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         self.assertGreater(response_json['payment'], estimated_payment)
 
     def test_safe_view(self):
-        funder = self.w3.eth.accounts[0]
         owners_with_keys = [get_eth_address_with_key(),
                             get_eth_address_with_key(),
                             get_eth_address_with_key()]
         owners = [x[0] for x in owners_with_keys]
         threshold = len(owners) - 1
-        safe_creation = generate_safe(owners=owners, threshold=threshold)
-        my_safe_address = deploy_safe(self.w3, safe_creation, funder)
+        safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
         SafeFundingFactory(safe=SafeContract.objects.get(address=my_safe_address), safe_deployed=True)
         response = self.client.get(reverse('v1:safe', args=(my_safe_address,)), format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -257,33 +256,18 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         # Create Safe ------------------------------------------------
         relay_service = SafeCreationServiceProvider()
         w3 = relay_service.safe_service.w3
-        funder = w3.eth.accounts[0]
-        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
-
-        # Signatures must be sorted!
-        owners_with_keys.sort(key=lambda x: x[0].lower())
-        owners = [x[0] for x in owners_with_keys]
-        keys = [x[1] for x in owners_with_keys]
-        threshold = len(owners_with_keys)
-
-        safe_creation = generate_safe(owners=owners, threshold=threshold)
-        my_safe_address = deploy_safe(w3, safe_creation, funder)
-
-        # Send something to the safe
         safe_balance = w3.toWei(0.01, 'ether')
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
-            'to': my_safe_address,
-            'value': safe_balance
-        }))
-
-        # Send something to the owner[0], who will be sending the tx
         owner0_balance = safe_balance
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
-            'to': owners[0],
-            'value': owner0_balance
-        }))
+        accounts = [self.create_account(initial_wei=owner0_balance), self.create_account(initial_wei=owner0_balance)]
+        # Signatures must be sorted!
+        accounts.sort(key=lambda account: account.address.lower())
+        owners = [x.address for x in accounts]
+        threshold = len(accounts)
+
+        safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold, initial_funding_wei=safe_balance)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
+
         # Safe prepared --------------------------------------------
         to, _ = get_eth_address_with_key()
         value = safe_balance // 2
@@ -324,7 +308,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             refund_receiver,
             nonce
         )
-        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
+        signatures = [account.signHash(multisig_tx_hash) for account in accounts]
         signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
 
         data = {
@@ -431,25 +415,20 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         # Create Safe ------------------------------------------------
         relay_service = SafeCreationServiceProvider()
         w3 = relay_service.safe_service.w3
-        funder = w3.eth.accounts[0]
-        owner, owner_key = get_eth_address_with_key()
+        safe_balance = w3.toWei(0.01, 'ether')
+        owner0_balance = safe_balance
+        owner_account = self.create_account(initial_wei=owner0_balance)
+        self.assertEqual(self.w3.eth.getBalance(owner_account.address), owner0_balance)
+        owner = owner_account.address
         threshold = 1
 
-        safe_balance = w3.toWei(0.01, 'ether')
-        safe_creation = generate_safe(owners=[owner], threshold=threshold)
-        my_safe_address = deploy_safe(w3, safe_creation, funder, initial_funding_wei=safe_balance)
+        safe_creation = self.deploy_test_safe(owners=[owner], threshold=threshold, initial_funding_wei=safe_balance)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
 
         # Get tokens for the safe
         safe_token_balance = int(1e18)
-        erc20_contract = deploy_example_erc20(self.w3, safe_token_balance, my_safe_address, funder)
-
-        # Send something to the owner, who will be sending the tx
-        owner0_balance = safe_balance
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
-            'to': owner,
-            'value': owner0_balance
-        }))
+        erc20_contract = self.deploy_example_erc20(safe_token_balance, my_safe_address)
 
         # Safe prepared --------------------------------------------
         to, _ = get_eth_address_with_key()
@@ -473,7 +452,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        self.assertIn('Gas token %s not found' % gas_token, response.json()['exception'])
+        self.assertEqual('InvalidGasToken: %s' % gas_token, response.json()['exception'])
 
         # Create token
         token_model = TokenFactory(address=gas_token)
@@ -502,7 +481,8 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             nonce
         )
 
-        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in [owner_key]]
+        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key)
+                      for private_key in [owner_account.privateKey]]
         signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
 
         data = {
@@ -547,7 +527,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        my_safe_address = generate_safe().safe.address
+        my_safe_address = self.create_test_safe_in_db().safe.address
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
@@ -575,9 +555,9 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
             'operation': 1
         }
 
-        safe_creation = generate_safe()
-        my_safe_address = deploy_safe(self.w3, safe_creation, self.w3.eth.accounts[0],
-                                      initial_funding_wei=initial_funding)
+        safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
 
         response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data=data,
@@ -613,7 +593,7 @@ class TestViews(APITestCase, RelaySafeTestCaseMixin):
         response = self.client.get(reverse('v1:safe-signal', args=(invalid_address,)))
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        my_safe_address = generate_safe().safe.address
+        my_safe_address = self.create_test_safe_in_db().safe.address
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')

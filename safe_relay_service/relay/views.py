@@ -248,7 +248,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer_class()(data=request.data)
 
         if serializer.is_valid():
             data = serializer.validated_data
