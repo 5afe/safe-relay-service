@@ -277,8 +277,6 @@ class SafeMultisigTxView(ListAPIView):
             return SafeRelayMultisigTxSerializer
 
     def get_queryset(self):
-        if not self.kwargs:  # This is for auto schema on drf-yasg
-            return SafeMultisigTx.objects.first()
         return SafeMultisigTx.objects.filter(safe=self.kwargs['address'])
 
     @swagger_auto_schema(responses={400: 'Data not valid',
