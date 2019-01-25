@@ -11,14 +11,14 @@ from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
 from .factories import SafeCreationFactory, SafeFundingFactory
-from .utils import generate_safe
+from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
 
 GAS_PRICE = settings.SAFE_GAS_PRICE
 
 
-class TestTasks(TestCase):
+class TestTasks(RelayTestCaseMixin, TestCase):
 
     @classmethod
     def setUpTestData(cls):
@@ -26,7 +26,7 @@ class TestTasks(TestCase):
         cls.w3 = cls.ethereum_service.w3
 
     def test_balance_in_deployer(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
@@ -48,7 +48,7 @@ class TestTasks(TestCase):
         self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
     def test_deploy_safe(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
@@ -99,7 +99,7 @@ class TestTasks(TestCase):
         self.assertTrue(safe_funding.deployer_funded)
 
     def test_safe_with_no_funds(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
@@ -116,7 +116,7 @@ class TestTasks(TestCase):
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
     def test_check_deployer_funded(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         safe_contract = SafeContract.objects.get(address=safe)
@@ -133,7 +133,7 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.deployer_funded_tx_hash)
 
     def test_reorg_before_safe_deploy(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(
@@ -189,7 +189,7 @@ class TestTasks(TestCase):
         self.assertFalse(safe_funding.safe_deployed)
 
     def test_reorg_after_safe_deployed(self):
-        safe_creation = generate_safe()
+        safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
         self.ethereum_service.send_eth_to(

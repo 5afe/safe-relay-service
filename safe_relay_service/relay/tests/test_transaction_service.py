@@ -7,8 +7,7 @@ from gnosis.eth.contracts import get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
                                       NotEnoughFundsForMultisigTx)
-from gnosis.safe.tests.factories import deploy_safe, generate_safe
-from gnosis.safe.tests.test_safe_service import GAS_PRICE, TestSafeService
+from gnosis.safe.tests.test_safe_service import TestSafeService
 
 from safe_relay_service.gas_station.gas_station import GasStationMock
 
@@ -27,32 +26,26 @@ class TestTransactionService(TestSafeService):
         self.assertEqual(service1, service2)
 
     def test_send_multisig_tx(self):
+        w3 = self.w3
         gas_station = GasStationMock()
         transaction_service = TransactionService(self.safe_service, gas_station)
-        # Create Safe
-        w3 = self.w3
-        funder = w3.eth.accounts[0]
-        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
-        # Signatures must be sorted!
-        owners_with_keys.sort(key=lambda x: x[0].lower())
-        owners = [x[0] for x in owners_with_keys]
-        keys = [x[1] for x in owners_with_keys]
-        threshold = len(owners_with_keys)
-
-        safe_creation = generate_safe(self.safe_service, owners=owners, threshold=threshold)
-        my_safe_address = deploy_safe(w3, safe_creation, funder)
 
         # The balance we will send to the safe
-        safe_balance = w3.toWei(0.01, 'ether')
-
+        safe_balance = w3.toWei(0.02, 'ether')
         # Send something to the owner[0], who will be sending the tx
         owner0_balance = safe_balance
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
-            'to': owners[0],
-            'value': owner0_balance
-        }))
 
+        # Create Safe
+        funder_account = self.ethereum_test_account
+        funder = funder_account.address
+        accounts = [self.create_account(initial_wei=owner0_balance), self.create_account(initial_wei=owner0_balance)]
+        # Signatures must be sorted!
+        accounts.sort(key=lambda account: account.address.lower())
+        owners = [x.address for x in accounts]
+        threshold = len(accounts)
+
+        safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold)
+        my_safe_address = safe_creation.safe_address
         my_safe_contract = get_safe_contract(w3, my_safe_address)
 
         to = funder
@@ -92,7 +85,7 @@ class TestTransactionService(TestSafeService):
 
         self.assertEqual(safe_multisig_tx_hash, contract_multisig_tx_hash)
 
-        signatures = [w3.eth.account.signHash(safe_multisig_tx_hash, private_key) for private_key in keys]
+        signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
 
@@ -125,15 +118,14 @@ class TestTransactionService(TestSafeService):
                 gas_token,
                 refund_receiver,
                 signatures_packed,
-                tx_sender_private_key=keys[0]
+                tx_sender_private_key=accounts[0].privateKey
             )
 
         # Send something to the safe
-        w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-            'from': funder,
+        self.send_tx({
             'to': my_safe_address,
             'value': safe_balance
-        }))
+        }, funder_account)
 
         bad_refund_receiver = get_eth_address_with_key()[0]
         with self.assertRaises(InvalidRefundReceiver):
@@ -149,7 +141,7 @@ class TestTransactionService(TestSafeService):
                 gas_token,
                 bad_refund_receiver,
                 signatures_packed,
-                tx_sender_private_key=keys[0]
+                tx_sender_private_key=accounts[0].privateKey
             )
 
         invalid_gas_price = 0
@@ -166,7 +158,7 @@ class TestTransactionService(TestSafeService):
                 gas_token,
                 refund_receiver,
                 signatures_packed,
-                tx_sender_private_key=keys[0]
+                tx_sender_private_key=accounts[0].privateKey
             )
 
         with self.assertRaises(GasPriceTooLow):
@@ -182,7 +174,7 @@ class TestTransactionService(TestSafeService):
                 gas_token,
                 refund_receiver,
                 signatures_packed,
-                tx_sender_private_key=keys[0]
+                tx_sender_private_key=accounts[0].privateKey
             )
 
         owner0_balance = w3.eth.getBalance(owners[0])
@@ -199,19 +191,19 @@ class TestTransactionService(TestSafeService):
             gas_token,
             refund_receiver,
             signatures_packed,
-            tx_sender_private_key=keys[0]
+            tx_sender_private_key=accounts[0].privateKey
         )
 
         tx_receipt = w3.eth.waitForTransactionReceipt(sent_tx_hash)
         self.assertTrue(tx_receipt['status'])
         owner0_new_balance = w3.eth.getBalance(owners[0])
         gas_used = tx_receipt['gasUsed']
-        gas_cost = gas_used * GAS_PRICE
+        gas_cost = gas_used * gas_price
         estimated_payment = (data_gas + gas_used) * gas_price
         real_payment = owner0_new_balance - owner0_balance - gas_cost
         # Estimated payment will be bigger, because it uses all the tx gas. Real payment only uses gas left
         # in the point of calculation of the payment, so it will be slightly lower
         self.assertGreater(estimated_payment, real_payment)
         self.assertGreater(real_payment, 0)
-        self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * GAS_PRICE)
+        self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * self.gas_price)
         self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)

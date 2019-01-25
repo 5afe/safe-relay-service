@@ -2,9 +2,10 @@ from logging import getLogger
 
 from django.conf import settings
 
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
-from rest_framework import status
+from rest_framework import filters, status
 from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
@@ -18,7 +19,7 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.version import __version__
 
-from .filters import DefaultPagination
+from .filters import DefaultPagination, SafeMultisigTxFilter
 from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
 from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
@@ -234,7 +235,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                     400: 'Data not valid',
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
-    def post(self, request, address, format=None):
+    def post(self, request, address):
         """
         Estimates a Safe Multisig Transaction
         """
@@ -247,7 +248,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.get_serializer_class()(data=request.data)
 
         if serializer.is_valid():
             data = serializer.validated_data
@@ -264,6 +265,10 @@ class SafeMultisigTxEstimateView(CreateAPIView):
 class SafeMultisigTxView(ListAPIView):
     permission_classes = (AllowAny,)
     pagination_class = DefaultPagination
+    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
+    filterset_class = SafeMultisigTxFilter
+    ordering_fields = '__all__'
+    ordering = ('-created',)
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -271,11 +276,13 @@ class SafeMultisigTxView(ListAPIView):
         elif self.request.method == 'POST':
             return SafeRelayMultisigTxSerializer
 
-    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
-                                    400: 'Data not valid',
+    def get_queryset(self):
+        return SafeMultisigTx.objects.filter(safe=self.kwargs['address'])
+
+    @swagger_auto_schema(responses={400: 'Data not valid',
                                     404: 'Safe not found/No txs for that Safe',
                                     422: 'Safe address checksum not valid/Tx not valid'})
-    def get(self, request, address, format=None):
+    def get(self, request, address):
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
@@ -284,14 +291,10 @@ class SafeMultisigTxView(ListAPIView):
             except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-        transactions = SafeMultisigTx.objects.filter(safe=address)
-        if transactions.count() == 0:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        serializer = self.get_serializer_class()(transactions, many=True)
-        page = self.paginate_queryset(serializer.data)
-        pagination = self.get_paginated_response(page)
-        return Response(status=status.HTTP_200_OK, data=pagination.data)
+        response = super().get(request, address)
+        if response.data['count'] == 0:
+            response.status_code = status.HTTP_404_NOT_FOUND
+        return response
 
     @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
                                     400: 'Data not valid',
