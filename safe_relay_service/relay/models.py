@@ -16,6 +16,8 @@ from .relay_service import RelayServiceException, RelayServiceProvider
 class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
+    subscription_module_address = EthereumAddressField(null=True)
+    salt = Uint256Field(unique=True)
 
     def has_valid_code(self) -> bool:
         return RelayServiceProvider().check_proxy_code(self.address)
@@ -47,13 +49,24 @@ class SafeCreationManager(models.Manager):
         relay_service = RelayServiceProvider()
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+        fast_gas_price: int = 20
+        safe_creation_tx = relay_service.build_safe_creation_tx(s,
+                                                                owners,
+                                                                threshold,
+                                                                fast_gas_price,
+                                                                payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=fixed_creation_cost)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
-                                                    master_copy=safe_creation_tx.master_copy)
+        safe_contract = SafeContract.objects.create(
+            master_copy=safe_creation_tx.master_copy,
+            salt=safe_creation_tx.salt,
+            subscription_module_address=safe_creation_tx.subscription_module_address,
+            address=safe_creation_tx.safe_address
+        )
 
+        # todo add in salt and module address?
+            # dont think this is required since we already pass the GH module data into the safe_contract above.
         return super().create(
             deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
@@ -252,6 +265,107 @@ class SafeMultisigTx(TimeStampedModel):
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
+    tx_hash = Sha3HashField(unique=True)
+    tx_mined = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = (('safe', 'nonce'),)
+
+    def __str__(self):
+        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
+
+
+class SafeMultisigSubTxManager(models.Manager):
+    class SafeMultisigTxExists(Exception):
+        pass
+
+    class SafeMultisigTxError(Exception):
+        pass
+
+    def get_last_nonce_for_safe(self, safe_address: str):
+        tx = self.filter(safe=safe_address).order_by('-nonce').first()
+        return tx.nonce if tx else None
+
+    def create_multisig_tx(self,
+                           safe_address: str,
+                           to: str,
+                           value: int,
+                           data: bytes,
+                           operation: int,
+                           safe_tx_gas: int,
+                           data_gas: int,
+                           gas_price: int,
+                           gas_token: str,
+                           refund_receiver: str,
+                           nonce: int,
+                           signatures: List[Dict[str, int]]):
+        """
+        :return: Database model of SafeMultisigTx
+        :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
+        :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
+        """
+
+        if self.filter(safe=safe_address, nonce=nonce).exists():
+            raise self.SafeMultisigTxExists
+
+        relay_service = RelayServiceProvider()
+
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
+
+        try:
+            tx_hash, tx = relay_service.send_multisig_tx(
+                safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                signatures_packed
+            )
+        except (SafeServiceException, RelayServiceException) as exc:
+            raise self.SafeMultisigTxError(str(exc)) from exc
+
+        safe_contract = SafeContract.objects.get(address=safe_address)
+
+        return super().create(
+            safe=safe_contract,
+            to=to,
+            value=value,
+            data=data,
+            operation=operation,
+            safe_tx_gas=safe_tx_gas,
+            data_gas=data_gas,
+            gas_price=gas_price,
+            gas_token=None if gas_token == NULL_ADDRESS else gas_token,
+            refund_receiver=refund_receiver,
+            nonce=nonce,
+            signatures=signatures_packed,
+            gas=tx['gas'],
+            tx_hash=tx_hash.hex(),
+            tx_mined=False
+        )
+
+
+class SafeMultisigSubTx(TimeStampedModel):
+    objects = SafeMultisigSubTxManager()
+    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
+    to = EthereumAddressField(null=True)
+    value = Uint256Field()
+    data = models.BinaryField(null=True)
+    operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
+    safe_tx_gas = Uint256Field()
+    data_gas = Uint256Field()
+    gas_price = Uint256Field()
+    gas_token = EthereumAddressField(null=True)
+    refund_receiver = EthereumAddressField(null=True)
+    signatures = models.BinaryField()
+    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
+    nonce = Uint256Field() # todo remove this
     tx_hash = Sha3HashField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
