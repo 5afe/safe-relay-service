@@ -49,12 +49,15 @@ class SafeCreationManager(models.Manager):
         relay_service = RelayServiceProvider()
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+        fast_gas_price: int = 20
+        safe_creation_tx = relay_service.build_safe_creation_tx(s,
+                                                                owners,
+                                                                threshold,
+                                                                fast_gas_price,
+                                                                payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=fixed_creation_cost)
 
-        print(safe_creation_tx.subscription_module_address)
-        print('xxxxxxxxx')
         safe_contract = SafeContract.objects.create(
             master_copy=safe_creation_tx.master_copy,
             salt=safe_creation_tx.salt,

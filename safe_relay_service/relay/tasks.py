@@ -194,6 +194,7 @@ def deploy_safes_task(retry: bool=True) -> None:
     lock = redis.lock("tasks:deploy_safes_task", timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
+        logger.debug('exiting')
         return
     try:
         logger.debug('Starting deploy safes task')

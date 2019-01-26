@@ -1,19 +1,6 @@
 version: '3.5'
 
-volumes:
-  nginx-shared:
-
 services:
-  nginx:
-    image: nginx:1.13-alpine
-    hostname: nginx
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./docker/nginx:/etc/nginx/conf.d
-      - nginx-shared:/nginx
-    depends_on:
-      - web
   db:
     image: postgres:10-alpine
     ports:
@@ -30,9 +17,11 @@ services:
       - ganache
     working_dir: /app
     ports:
-      - "27017"
+      - 8000:27017
+      - 5678:5678
     volumes:
-      - nginx-shared:/nginx
+      - ./gnosis_package:/usr/local/lib/python3.6/site-packages/gnosis
+      - .:/app/safe-relay-service
     command: docker/web/run_web.sh
 
   redis:
@@ -46,6 +35,8 @@ services:
       dockerfile: docker/web/Dockerfile
     env_file:
       - .env
+    volumes:
+      - ./gnosis_package:/usr/local/lib/python3.6/site-packages/gnosis
     depends_on:
       - db
       - redis
@@ -62,3 +53,8 @@ services:
       dockerfile: docker/ganache/Dockerfile
     ports:
       - "8545:8545"
+
+networks:
+  default:
+    external:
+      name: safe-stack
