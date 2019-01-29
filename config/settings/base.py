@@ -40,7 +40,13 @@ USE_TZ = True
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
-    'default': env.db('DATABASE_URL'),
+    'default': {
+        'ENGINE': env.db('DATABASE_ENGINE'),
+        'HOST': env.db('DATABASE_HOST'),
+        'USER': env.db('DATABASE_USER'),
+        'PASSWORD': env.db('DATABASE_PASSWORD'),
+        'PORT': env.db('DATABASE_PORT'),
+    }
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
