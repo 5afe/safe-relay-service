@@ -75,7 +75,6 @@ jobs:
           command: |
             pwd && ls
             envsubst < ${HOME}/project/node-deploy.yaml > ${HOME}/patched_node-deploy.yaml
-            kubectl run jpi-db-migrations --image=gcr.io/groundhog-relay/k8s-api-proxy:0.1 --port=8118
             kubectl apply -f ${HOME}/patched_node-deploy.yaml
             kubectl rollout status deployment/${PROJECT_NAME}
       - slack/status:
