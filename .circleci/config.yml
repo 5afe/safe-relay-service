@@ -1,0 +1,77 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@1.0.0
+
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.6
+    working_directory: ~/repo
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+      - checkout
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - ".git"
+      - run:
+          name: Install dependencies
+          command: pip install -r requirements.txt
+
+  deploy_to_staging:
+    docker:
+      - image: google/cloud-sdk
+    environment:
+      - PROJECT_NAME: "groundhog-relay"
+      - GOOGLE_PROJECT_ID: "groundhog-relay"
+      - GOOGLE_COMPUTE_ZONE: "us-central1-a"
+      - GOOGLE_CLUSTER_NAME: "groundhog-staging"
+    steps:
+      - checkout
+      - run: 
+          name: Setup Google Cloud SDK
+          command: |
+            apt-get install -qq -y gettext
+            echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+            gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+            gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+            gcloud --quiet container clusters get-credentials ${GOOGLE_CLUSTER_NAME}
+      - setup_remote_docker
+      - run: 
+          name: Docker build and push
+          command: |
+            docker build \
+              --build-arg COMMIT_REF=${CIRCLE_SHA1} \
+              --build-arg BUILD_DATE=`date -u +”%Y-%m-%dT%H:%M:%SZ”` \
+              -t ${PROJECT_NAME} docker/web/Dockerfile
+            docker tag ${PROJECT_NAME} gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+      - run: 
+          name: Deploy to Kubernetes
+          command: |
+            pwd && ls
+            envsubst < ${HOME}/project/node-deploy.yaml > ${HOME}/patched_node-deploy.yaml
+            kubectl run jpi-db-migrations --image=gcr.io/groundhog-relay/k8s-api-proxy:0.1 --port=8118
+            kubectl apply -f ${HOME}/patched_node-deploy.yaml
+            kubectl rollout status deployment/${PROJECT_NAME}
+      - slack/status:
+          fail_only: "false" # Optional: if set to "true" then only failure messages will occur.
+          only_for_branch: "develop" # Optional: If set, a specific branch for which status updates will be sent. In this case, only for pushes to master branch.
+workflows:
+  version: 2
+  JPI_Pipeline:
+    jobs:
+      - test
+      - deploy_to_staging:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
