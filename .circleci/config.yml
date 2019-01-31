@@ -105,6 +105,7 @@ jobs:
       - run: 
           name: Docker build and push
           command: |
+          env
             docker build \
               --build-arg COMMIT_REF=${CIRCLE_SHA1} \
               --build-arg BUILD_DATE=`date -u +”%Y-%m-%dT%H:%M:%SZ”` \
