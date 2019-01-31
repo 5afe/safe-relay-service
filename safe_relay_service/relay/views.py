@@ -173,6 +173,40 @@ class SafeView(APIView):
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
+class SafeLookupView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeLookupResponseSerializer
+
+    @swagger_auto_schema(responses={200: SafeLookupResponseSerializer(),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
+    def get(self, request, address, format=None):
+        """
+        Get status of the safe
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                safe_data = SafeCreation.objects.filter(owners__in=address)
+            except SafeCreation.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            relay_service = RelayServiceProvider()
+            owners = relay_service.retrieve_owners(address)
+            master_copy = relay_service.retrieve_master_copy_address(address)
+            threshold = relay_service.retrieve_threshold(address)
+            serializer = self.serializer_class(data={
+                'address': safe_data['address'],
+                'sub_module_address': safe_data['sub_module_address'],
+                'master_copy': master_copy,
+                'threshold': threshold,
+                'owners': owners,
+            })
+            assert serializer.is_valid(), serializer.errors
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+
 class SafeSignalView(APIView):
     permission_classes = (AllowAny,)
 
@@ -298,7 +332,6 @@ class SafeMultisigTxView(CreateAPIView):
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
             else:
                 data = serializer.validated_data
-
                 try:
                     safe_multisig_tx = SafeMultisigTx.objects.create_multisig_tx(
                         safe_address=data['safe'],
