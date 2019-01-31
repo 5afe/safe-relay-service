@@ -3,6 +3,7 @@ Base settings to build other settings files upon.
 """
 
 import environ
+import os
 
 ROOT_DIR = environ.Path(__file__) - 3  # (safe_relay_service/config/settings/base.py - 3 = safe-relay-service/)
 APPS_DIR = ROOT_DIR.path('safe_relay_service')
@@ -41,11 +42,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': env.db('DATABASE_ENGINE'),
-        'HOST': env.db('DATABASE_HOST'),
-        'USER': env.db('DATABASE_USER'),
-        'PASSWORD': env.db('DATABASE_PASSWORD'),
-        'PORT': env.db('DATABASE_PORT'),
+        'ENGINE': os.environ.get('DATABASE_ENGINE'),
+        'NAME': os.environ.get('DATABASE_NAME'),
+        'HOST': os.environ.get('DATABASE_HOST'),
+        'USER': os.environ.get('DATABASE_USER'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD'),
+        'PORT': os.environ.get('DATABASE_PORT'),
     }
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
