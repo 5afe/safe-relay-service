@@ -170,6 +170,7 @@ class RelayService:
         """
 
         data = data or b''
+        meta = meta or b''
         gas_token = gas_token or NULL_ADDRESS
         refund_receiver = refund_receiver or NULL_ADDRESS
         to = to or NULL_ADDRESS

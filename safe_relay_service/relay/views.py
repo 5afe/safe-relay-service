@@ -3,7 +3,7 @@ from django_eth.constants import NULL_ADDRESS
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from gnosis.safe.safe_service import SafeServiceException
-from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
+from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer, SafeMultisigEstimateSubTxSerializer)
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -13,7 +13,7 @@ from rest_framework.views import APIView, exception_handler
 from web3 import Web3
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
-                                             SafeFunding, SafeMultisigTx)
+                                             SafeFunding, SafeMultisigTx, SafeMultisigSubTx)
 from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
@@ -24,8 +24,11 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigEstimateSubTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
+                          SafeMultisigSubTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
+                          SafeRelayMultisigSubTxSerializer,
                           SafeResponseSerializer,
+                          SafeLookupResponseSerializer,
                           SafeTransactionCreationResponseSerializer)
 
 
@@ -127,6 +130,7 @@ class SafeCreationView(CreateAPIView):
                 'payment': safe_creation.payment,
                 'payment_token': safe_creation.payment_token or NULL_ADDRESS,
                 'safe': safe_creation.safe.address,
+                'subscription_module': safe_creation.safe.subscription_module_address,
                 'deployer': safe_creation.deployer,
                 'funder': safe_creation.funder,
             })
@@ -362,7 +366,7 @@ class SafeMultisigTxView(CreateAPIView):
 class SafeMultisigSubTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
     # todo look at this function
-    serializer_class = SafeMultisigEstimateTxSerializer
+    serializer_class = SafeMultisigEstimateSubTxSerializer
 
     @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -377,7 +381,7 @@ class SafeMultisigSubTxEstimateView(CreateAPIView):
 
         try:
             # todo change to subscription_module_address
-            SafeContract.objects.get(address=address)
+            safe_contract = SafeContract.objects.get(address=address)
         except SafeContract.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -388,9 +392,12 @@ class SafeMultisigSubTxEstimateView(CreateAPIView):
             relay_service = RelayServiceProvider()
             data = serializer.validated_data
 
-            safe_subtx_gas = relay_service.estimate_subtx_gas(address, data['to'], data['value'], data['data'],
+            safe_subtx_gas = relay_service.estimate_subtx_gas(safe_contract.subscription_module_address, data['to'],
+                                                              data['value'], data['data'],
                                                               data['operation'], data['meta'])
-            safe_data_subtx_gas = relay_service.estimate_subtx_data_gas(address, data['to'], data['value'],
+            safe_data_subtx_gas = relay_service.estimate_subtx_data_gas(address,
+                                                                        safe_contract.subscription_module_address,
+                                                                        data['to'], data['value'],
                                                                         data['data'],
                                                                         data['operation'], data['gas_token'],
                                                                         data['meta'], safe_subtx_gas)
@@ -416,9 +423,9 @@ class SafeMultisigSubTxEstimateView(CreateAPIView):
 
 class SafeMultisigSubTxView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeRelayMultisigTxSerializer
+    serializer_class = SafeRelayMultisigSubTxSerializer
 
-    @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
+    @swagger_auto_schema(responses={201: SafeMultisigSubTxResponseSerializer(),
                                     400: 'Data not valid',
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
@@ -443,9 +450,9 @@ class SafeMultisigSubTxView(CreateAPIView):
                 data = serializer.validated_data
 
                 try:
-                    safe_multisig_subtx = SafeMultisigTx.objects.create_multisig_subtx(
+                    safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
                         safe_address=data['safe'],
-                        sub_module_address=safe_contract['subscription_module_address'],
+                        sub_module_address=safe_contract.subscription_module_address,
                         to=data['to'],
                         value=data['value'],
                         data=data['data'],
@@ -454,13 +461,13 @@ class SafeMultisigSubTxView(CreateAPIView):
                         data_gas=data['data_gas'],
                         gas_price=data['gas_price'],
                         gas_token=data['gas_token'],
-                        nonce=data['nonce'],
                         refund_receiver=data['refund_receiver'],
                         meta=data['meta'],
                         signatures=data['signatures']
                     )
-                    response_serializer = SafeMultisigTxResponseSerializer(data={'transaction_hash':
-                                                                                     safe_multisig_subtx.tx_hash})
+                    response_serializer = SafeMultisigSubTxResponseSerializer(
+                        data={'transaction_hash': safe_multisig_subtx.tx_hash}
+                    )
                     assert response_serializer.is_valid(), response_serializer.errors
                     return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                 except SafeMultisigTx.objects.SafeMultisigTxExists:

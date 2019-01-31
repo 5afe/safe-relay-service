@@ -34,7 +34,7 @@ class SafeContract(TimeStampedModel):
 
 class SafeCreationManager(models.Manager):
     def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
-                       payment_token_eth_value: float=1.0, fixed_creation_cost: Union[int, None]=None):
+                       payment_token_eth_value: float = 1.0, fixed_creation_cost: Union[int, None] = None):
         """
         Create models for safe tx
         :param s: Random s value for ecdsa signature
@@ -66,7 +66,7 @@ class SafeCreationManager(models.Manager):
         )
 
         # todo add in salt and module address?
-            # dont think this is required since we already pass the GH module data into the safe_contract above.
+        # dont think this is required since we already pass the GH module data into the safe_contract above.
         return super().create(
             deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
@@ -249,28 +249,40 @@ class SafeMultisigTxManager(models.Manager):
             tx_mined=False
         )
 
+
+class SafeMultisigSubTxManager(models.Manager):
+    class SafeMultisigSubTxExists(Exception):
+        pass
+
+    class SafeMultisigSubTxError(Exception):
+        pass
+
+    def get_last_nonce_for_safe(self, safe_address: str):
+        tx = self.filter(safe=safe_address).order_by('-nonce').first()
+        return tx.nonce if tx else None
+
     def create_multisig_subtx(self,
-                           safe_address: str,
-                           sub_module_address: str,
-                           to: str,
-                           value: int,
-                           data: bytes,
-                           operation: int,
-                           safe_tx_gas: int,
-                           data_gas: int,
-                           gas_price: int,
-                           gas_token: str,
-                           refund_receiver: str,
-                           meta: bytes,
-                           signatures: List[Dict[str, int]]):
+                              safe_address: str,
+                              sub_module_address: str,
+                              to: str,
+                              value: int,
+                              data: bytes,
+                              operation: int,
+                              safe_tx_gas: int,
+                              data_gas: int,
+                              gas_price: int,
+                              gas_token: str,
+                              refund_receiver: str,
+                              meta: bytes,
+                              signatures: List[Dict[str, int]]):
         """
         :return: Database model of SafeMultisigTx
         :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
         :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
         """
 
-        if self.filter(safe=safe_address, meta=meta).exists():
-            raise self.SafeMultisigTxExists
+        # if self.filter(safe=safe_address, meta=meta).exists():
+        #     raise self.SafeMultisigTxExists
 
         relay_service = RelayServiceProvider()
 
@@ -294,7 +306,7 @@ class SafeMultisigTxManager(models.Manager):
                 signatures_packed
             )
         except (SafeServiceException, RelayServiceException) as exc:
-            raise self.SafeMultisigTxError(str(exc)) from exc
+            raise self.SafeMultisigSubTxError(str(exc)) from exc
 
         safe_contract = SafeContract.objects.get(address=safe_address)
 
@@ -342,82 +354,6 @@ class SafeMultisigTx(TimeStampedModel):
         return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
 
 
-class SafeMultisigSubTxManager(models.Manager):
-    class SafeMultisigTxExists(Exception):
-        pass
-
-    class SafeMultisigTxError(Exception):
-        pass
-
-    def get_last_nonce_for_safe(self, safe_address: str):
-        tx = self.filter(safe=safe_address).order_by('-nonce').first()
-        return tx.nonce if tx else None
-
-    def create_multisig_tx(self,
-                           safe_address: str,
-                           to: str,
-                           value: int,
-                           data: bytes,
-                           operation: int,
-                           safe_tx_gas: int,
-                           data_gas: int,
-                           gas_price: int,
-                           gas_token: str,
-                           refund_receiver: str,
-                           nonce: int,
-                           signatures: List[Dict[str, int]]):
-        """
-        :return: Database model of SafeMultisigTx
-        :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
-        :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
-        """
-
-        if self.filter(safe=safe_address, nonce=nonce).exists():
-            raise self.SafeMultisigTxExists
-
-        relay_service = RelayServiceProvider()
-
-        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
-
-        try:
-            tx_hash, tx = relay_service.send_multisig_tx(
-                safe_address,
-                to,
-                value,
-                data,
-                operation,
-                safe_tx_gas,
-                data_gas,
-                gas_price,
-                gas_token,
-                refund_receiver,
-                signatures_packed
-            )
-        except (SafeServiceException, RelayServiceException) as exc:
-            raise self.SafeMultisigTxError(str(exc)) from exc
-
-        safe_contract = SafeContract.objects.get(address=safe_address)
-
-        return super().create(
-            safe=safe_contract,
-            to=to,
-            value=value,
-            data=data,
-            operation=operation,
-            safe_tx_gas=safe_tx_gas,
-            data_gas=data_gas,
-            gas_price=gas_price,
-            gas_token=None if gas_token == NULL_ADDRESS else gas_token,
-            refund_receiver=refund_receiver,
-            nonce=nonce,
-            signatures=signatures_packed,
-            gas=tx['gas'],
-            tx_hash=tx_hash.hex(),
-            tx_mined=False
-        )
-
-
 class SafeMultisigSubTx(TimeStampedModel):
     objects = SafeMultisigSubTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
@@ -432,12 +368,12 @@ class SafeMultisigSubTx(TimeStampedModel):
     refund_receiver = EthereumAddressField(null=True)
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
-    nonce = Uint256Field() # todo remove this
+    meta = models.BinaryField(null=False)
     tx_hash = Sha3HashField(unique=True)
     tx_mined = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = (('safe', 'nonce'),)
+        unique_together = ('safe', 'to', 'meta')
 
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
