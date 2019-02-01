@@ -120,7 +120,7 @@ jobs:
             envsubst < ${HOME}/project/node-deploy-pr.yaml > ${HOME}/patched_node-deploy-pr.yaml
             kubectl get namespace ${PROJECT_NAME}-dev > /dev/null 2>&1 || kubectl create namespace ${PROJECT_NAME}-dev
             kubectl apply -f ${HOME}/patched_node-deploy-pr.yaml
-            kubectl rollout status deployment/${PROJECT_NAME}-dev-${CIRCLE_PR_NUMBER}
+            kubectl rollout status deployment/${PROJECT_NAME}-${CIRCLE_SHA1}
       - slack/status:
           fail_only: "false" # Optional: if set to "true" then only failure messages will occur.
 workflows:
