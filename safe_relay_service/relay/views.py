@@ -1,5 +1,6 @@
 from django.conf import settings
 from django_eth.constants import NULL_ADDRESS
+from django.db import connection
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from gnosis.safe.safe_service import SafeServiceException
@@ -192,23 +193,34 @@ class SafeLookupView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                safe_data = SafeCreation.objects.filter(owners__in=address)
+                with connection.cursor() as cursor:
+                    cursor.execute("select address, subscription_module_address from relay_safecontract where address in (select safe_id from relay_safecreation where owners::varchar like '%%" + address + "%%')")
+                    safe_data = cursor.fetchall()
             except SafeCreation.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            relay_service = RelayServiceProvider()
-            owners = relay_service.retrieve_owners(address)
-            master_copy = relay_service.retrieve_master_copy_address(address)
-            threshold = relay_service.retrieve_threshold(address)
-            serializer = self.serializer_class(data={
-                'address': safe_data['address'],
-                'sub_module_address': safe_data['sub_module_address'],
-                'master_copy': master_copy,
-                'threshold': threshold,
-                'owners': owners,
-            })
-            assert serializer.is_valid(), serializer.errors
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
+            # relay_service = RelayServiceProvider()
+            # owners = relay_service.retrieve_owners(address)
+            # master_copy = relay_service.retrieve_master_copy_address(address)
+            # threshold = relay_service.retrieve_threshold(address)
+            # serializer = self.serializer_class(data={
+            #     'address': safe_data['address'],
+            #     'sub_module_address': safe_data['sub_module_address'],
+            #     'master_copy': master_copy,
+            #     'threshold': threshold,
+            #     'owners': owners,
+            # })
+            # assert serializer.is_valid(), serializer.errors
+            # return Response(status=status.HTTP_200_OK, data=serializer.data)
+            if (len(safe_data) > 0):
+                response = {
+                    "safe_address": safe_data[0][0],
+                    "subscription_module_address": safe_data[0][1]
+                }
+                # assert serializer.is_valid(), serializer.errors
+                return Response(status=status.HTTP_200_OK, data=response)
+            else:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class SafeSignalView(APIView):
