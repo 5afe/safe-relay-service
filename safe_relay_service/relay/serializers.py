@@ -110,6 +110,16 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
         return data
 
 
+class SafeRelayMultisigSubTxExecuteSerializer(serializers.Serializer):
+
+    sub_tx_id = serializers.IntegerField(min_value=0)
+
+    def validate(self, data):
+
+        super().validate(data)
+        return data
+
+
 class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
@@ -191,7 +201,8 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
 
 
 class SafeMultisigSubTxResponseSerializer(serializers.Serializer):
-    transaction_hash = Sha3HashField()
+    sub_tx_id = serializers.IntegerField(min_value=0)
+    transaction_hash = Sha3HashField(required=False, allow_null=True)
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):

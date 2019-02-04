@@ -27,6 +27,7 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigSubTxResponseSerializer,
                           SafeRelayMultisigTxSerializer,
                           SafeRelayMultisigSubTxSerializer,
+                          SafeRelayMultisigSubTxExecuteSerializer,
                           SafeResponseSerializer,
                           SafeLookupResponseSerializer,
                           SafeTransactionCreationResponseSerializer)
@@ -424,12 +425,13 @@ class SafeMultisigSubTxEstimateView(CreateAPIView):
 class SafeMultisigSubTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeRelayMultisigSubTxSerializer
+    execute_serializer_class = SafeRelayMultisigSubTxExecuteSerializer
 
     @swagger_auto_schema(responses={201: SafeMultisigSubTxResponseSerializer(),
                                     400: 'Data not valid',
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
-    def post(self, request, address, format=None):
+    def post(self, request, address, action='create', format=None):
         """
         Send a Safe Multisig Transaction
         """
@@ -442,7 +444,11 @@ class SafeMultisigSubTxView(CreateAPIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             request.data['safe'] = address
-            serializer = self.serializer_class(data=request.data)
+            request.data['action'] = action
+            if action == 'create':
+                serializer = self.serializer_class(data=request.data)
+            else:
+                serializer = self.execute_serializer_class(data=request.data)
 
             if not serializer.is_valid():
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -450,26 +456,60 @@ class SafeMultisigSubTxView(CreateAPIView):
                 data = serializer.validated_data
 
                 try:
-                    safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
-                        safe_address=data['safe'],
-                        sub_module_address=safe_contract.subscription_module_address,
-                        to=data['to'],
-                        value=data['value'],
-                        data=data['data'],
-                        operation=data['operation'],
-                        safe_tx_gas=data['safe_tx_gas'],
-                        data_gas=data['data_gas'],
-                        gas_price=data['gas_price'],
-                        gas_token=data['gas_token'],
-                        refund_receiver=data['refund_receiver'],
-                        meta=data['meta'],
-                        signatures=data['signatures']
-                    )
-                    response_serializer = SafeMultisigSubTxResponseSerializer(
-                        data={'transaction_hash': safe_multisig_subtx.tx_hash}
-                    )
-                    assert response_serializer.is_valid(), response_serializer.errors
-                    return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+                    if action == 'create':
+                        safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
+                            safe_address=data['safe'],
+                            sub_module_address=safe_contract.subscription_module_address,
+                            to=data['to'],
+                            value=data['value'],
+                            data=data['data'],
+                            operation=data['operation'],
+                            safe_tx_gas=data['safe_tx_gas'],
+                            data_gas=data['data_gas'],
+                            gas_price=data['gas_price'],
+                            gas_token=data['gas_token'],
+                            refund_receiver=data['refund_receiver'],
+                            meta=data['meta'],
+                            signatures=data['signatures']
+                        )
+                        response_serializer = SafeMultisigSubTxResponseSerializer(
+                            data={'sub_tx_id': safe_multisig_subtx.id}
+                        )
+                        assert response_serializer.is_valid(), response_serializer.errors
+                        return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+                    elif action == 'execute':
+                        sub_tx_id = data['sub_tx_id']
+                        data = SafeMultisigSubTx.objects.get(id=sub_tx_id)
+
+                        relay_service = RelayServiceProvider()
+                        if data.data:
+                            data.data = bytes(data.data)
+
+                        send_subscription_tx = relay_service.send_multisig_subtx(
+                            safe_address=data.safe.address,
+                            sub_module_address=safe_contract.subscription_module_address,
+                            to=data.to,
+                            value=data.value,
+                            data=data.data,
+                            operation=data.operation,
+                            safe_tx_gas=data.safe_tx_gas,
+                            data_gas=data.data_gas,
+                            gas_price=data.gas_price,
+                            gas_token=data.gas_token,
+                            refund_receiver=data.refund_receiver,
+                            meta=bytes(data.meta),
+                            signatures=bytes(data.signatures)
+                        )
+
+                        response_serializer = SafeMultisigSubTxResponseSerializer(
+                            data={'sub_tx_id': sub_tx_id,
+                                  'transaction_hash': send_subscription_tx[0]}
+                        )
+                        assert response_serializer.is_valid(), response_serializer.errors
+
+                        #TODO: add a seperate table that tracks txn hashes of subscriptions.
+                        return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')

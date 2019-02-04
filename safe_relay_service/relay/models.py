@@ -61,7 +61,7 @@ class SafeCreationManager(models.Manager):
         safe_contract = SafeContract.objects.create(
             master_copy=safe_creation_tx.master_copy,
             salt=safe_creation_tx.salt,
-            subscription_module_address=safe_creation_tx.subscription_module_address,
+            subscription_module_address=safe_creation_tx.cx_sub_module_address,
             address=safe_creation_tx.safe_address
         )
 
@@ -289,24 +289,24 @@ class SafeMultisigSubTxManager(models.Manager):
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
 
-        try:
-            tx_hash, tx = relay_service.send_multisig_subtx(
-                safe_address,
-                sub_module_address,
-                to,
-                value,
-                data,
-                operation,
-                safe_tx_gas,
-                data_gas,
-                gas_price,
-                gas_token,
-                refund_receiver,
-                meta,
-                signatures_packed
-            )
-        except (SafeServiceException, RelayServiceException) as exc:
-            raise self.SafeMultisigSubTxError(str(exc)) from exc
+        # try:
+        #     tx_hash, tx = relay_service.send_multisig_subtx(
+        #         safe_address,
+        #         sub_module_address,
+        #         to,
+        #         value,
+        #         data,
+        #         operation,
+        #         safe_tx_gas,
+        #         data_gas,
+        #         gas_price,
+        #         gas_token,
+        #         refund_receiver,
+        #         meta,
+        #         signatures_packed
+        #     )
+        # except (SafeServiceException, RelayServiceException) as exc:
+        #     raise self.SafeMultisigSubTxError(str(exc)) from exc
 
         safe_contract = SafeContract.objects.get(address=safe_address)
 
@@ -323,8 +323,7 @@ class SafeMultisigSubTxManager(models.Manager):
             refund_receiver=refund_receiver,
             meta=meta,
             signatures=signatures_packed,
-            gas=tx['gas'],
-            tx_hash=tx_hash.hex(),
+            gas=0,
             tx_mined=False
         )
 
@@ -368,12 +367,11 @@ class SafeMultisigSubTx(TimeStampedModel):
     refund_receiver = EthereumAddressField(null=True)
     signatures = models.BinaryField()
     gas = Uint256Field()  # Gas for the tx that executes the multisig tx
-    meta = models.BinaryField(null=False)
-    tx_hash = Sha3HashField(unique=True)
+    meta = models.BinaryField(null=True)
     tx_mined = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('safe', 'to', 'meta')
+        unique_together = ('safe', 'to', 'data', 'value', 'meta')
 
     def __str__(self):
-        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
+        return '{} - Safe {}'.format(SafeOperation(self.operation).name, self.safe.address)

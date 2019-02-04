@@ -91,10 +91,10 @@ class Migration(migrations.Migration):
                 ('data_gas', django_eth.models.Uint256Field()),
                 ('gas_price', django_eth.models.Uint256Field()),
                 ('gas_token', django_eth.models.EthereumAddressField(null=True)),
+                ('refund_receiver', django_eth.models.EthereumAddressField(null=True)),
                 ('signatures', models.BinaryField()),
                 ('gas', django_eth.models.Uint256Field()),
                 ('meta', models.BinaryField(null=True)),
-                ('tx_hash', django_eth.models.Sha3HashField(unique=True)),
                 ('tx_mined', models.BooleanField(default=False)),
             ],
         ),
@@ -120,6 +120,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='relay.SafeContract'),
         ),
         migrations.AddField(
+            model_name='safemultisigsubtx',
+            name='safe',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='relay.SafeContract'),
+        ),
+        migrations.AddField(
             model_name='safecreation',
             name='safe',
             field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='relay.SafeContract'),
@@ -127,5 +132,9 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name='safemultisigtx',
             unique_together={('safe', 'nonce')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='safemultisigsubtx',
+            unique_together={('safe', 'to', 'data', 'value', 'meta')},
         ),
     ]
