@@ -129,6 +129,7 @@ class SafeCreationView(CreateAPIView):
                     'gas_price': safe_creation.gas_price,
                     'nonce': 0,
                 },
+                'tx_hash': safe_creation.tx_hash,
                 'payment': safe_creation.payment,
                 'payment_token': safe_creation.payment_token or NULL_ADDRESS,
                 'safe': safe_creation.safe.address,
