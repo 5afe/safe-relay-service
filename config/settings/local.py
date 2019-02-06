@@ -74,5 +74,5 @@ if env.bool('USE_DOCKER', default=False):
     }
 
 # SAFE
-SAFE_GAS_PRICE = 1
+FIXED_GAS_PRICE = 1
 SAFE_FUNDING_CONFIRMATIONS = 0

@@ -22,13 +22,14 @@ class NoBlocksFound(Exception):
 class GasStationProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
-            w3 = cls.instance.w3
-            if w3.isConnected() and int(w3.net.version) > 1000:  # Ganache
-                logger.warning('Using mock Gas Station because no chainId was detected')
-                cls.instance = GasStationMock()
-            elif settings.SAFE_GAS_PRICE is not None:
-                cls.instance = GasStationMock(gas_price=settings.SAFE_GAS_PRICE)
+            if settings.FIXED_GAS_PRICE is not None:
+                cls.instance = GasStationMock(gas_price=settings.FIXED_GAS_PRICE)
+            else:
+                cls.instance = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+                w3 = cls.instance.w3
+                if w3.isConnected() and int(w3.net.version) > 314158:  # Ganache
+                    logger.warning('Using mock Gas Station because no chainId was detected')
+                    cls.instance = GasStationMock()
         return cls.instance
 
 
@@ -37,8 +38,8 @@ class GasStation:
 
     def __init__(self,
                  http_provider_uri='http://localhost:8545',
-                 number_of_blocks: int=200,
-                 cache_timeout_seconds=10 * 60):
+                 number_of_blocks: int = 200,
+                 cache_timeout_seconds: int = 10 * 60):
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
@@ -152,7 +153,7 @@ class GasStation:
 
 
 class GasStationMock(GasStation):
-    def __init__(self, gas_price: Union[None, int]=None):
+    def __init__(self, gas_price: Union[None, int] = None):
         if gas_price is None:
             self.lowest = 1
             self.safe_low = 5

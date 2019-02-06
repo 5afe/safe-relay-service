@@ -15,7 +15,7 @@ from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
 
-GAS_PRICE = settings.SAFE_GAS_PRICE
+GAS_PRICE = settings.FIXED_GAS_PRICE
 
 
 class TestTasks(RelayTestCaseMixin, TestCase):
