@@ -8,7 +8,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.tests.utils import deploy_example_erc20
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
@@ -130,7 +129,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertEqual(response.json()['exception'], 'InvalidPaymentToken: Invalid payment token %s' % payment_token)
 
-        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        erc20_contract = self.deploy_example_erc20(10000, NULL_ADDRESS)
         payment_token = erc20_contract.address
         serializer = SafeCreationSerializer(data={
             's': s,
@@ -171,7 +170,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
 
         # Check that token with fixed conversion price to 1 is a little higher than with ether
         # (We need to pay for storage for token transfer, as funder does not own any token yet)
-        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        erc20_contract = self.deploy_example_erc20(10000, NULL_ADDRESS)
         payment_token = erc20_contract.address
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=1)
         serializer = SafeCreationSerializer(data={
@@ -205,7 +204,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         estimated_payment = response_json['payment']
 
         # With payment token
-        erc20_contract = deploy_example_erc20(self.w3, 10000, NULL_ADDRESS)
+        erc20_contract = self.deploy_example_erc20(10000, NULL_ADDRESS)
         payment_token = erc20_contract.address
         token_model = TokenFactory(address=payment_token, gas=True, fixed_eth_conversion=0.1)
         data = {
