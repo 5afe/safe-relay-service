@@ -1,16 +1,16 @@
 import time
+from urllib.parse import urljoin
 
 from django.core.management.base import BaseCommand
 from django.urls import reverse
-from eth_account import Account
-from gnosis.eth.contracts import get_erc20_contract
-from gnosis.safe import SafeService
-from urllib.parse import urljoin
-
-from gnosis.safe.tests.utils import generate_valid_s
 
 import requests
-from web3 import Web3, HTTPProvider
+from eth_account import Account
+from web3 import HTTPProvider, Web3
+
+from gnosis.eth.contracts import get_erc20_contract
+from gnosis.safe import SafeService
+from gnosis.safe.tests.utils import generate_valid_s
 
 
 class Command(BaseCommand):

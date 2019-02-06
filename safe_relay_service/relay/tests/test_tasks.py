@@ -5,8 +5,6 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from gnosis.eth import EthereumServiceProvider
-
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_deployer_funded_task, deploy_safes_task,
                      fund_deployer_task)
@@ -22,24 +20,17 @@ class TestTasks(RelayTestCaseMixin, TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.ethereum_service = EthereumServiceProvider()
-        cls.w3 = cls.ethereum_service.w3
+        cls.prepare_tests()
 
     def test_balance_in_deployer(self):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        self.ethereum_service.send_eth_to(
-            to=safe,
-            gas_price=GAS_PRICE,
-            value=payment)
+        self.send_ether(to=safe, value=payment)
 
         # If deployer has balance already no ether is sent to the account
         deployer_payment = 1
-        self.ethereum_service.send_eth_to(
-            to=deployer,
-            gas_price=GAS_PRICE,
-            value=deployer_payment)
+        self.send_ether(to=deployer, value=deployer_payment)
 
         self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
 
@@ -51,10 +42,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        self.ethereum_service.send_eth_to(
-            to=safe,
-            gas_price=GAS_PRICE,
-            value=payment)
+        self.send_ether(to=safe, value=payment)
 
         fund_deployer_task.delay(safe).get()
 
@@ -108,10 +96,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
         # No ether is sent to the deployer is safe has less balance than needed
-        self.ethereum_service.send_eth_to(
-            to=safe,
-            gas_price=GAS_PRICE,
-            value=payment - 1)
+        self.send_ether(to=safe, value=payment - 1)
         fund_deployer_task.delay(safe, retry=False).get()
         self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
 
@@ -136,10 +121,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        self.ethereum_service.send_eth_to(
-            to=safe,
-            gas_price=GAS_PRICE,
-            value=payment)
+        self.send_ether(to=safe, value=payment)
 
         fund_deployer_task.delay(safe).get()
         check_deployer_funded_task.delay(safe).get()
@@ -192,10 +174,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        self.ethereum_service.send_eth_to(
-            to=safe,
-            gas_price=GAS_PRICE,
-            value=payment)
+        self.send_ether(to=safe, value=payment)
 
         fund_deployer_task.delay(safe).get()
         check_deployer_funded_task.delay(safe).get()
