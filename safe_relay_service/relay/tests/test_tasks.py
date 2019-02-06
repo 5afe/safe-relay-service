@@ -66,7 +66,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         self.assertIsNone(safe_funding.safe_deployed_tx_hash)
 
         # Safe code is not deployed
-        self.assertEqual(self.w3.eth.getCode(safe), b'\x00')
+        self.assertEqual(self.w3.eth.getCode(safe), b'')
 
         # This task will check safes with deployer funded and confirmed and send safe raw contract creation tx
         deploy_safes_task.delay().get()

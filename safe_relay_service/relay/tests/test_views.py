@@ -123,11 +123,11 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertIn('InvalidPaymentToken', response_json['exception'])
         self.assertIn(payment_token, response_json['exception'])
 
-        # It will fail, because token is on DB but not in blockchain, so gas cannot be estimated
+        # With previous versions of ganache it failed, because token was on DB but not in blockchain,
+        # so gas cannot be estimated. With new versions of ganache estimation is working
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=0.1)
         response = self.client.post(reverse('v1:safe-creation'), data=serializer.data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        self.assertEqual(response.json()['exception'], 'InvalidPaymentToken: Invalid payment token %s' % payment_token)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         erc20_contract = self.deploy_example_erc20(10000, NULL_ADDRESS)
         payment_token = erc20_contract.address
