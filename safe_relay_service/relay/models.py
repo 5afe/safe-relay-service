@@ -371,7 +371,7 @@ class SafeMultisigSubTx(TimeStampedModel):
     tx_mined = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('safe', 'to', 'data', 'value', 'meta')
+        unique_together = ('safe', 'signatures')
 
     def __str__(self):
         return '{} - Safe {}'.format(SafeOperation(self.operation).name, self.safe.address)

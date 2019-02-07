@@ -2,11 +2,19 @@
 import os
 import sys
 
+sys.path.append("pycharm-debug-py3k.egg")
+
 if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local')
 
     try:
         from django.core.management import execute_from_command_line
+
+        if os.environ.get('RUN_MAIN') or os.environ.get('WERKZEUG_RUN_MAIN'):
+
+            import pydevd
+
+            pydevd.settrace('host.docker.internal', port=12345, stdoutToServer=True, stderrToServer=True)
     except ImportError:
         # The above import may fail for some other reason. Ensure that the
         # issue is really that Django is missing to avoid masking other

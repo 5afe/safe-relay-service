@@ -26,6 +26,7 @@ from .serializers import (SafeCreationSerializer,
                           SafeMultisigEstimateSubTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeMultisigSubTxResponseSerializer,
+                          SafeMultisigSubTxExecuteResponseSerializer,
                           SafeRelayMultisigTxSerializer,
                           SafeRelayMultisigSubTxSerializer,
                           SafeRelayMultisigSubTxExecuteSerializer,
@@ -490,32 +491,15 @@ class SafeMultisigSubTxView(CreateAPIView):
                         assert response_serializer.is_valid(), response_serializer.errors
                         return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                     elif action == 'execute':
-                        sub_tx_id = data['sub_tx_id']
-                        data = SafeMultisigSubTx.objects.get(id=sub_tx_id)
-
+                        execute_ids = data['execute_ids']
+                        sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(id__in=execute_ids).values()
                         relay_service = RelayServiceProvider()
-                        if data.data:
-                            data.data = bytes(data.data)
-
-                        send_subscription_tx = relay_service.send_multisig_subtx(
-                            safe_address=data.safe.address,
-                            sub_module_address=safe_contract.subscription_module_address,
-                            to=data.to,
-                            value=data.value,
-                            data=data.data,
-                            operation=data.operation,
-                            safe_tx_gas=data.safe_tx_gas,
-                            data_gas=data.data_gas,
-                            gas_price=data.gas_price,
-                            gas_token=data.gas_token,
-                            refund_receiver=data.refund_receiver,
-                            meta=bytes(data.meta),
-                            signatures=bytes(data.signatures)
+                        processed_txns = relay_service.send_multisig_subtx(
+                            sub_subscriptions_to_exec
                         )
 
-                        response_serializer = SafeMultisigSubTxResponseSerializer(
-                            data={'sub_tx_id': sub_tx_id,
-                                  'transaction_hash': send_subscription_tx[0]}
+                        response_serializer = SafeMultisigSubTxExecuteResponseSerializer(
+                            data={'processed_hashes': processed_txns}
                         )
                         assert response_serializer.is_valid(), response_serializer.errors
 

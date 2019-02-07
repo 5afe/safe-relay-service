@@ -135,6 +135,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='safemultisigsubtx',
-            unique_together={('safe', 'to', 'data', 'value', 'meta')},
+            unique_together={('safe', 'signatures')},
         ),
     ]

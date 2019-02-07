@@ -111,11 +111,9 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
 
 
 class SafeRelayMultisigSubTxExecuteSerializer(serializers.Serializer):
-
-    sub_tx_id = serializers.IntegerField(min_value=0)
+    execute_ids = serializers.ListField(min_length=1)
 
     def validate(self, data):
-
         super().validate(data)
         return data
 
@@ -198,6 +196,10 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     transaction_hash = Sha3HashField()
+
+
+class SafeMultisigSubTxExecuteResponseSerializer(serializers.Serializer):
+    processed_hashes = serializers.ListField(required=True)
 
 
 class SafeMultisigSubTxResponseSerializer(serializers.Serializer):
