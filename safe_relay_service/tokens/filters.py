@@ -10,6 +10,7 @@ class TokenFilter(filters.FilterSet):
         model = Token
         fields = {
             'name': ['exact'],
+            'address': ['exact'],
             'symbol': ['exact'],
             'gas': ['exact'],
             'decimals': ['lt', 'gt', 'exact'],

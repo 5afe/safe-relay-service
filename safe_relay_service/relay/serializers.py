@@ -120,6 +120,7 @@ class SafeCreationEstimateResponseSerializer(serializers.Serializer):
 class SafeCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()
+    tx_hash = Sha3HashField()
     payment = serializers.CharField()
     payment_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     safe = EthereumAddressField()

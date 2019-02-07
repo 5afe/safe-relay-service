@@ -14,10 +14,11 @@ class NotificationServiceProvider:
             from django.conf import settings
             notification_service_uri = settings.NOTIFICATION_SERVICE_URI
             if notification_service_uri:
-                cls.instance = NotificationService(settings.NOTIFICATION_SERVICE_URI)
+                cls.instance = NotificationService(settings.NOTIFICATION_SERVICE_URI,
+                                                   settings.NOTIFICATION_SERVICE_PASS)
             else:
                 logger.warning('Using mock NotificationService because no NOTIFICATION_SERVICE_URI was configured')
-                cls.instance = NotificationServiceMock(None)
+                cls.instance = NotificationServiceMock(None, None)
         return cls.instance
 
     @classmethod
@@ -27,9 +28,11 @@ class NotificationServiceProvider:
 
 
 class NotificationService:
-    def __init__(self, base_uri: str, headers: Union[Dict, None]=None):
-        self.uri = base_uri
-        self.notification_uri = urljoin(base_uri, '/api/v1/simple-notifications/')
+    def __init__(self, base_uri: str, password: str, headers: Union[Dict, None]=None):
+        self.base_uri = base_uri
+        self.notification_endpoint_uri = urljoin(base_uri, '/api/v1/simple-notifications/')
+        self.notification_pass = password
+        self.password = password
         self.headers = headers if headers else {'X-Forwarded-Proto': 'https'}
 
     def send_notification(self, message: Dict, owners: List[str]) -> bool:
@@ -39,8 +42,9 @@ class NotificationService:
             data = {
                 'message': json.dumps(message),
                 'devices': owners,
+                'password': self.password,
             }
-            r = requests.post(self.notification_uri, json=data, headers=self.headers)
+            r = requests.post(self.notification_endpoint_uri, json=data, headers=self.headers)
             return r.ok
 
     def send_create_notification(self, safe_address: str, owners: List[str]) -> bool:

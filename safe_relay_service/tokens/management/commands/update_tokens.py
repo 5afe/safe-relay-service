@@ -16,7 +16,7 @@ class Command(BaseCommand):
         # Positional arguments
         parser.add_argument('--pages', help='Number of pages of tokens on etherscan to scrap', type=int)
         parser.add_argument('--download-icons', help='Download icons', action='store_true')
-        parser.add_argument('--download-folder', help='Download folder. It implies --download', action='store_true')
+        parser.add_argument('--download-folder', help='Download folder. It implies --download')
         parser.add_argument('--store-db', help='Store tokens in db', action='store_true')
 
     def handle(self, *args, **options):

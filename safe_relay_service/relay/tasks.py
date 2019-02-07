@@ -14,12 +14,14 @@ from gnosis.eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
-from .notification import NotificationServiceProvider
+from .services.notification_service import NotificationServiceProvider
+from .services.funding_service import FundingServiceProvider
 from .services.redis_service import RedisService
 
 logger = get_task_logger(__name__)
 
 ethereum_service = EthereumServiceProvider()
+funding_service = FundingServiceProvider()
 redis = RedisService().redis
 notification_service = NotificationServiceProvider()
 
@@ -31,7 +33,7 @@ LOCK_TIMEOUT = 60 * 2
 
 
 @app.shared_task(bind=True, max_retries=3)
-def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
+def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     """
     Check if user has sent enough ether or tokens to the safe account
     If every condition is met ether is sent to the deployer address and `check_deployer_funded_task`
@@ -92,9 +94,10 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
                 else:
                     logger.info('Safe=%s. Transferring deployment-cost=%d to deployer=%s',
                                 safe_address, safe_creation.wei_deploy_cost(), deployer_address)
-                    tx_hash = ethereum_service.send_eth_to(deployer_address, safe_creation.gas_price,
-                                                           safe_creation.wei_deploy_cost(),
-                                                           retry=True, block_identifier='pending')
+                    tx_hash = funding_service.send_eth_to(deployer_address,
+                                                          safe_creation.wei_deploy_cost(),
+                                                          gas_price=safe_creation.gas_price,
+                                                          retry=True)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
@@ -116,7 +119,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
 @app.shared_task(bind=True,
                  max_retries=settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
                  default_retry_delay=settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY)
-def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> None:
+def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> None:
     """
     Check the `deployer_funded_tx_hash`. If receipt can be retrieved, in SafeFunding `deployer_funded=True`.
     If not, after the number of retries `deployer_funded_tx_hash=None`
@@ -177,7 +180,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool=True) -> Non
 
 
 @app.shared_task()
-def deploy_safes_task(retry: bool=True) -> None:
+def deploy_safes_task(retry: bool = True) -> None:
     """
     Deploy pending safes (deployer funded and tx-hash checked). Then raw creation tx is sent to the ethereum network.
     If something goes wrong (maybe a reorg), `deployer_funded` will be set False again and `check_deployer_funded_task`
