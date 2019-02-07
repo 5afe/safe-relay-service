@@ -14,7 +14,7 @@ from gnosis.eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
-from .notification import NotificationServiceProvider
+from .services.notification_service import NotificationServiceProvider
 from .services.funding_service import FundingServiceProvider
 from .services.redis_service import RedisService
 
