@@ -18,7 +18,7 @@ class NotificationServiceProvider:
                                                    settings.NOTIFICATION_SERVICE_PASS)
             else:
                 logger.warning('Using mock NotificationService because no NOTIFICATION_SERVICE_URI was configured')
-                cls.instance = NotificationServiceMock(None)
+                cls.instance = NotificationServiceMock(None, None)
         return cls.instance
 
     @classmethod
