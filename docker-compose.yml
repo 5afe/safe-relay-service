@@ -23,7 +23,7 @@ services:
       context: .
       dockerfile: docker/web/Dockerfile
     env_file:
-      - .env
+      - .env.local
     depends_on:
       - db
       - redis
@@ -45,7 +45,9 @@ services:
       context: .
       dockerfile: docker/web/Dockerfile
     env_file:
-      - .env
+      - .env.local
+    volumes:
+      - ./gnosis_package:/usr/local/lib/python3.6/site-packages/gnosis
     depends_on:
       - db
       - redis

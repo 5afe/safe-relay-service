@@ -1,0 +1,45 @@
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: ${PROJECT_NAME}
+  namespace: ${PROJECT_NAME}
+  labels:
+    app: ${PROJECT_NAME}
+spec:
+  ports:
+  - name: ${PROJECT_NAME}
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
+  selector:
+    app: ${PROJECT_NAME}
+  type: NodePort
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: ${PROJECT_NAME}
+  namespace: ${PROJECT_NAME}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ${PROJECT_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${PROJECT_NAME}
+    spec:
+      containers:
+      - name: ${PROJECT_NAME}
+        image: gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+        args:
+        - docker/web/run_web.sh
+        envFrom:
+        - configMapRef:
+            name: groundhog-relay-dev
+        ports:
+        - containerPort: 8000
+        resources: {}
+      restartPolicy: Always
+status: {}
