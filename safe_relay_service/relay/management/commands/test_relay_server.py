@@ -137,12 +137,15 @@ class Command(BaseCommand):
         # We used payment * 2 to fund the safe, now we return ether to the main account
         r = requests.post(self.get_estimate_url(safe_address), json=tx)
         assert r.ok, "Estimate not working %s" % r.content
+        self.stdout.write(self.style.SUCCESS('Estimation=%s for tx=%s' % (r.json(), tx)))
         estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
         fees = r.json()['gasPrice'] * estimate_gas
 
         # We cannot transfer the full amount, first we need to subtract fees
         tx['value'] = payment - fees
-        tx['dataGas'] = r.json()['dataGas']
+        # We need to add a little more to dataGas, as value is different. If
+        # less zeros on the data, more expensive
+        tx['dataGas'] = r.json()['dataGas'] + 200
         tx['gasPrice'] = r.json()['gasPrice']
         tx['safeTxGas'] = r.json()['safeTxGas']
         tx['nonce'] = r.json()['lastUsedNonce'] or 0
@@ -159,7 +162,7 @@ class Command(BaseCommand):
                               for signature in signatures]
         tx['signatures'] = curated_signatures
 
-        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner'))
+        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner %s' % tx))
         r = requests.post(self.get_tx_url(safe_address), json=tx)
         assert r.ok, "Error sending tx %s" % r.content
         multisig_tx_hash = r.json()['txHash']
@@ -236,8 +239,8 @@ class Command(BaseCommand):
         # We used payment * 2 to fund the safe, now we return ether to the main account
         r = requests.post(self.get_estimate_url(safe_address), json=tx)
         assert r.ok, "Estimate not working %s" % r.content
-        estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
-        fees = r.json()['gasPrice'] * estimate_gas
+        # estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
+        # fees = r.json()['gasPrice'] * estimate_gas
 
         # We can transfer the full amount as we are paying fees with a token
         tx['value'] = payment
