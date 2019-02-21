@@ -12,5 +12,5 @@ class TokenView(generics.ListAPIView):
     filterset_class = TokenFilter
     search_fields = ('name', 'symbol')
     ordering_fields = '__all__'
-    ordering = ('relevance',)
+    ordering = ('relevance', 'name')
     queryset = Token.objects.all()
