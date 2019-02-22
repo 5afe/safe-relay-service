@@ -30,6 +30,7 @@ class SafeInfo(NamedTuple):
     threshold: int
     owners: List[str]
     master_copy: str
+    version: str
 
 
 class SafeCreationServiceProvider:
@@ -131,4 +132,5 @@ class SafeCreationService:
         threshold = self.safe_service.retrieve_threshold(address)
         owners = self.safe_service.retrieve_owners(address)
         master_copy = self.safe_service.retrieve_master_copy_address(address)
-        return SafeInfo(address, nonce, threshold, owners, master_copy)
+        version = self.safe_service.retrieve_version(address)
+        return SafeInfo(address, nonce, threshold, owners, master_copy, version)

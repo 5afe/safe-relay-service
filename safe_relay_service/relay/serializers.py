@@ -109,6 +109,7 @@ class SafeResponseSerializer(serializers.Serializer):
     nonce = serializers.IntegerField(min_value=0)
     threshold = serializers.IntegerField(min_value=1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+    version = serializers.CharField()
 
 
 class SafeCreationEstimateResponseSerializer(serializers.Serializer):

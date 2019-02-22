@@ -237,6 +237,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertEqual(safe_json['nonce'], 0)
         self.assertEqual(safe_json['threshold'], threshold)
         self.assertEqual(safe_json['owners'], owners)
+        self.assertIn('version', safe_json)
 
         random_address, _ = get_eth_address_with_key()
         response = self.client.get(reverse('v1:safe', args=(random_address,)), format='json')
