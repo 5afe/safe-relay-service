@@ -79,7 +79,7 @@ class SafeRelayMultisigEstimateSubTxSerializer(SafeMultisigEstimateSubTxSerializ
 
 
 # TODO Rename this
-class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
+class SafeRelayMultisigTxSerializer(SafeMultisigEstimateSubTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
     def validate(self, data):
@@ -87,9 +87,6 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
 
         safe_address = data['safe']
         signatures = data['signatures']
-        refund_receiver = data.get('refund_receiver')
-        if refund_receiver and refund_receiver != NULL_ADDRESS:
-            raise ValidationError('Refund Receiver is not configurable')
 
         relay_service = RelayServiceProvider()
         tx_hash = relay_service.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
@@ -131,18 +128,28 @@ class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
             raise ValidationError('Refund Receiver is not configurable')
 
         relay_service = RelayServiceProvider()
-        tx_hash = relay_service.get_hash_for_safe_subtx(safe_address, data['to'], data['value'], data['data'],
-                                                        data['operation'], data['safe_tx_gas'], data['data_gas'],
-                                                        data['gas_price'], data['gas_token'], data['refund_receiver'],
-                                                        data['meta'])
+        eip1337_hash = relay_service.get_hash_for_eip_1337(
+            safe_address,
+            data['to'],
+            data['value'],
+            data['data'],
+            data['period'],
+            data['startDate'],
+            data['endDate'],
+            data['uniqId']
+        )
 
-        owners = [EthereumService.get_signing_address(tx_hash,
-                                                      signature['v'],
-                                                      signature['r'],
-                                                      signature['s']) for signature in signatures]
+        owners = [
+            EthereumService.get_signing_address(
+                eip1337_hash,
+                signature['v'],
+                signature['r'],
+                signature['s']
+            ) for signature in signatures
+        ]
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        if not relay_service.check_hash(tx_hash, relay_service.signatures_to_bytes(signature_pairs), owners):
+        if not relay_service.check_hash(eip1337_hash, relay_service.signatures_to_bytes(signature_pairs), owners):
             raise ValidationError('Signatures are not sorted by owner: %s' % owners)
 
         data['owners'] = owners

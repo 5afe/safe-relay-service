@@ -112,8 +112,11 @@ class SafeCreationView(CreateAPIView):
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data='Gas token not valid')
             else:
                 payment_token_eth_value = 1.0
+            wallet_type = "customer"
+            if serializer.data['type'] == "merchant":
+                wallet_type = "merchant"
 
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
+            safe_creation = SafeCreation.objects.create_safe_tx(wallet_type, s, owners, threshold, payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
@@ -196,7 +199,8 @@ class SafeLookupView(APIView):
         else:
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("select address, subscription_module_address from relay_safecontract where address in (select safe_id from relay_safecreation where owners::varchar like '%%" + address + "%%')")
+                    cursor.execute(
+                        "select address, subscription_module_address from relay_safecontract where address in (select safe_id from relay_safecreation where owners::varchar like '%%" + address + "%%')")
                     safe_data = cursor.fetchall()
             except SafeCreation.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
@@ -476,13 +480,10 @@ class SafeMultisigSubTxView(CreateAPIView):
                             to=data['to'],
                             value=data['value'],
                             data=data['data'],
-                            operation=data['operation'],
-                            safe_tx_gas=data['safe_tx_gas'],
-                            data_gas=data['data_gas'],
-                            gas_price=data['gas_price'],
-                            gas_token=data['gas_token'],
-                            refund_receiver=data['refund_receiver'],
-                            meta=data['meta'],
+                            period=data['period'],
+                            start_date=data['startDate'],
+                            end_date=data['endDate'],
+                            uniq_id=data['uniqId'],
                             signatures=data['signatures']
                         )
                         response_serializer = SafeMultisigSubTxResponseSerializer(
@@ -492,7 +493,8 @@ class SafeMultisigSubTxView(CreateAPIView):
                         return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                     elif action == 'execute':
                         execute_ids = data['execute_ids']
-                        sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(id__in=execute_ids).values()
+                        sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(
+                            id__in=execute_ids).select_related('safe')
                         relay_service = RelayServiceProvider()
                         processed_txns = relay_service.send_multisig_subtx(
                             sub_subscriptions_to_exec
@@ -503,7 +505,7 @@ class SafeMultisigSubTxView(CreateAPIView):
                         )
                         assert response_serializer.is_valid(), response_serializer.errors
 
-                        #TODO: add a seperate table that tracks txn hashes of subscriptions.
+                        # TODO: add a seperate table that tracks txn hashes of subscriptions.
                         return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
                 except SafeMultisigTx.objects.SafeMultisigTxExists:

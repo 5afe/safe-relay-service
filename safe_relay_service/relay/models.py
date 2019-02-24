@@ -5,12 +5,14 @@ from django.db import models
 from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import SafeOperation, SafeServiceException
+from gnosis.safe.safe_service import SafeOperation, SafeServiceException, EIP1337Periods
 from model_utils.models import TimeStampedModel
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 from .relay_service import RelayServiceException, RelayServiceProvider
+
+
 
 
 class SafeContract(TimeStampedModel):
@@ -25,6 +27,9 @@ class SafeContract(TimeStampedModel):
     def has_valid_master_copy(self) -> bool:
         return RelayServiceProvider().check_master_copy(self.address)
 
+    def has_valid_sub_module_master_copy(self) -> bool:
+        return RelayServiceProvider().check_sub_module_master_copy(self.subscription_module_address)
+
     def get_balance(self, block_identifier=None):
         return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
@@ -33,7 +38,7 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
+    def create_safe_tx(self, wallet_type: str, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
                        payment_token_eth_value: float = 1.0, fixed_creation_cost: Union[int, None] = None):
         """
         Create models for safe tx
@@ -51,6 +56,7 @@ class SafeCreationManager(models.Manager):
         fast_gas_price: int = gas_station.get_gas_prices().fast
         fast_gas_price: int = 20
         safe_creation_tx = relay_service.build_safe_creation_tx(s,
+                                                                wallet_type,
                                                                 owners,
                                                                 threshold,
                                                                 fast_gas_price,
@@ -267,13 +273,10 @@ class SafeMultisigSubTxManager(models.Manager):
                               to: str,
                               value: int,
                               data: bytes,
-                              operation: int,
-                              safe_tx_gas: int,
-                              data_gas: int,
-                              gas_price: int,
-                              gas_token: str,
-                              refund_receiver: str,
-                              meta: bytes,
+                              period: int,
+                              start_date: int,
+                              end_date: int,
+                              uniq_id: int,
                               signatures: List[Dict[str, int]]):
         """
         :return: Database model of SafeMultisigTx
@@ -315,16 +318,11 @@ class SafeMultisigSubTxManager(models.Manager):
             to=to,
             value=value,
             data=data,
-            operation=operation,
-            safe_tx_gas=safe_tx_gas,
-            data_gas=data_gas,
-            gas_price=gas_price,
-            gas_token=None if gas_token == NULL_ADDRESS else gas_token,
-            refund_receiver=refund_receiver,
-            meta=meta,
-            signatures=signatures_packed,
-            gas=0,
-            tx_mined=False
+            period=period,
+            start_date=start_date,
+            end_date=end_date,
+            uniq_id=uniq_id,
+            signatures=signatures_packed
         )
 
 
@@ -355,20 +353,15 @@ class SafeMultisigTx(TimeStampedModel):
 
 class SafeMultisigSubTx(TimeStampedModel):
     objects = SafeMultisigSubTxManager()
-    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
+    safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
-    operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
-    safe_tx_gas = Uint256Field()
-    data_gas = Uint256Field()
-    gas_price = Uint256Field()
-    gas_token = EthereumAddressField(null=True)
-    refund_receiver = EthereumAddressField(null=True)
+    period = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in EIP1337Periods])
+    start_date = Uint256Field()
+    end_date = Uint256Field()
+    uniq_id = Uint256Field()
     signatures = models.BinaryField()
-    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
-    meta = models.BinaryField(null=True)
-    tx_mined = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('safe', 'signatures')

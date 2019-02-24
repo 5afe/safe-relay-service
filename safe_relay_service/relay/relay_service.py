@@ -147,7 +147,7 @@ class RelayService:
             tx_gas_price=tx_gas_price)
 
     def send_multisig_subtx(self,
-                         subscriptions_to_execute: list,
+                         subscriptions_to_execute: any,
                          tx_sender_private_key=None,
                          tx_gas=None) -> Tuple[str, any]:
         """
