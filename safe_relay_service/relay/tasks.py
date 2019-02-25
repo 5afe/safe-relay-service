@@ -14,8 +14,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
-from .services.notification_service import NotificationServiceProvider
 from .services.funding_service import FundingServiceProvider
+from .services.notification_service import NotificationServiceProvider
 from .services.redis_service import RedisService
 
 logger = get_task_logger(__name__)
