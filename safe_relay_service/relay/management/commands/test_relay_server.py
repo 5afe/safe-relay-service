@@ -25,7 +25,7 @@ class Command(BaseCommand):
         # Positional arguments
         parser.add_argument('base_url', help='Base url of relay (e.g. http://safe-relay.gnosistest.com)')
         parser.add_argument('private_key', help='Private key')
-        parser.add_argument('--node_url', default='https://rinkeby.infura.io/gnosis',
+        parser.add_argument('--node_url', default='http://localhost:8545',
                             help='Ethereum node in the same net that the relay')
         parser.add_argument('--payment-token', help='Use payment token for creating/testing')
 
@@ -103,7 +103,7 @@ class Command(BaseCommand):
         safe_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment * 2)
-        self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt'))
+        self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
         self.w3.eth.waitForTransactionReceipt(tx_hash)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
@@ -137,12 +137,15 @@ class Command(BaseCommand):
         # We used payment * 2 to fund the safe, now we return ether to the main account
         r = requests.post(self.get_estimate_url(safe_address), json=tx)
         assert r.ok, "Estimate not working %s" % r.content
+        self.stdout.write(self.style.SUCCESS('Estimation=%s for tx=%s' % (r.json(), tx)))
         estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
         fees = r.json()['gasPrice'] * estimate_gas
 
         # We cannot transfer the full amount, first we need to subtract fees
         tx['value'] = payment - fees
-        tx['dataGas'] = r.json()['dataGas']
+        # We need to add a little more to dataGas, as value is different. If
+        # less zeros on the data, more expensive
+        tx['dataGas'] = r.json()['dataGas'] + 200
         tx['gasPrice'] = r.json()['gasPrice']
         tx['safeTxGas'] = r.json()['safeTxGas']
         tx['nonce'] = r.json()['lastUsedNonce'] or 0
@@ -159,7 +162,7 @@ class Command(BaseCommand):
                               for signature in signatures]
         tx['signatures'] = curated_signatures
 
-        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner'))
+        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner %s' % tx))
         r = requests.post(self.get_tx_url(safe_address), json=tx)
         assert r.ok, "Error sending tx %s" % r.content
         multisig_tx_hash = r.json()['txHash']
@@ -198,11 +201,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need token payment=%d' % (safe_address, payment)))
         # We send the token and some ether too that will be recovered later
         tx_hash = self.send_token(self.w3, self.main_account, safe_address, payment * 2, payment_token)
-        self.stdout.write(self.style.SUCCESS('Sent token payment * 2, waiting for receipt'))
+        self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
         receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
         assert receipt['status'] == 1 and receipt['logs'], "Error sending token"
-        self.stdout.write(self.style.SUCCESS('Sent some ether too (payment), waiting for receipt'))
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment)
+        self.stdout.write(self.style.SUCCESS('Sent some ether too (payment), waiting for receipt for tx-hash=%s' % tx_hash.hex()))
         self.w3.eth.waitForTransactionReceipt(tx_hash)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
@@ -236,8 +239,9 @@ class Command(BaseCommand):
         # We used payment * 2 to fund the safe, now we return ether to the main account
         r = requests.post(self.get_estimate_url(safe_address), json=tx)
         assert r.ok, "Estimate not working %s" % r.content
-        estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
-        fees = r.json()['gasPrice'] * estimate_gas
+        self.stdout.write(self.style.SUCCESS('Estimation=%s for tx=%s' % (r.json(), tx)))
+        # estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
+        # fees = r.json()['gasPrice'] * estimate_gas
 
         # We can transfer the full amount as we are paying fees with a token
         tx['value'] = payment
@@ -258,7 +262,7 @@ class Command(BaseCommand):
                               for signature in signatures]
         tx['signatures'] = curated_signatures
 
-        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner'))
+        self.stdout.write(self.style.SUCCESS('Sending multisig tx to return some funds to the main owner %s' % tx))
         r = requests.post(self.get_tx_url(safe_address), json=tx)
         assert r.ok, "Error sending tx %s" % r.content
         multisig_tx_hash = r.json()['txHash']

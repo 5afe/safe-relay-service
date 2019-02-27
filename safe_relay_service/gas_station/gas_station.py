@@ -1,6 +1,6 @@
 import math
 from logging import getLogger
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, List, Union
 
 from django.conf import settings
 from django.core.cache import cache
@@ -80,7 +80,11 @@ class GasStation:
     def _do_request(self, rpc_request):
         return self.http_session.post(self.http_provider_uri, json=rpc_request).json()
 
-    def get_tx_gas_prices(self, block_numbers: Iterable[int]):
+    def get_tx_gas_prices(self, block_numbers: Iterable[int]) -> List[int]:
+        """
+        :param block_numbers: Block numbers to retrieve
+        :return: Return a list with `gas_price` for every block provided
+        """
         cached_blocks = []
         not_cached_block_numbers = []
 

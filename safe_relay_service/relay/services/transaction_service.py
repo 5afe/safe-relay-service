@@ -123,7 +123,7 @@ class TransactionService:
         """
 
         if SafeMultisigTx.objects.filter(safe=safe_address, nonce=nonce).exists():
-            raise SafeMultisigTxExists
+            raise SafeMultisigTxExists('Tx with nonce=%d for safe=%s already exists in DB' % (nonce, safe_address))
 
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
@@ -172,7 +172,7 @@ class TransactionService:
             tx_mined=False
         )
 
-    def estimate_tx_cost(self, address: str, to: str, value: int, data: str, operation: int,
+    def estimate_tx_cost(self, safe_address: str, to: str, value: int, data: str, operation: int,
                          gas_token: Union[str, None]) -> TransactionEstimation:
         """
         :return: TransactionEstimation with costs and last used nonce of safe
@@ -180,11 +180,11 @@ class TransactionService:
         """
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
-        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(address)
-        safe_tx_gas = self.safe_service.estimate_tx_gas(address, to, value, data, operation)
-        safe_data_tx_gas = self.safe_service.estimate_tx_data_gas(address, to, value, data, operation, gas_token,
+        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
+        safe_tx_gas = self.safe_service.estimate_tx_gas(safe_address, to, value, data, operation)
+        safe_data_tx_gas = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation, gas_token,
                                                                   safe_tx_gas)
-        safe_operational_tx_gas = self.safe_service.estimate_tx_operational_gas(address,
+        safe_operational_tx_gas = self.safe_service.estimate_tx_operational_gas(safe_address,
                                                                                 len(data) if data else 0)
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)

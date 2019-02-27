@@ -41,7 +41,7 @@ class Token(models.Model):
     gas = models.BooleanField(default=False)
     price_oracles = models.ManyToManyField(PriceOracle, through=PriceOracleTicker)
     fixed_eth_conversion = models.DecimalField(null=True, default=None, blank=True, max_digits=25, decimal_places=15)
-    relevance = models.PositiveIntegerField(default=1)
+    relevance = models.PositiveIntegerField(default=100)
 
     def __str__(self):
         return '%s - %s' % (self.name, self.address)

@@ -14,8 +14,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding)
 
-from .services.notification_service import NotificationServiceProvider
 from .services.funding_service import FundingServiceProvider
+from .services.notification_service import NotificationServiceProvider
 from .services.redis_service import RedisService
 
 logger = get_task_logger(__name__)
@@ -77,7 +77,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
 
             if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
                 # FIXME Add block number for confirmations
-                safe_balance = ethereum_service.get_erc20_balance(safe_address, safe_creation.payment_token)
+                safe_balance = ethereum_service.erc20.get_balance(safe_address, safe_creation.payment_token)
             else:
                 safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
 
