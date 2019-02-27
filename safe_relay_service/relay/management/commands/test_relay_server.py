@@ -104,12 +104,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment * 2)
         self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
-        self.w3.eth.waitForTransactionReceipt(tx_hash)
+        self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
         r = requests.put(signal_url)
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
-        self.w3.eth.waitForTransactionReceipt(safe_tx_hash)
+        self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
 
         while True:
             if requests.get(signal_url).json()['safeDeployed']:
@@ -167,7 +167,7 @@ class Command(BaseCommand):
         assert r.ok, "Error sending tx %s" % r.content
         multisig_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Tx with tx-hash=%s was successful' % multisig_tx_hash))
-        self.w3.eth.waitForTransactionReceipt(multisig_tx_hash)
+        self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
 
     def handle_with_payment_token(self, payment_token, *args, **options):
         token_url = urljoin(self.base_url, reverse('v1:tokens')) + '?gas=1&address=%s' % payment_token
@@ -202,16 +202,16 @@ class Command(BaseCommand):
         # We send the token and some ether too that will be recovered later
         tx_hash = self.send_token(self.w3, self.main_account, safe_address, payment * 2, payment_token)
         self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
-        receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
+        receipt = self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
         assert receipt['status'] == 1 and receipt['logs'], "Error sending token"
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment)
         self.stdout.write(self.style.SUCCESS('Sent some ether too (payment), waiting for receipt for tx-hash=%s' % tx_hash.hex()))
-        self.w3.eth.waitForTransactionReceipt(tx_hash)
+        self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
         r = requests.put(signal_url)
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
-        self.w3.eth.waitForTransactionReceipt(safe_tx_hash)
+        self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
 
         while True:
             if requests.get(signal_url).json()['safeDeployed']:
@@ -267,4 +267,4 @@ class Command(BaseCommand):
         assert r.ok, "Error sending tx %s" % r.content
         multisig_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Tx with tx-hash=%s was successful' % multisig_tx_hash))
-        self.w3.eth.waitForTransactionReceipt(multisig_tx_hash)
+        self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
