@@ -51,12 +51,13 @@ class SafeCreationTx:
         self.master_copy = master_copy
         self.gas_price = gas_price
         self.funder = funder or NULL_ADDRESS
+
         self.payment_token = payment_token or NULL_ADDRESS
         self.subscription_module_address = checksum_encode('0x254dffcd3277C0b1660F6d42EFbB754edaBAbC2B')
-        self.merchant_module_address = checksum_encode('') #TODO: deploy merchant module master
+        self.merchant_module_address = checksum_encode('0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb')
         self.proxy_factory_address = checksum_encode('0xCfEB869F69431e42cdB54A4F4f105C19C080A601')
-        self.create_add_modules_address = checksum_encode('0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb')
-        self.oracle_registry_address = checksum_encode('0xe982E462b094850F12AF94d21D470e21bE9D0E9C')
+        self.create_add_modules_address = checksum_encode('0xe982E462b094850F12AF94d21D470e21bE9D0E9C')
+        self.oracle_registry_address = checksum_encode('0x9b1f7F645351AF3631a656421eD2e40f2802E6c0')
         self.gnosis_safe_contract = get_safe_contract(w3, checksum_encode('0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab'))
         self.subscription_module_contract = get_subscription_module(w3, self.subscription_module_address)
         self.merchant_module_contract = get_merchant_module(w3, self.merchant_module_address)
@@ -79,16 +80,18 @@ class SafeCreationTx:
             self.payment = fixed_creation_cost
 
         self.salt = self.uniqueId(32)
-        self.contract_creation_tx_dict = self._build_proxy_contract_creation_tx(master_copy=self.master_copy,
-                                                                                initializer=encoded_data,
-                                                                                funder=self.funder,
-                                                                                payment_token=self.payment_token,
-                                                                                payment=self.payment,
-                                                                                gas=self.gas,
-                                                                                gas_price=self.gas_price,
-                                                                                owners=owners,
-                                                                                threshold=threshold,
-                                                                                salt=self.salt, )
+        self.contract_creation_tx_dict = self._build_proxy_contract_creation_tx(
+            master_copy=self.master_copy,
+            initializer=encoded_data,
+            funder=self.funder,
+            payment_token=self.payment_token,
+            payment=self.payment,
+            gas=self.gas,
+            gas_price=self.gas_price,
+            owners=owners,
+            threshold=threshold,
+            salt=self.salt
+        )
 
         (self.contract_creation_tx,
          self.v,
@@ -222,37 +225,12 @@ class SafeCreationTx:
             funder = NULL_ADDRESS
             payment = 0
 
-        # return self.proxy_factory_contract.functions.createPayingProxy(
-        #     salt,
-        #     master_copy,
-        #     initializer,
-        #     funder,
-        #     payment_token,
-        #     0
-        # ).buildTransaction({
-        #     'gas': gas,
-        #     'gasPrice': gas_price,
-        # })
+        module_master_copy = self.subscription_module_address
+        if self.wallet_type == "merchant":
+            module_master_copy = self.merchant_module_address
 
-        # address[] memory masterCopy,
-        #         bytes memory moduleSetupData,
-        #         address[] memory owners,
-        #         uint256 threshold,
-        #         address payable funder,
-        #         address paymentToken,
-        #         uint256 payment
-
-        # address subCopy,
-        # address masterCopy,
-        # bytes memory moduleSetupData,
-        # address[] memory owners,
-        # uint256 threshold,
-        # address createAddAddr,
-        # address payable funder,
-        # address paymentToken,
-        # uint256 payment
         return self.paying_proxy_contract.constructor(
-            self.subscription_module_address,
+            module_master_copy,
             master_copy,
             initializer,
             owners,
@@ -260,7 +238,7 @@ class SafeCreationTx:
             self.create_add_modules_address,
             funder,
             payment_token,
-            0
+            payment
         ).buildTransaction({
             'gas': gas,
             'gasPrice': gas_price,

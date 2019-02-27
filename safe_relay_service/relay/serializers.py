@@ -7,7 +7,6 @@ from django_eth.serializers import (EthereumAddressField, Sha3HashField,
                                     TransactionResponseSerializer)
 from gnosis.safe.ethereum_service import EthereumService
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
-                                     SafeMultisigEstimateSubTxSerializer,
                                      SafeMultisigTxSerializer,
                                      SafeMultisigSubTxSerializer,
                                      SafeSignatureSerializer)
@@ -45,6 +44,7 @@ class SafeCreationSerializer(serializers.Serializer):
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+    wallet_type = serializers.CharField(default="customer")
 
     def validate_payment_token(self, value):
         return validate_gas_token(value)
@@ -69,17 +69,7 @@ class SafeRelayMultisigEstimateTxSerializer(SafeMultisigEstimateTxSerializer):
         return data
 
 
-class SafeRelayMultisigEstimateSubTxSerializer(SafeMultisigEstimateSubTxSerializer):
-    def validate_gas_token(self, value):
-        return validate_gas_token(value)
-
-    def validate(self, data):
-        super().validate(data)
-        return data
-
-
-# TODO Rename this
-class SafeRelayMultisigTxSerializer(SafeMultisigEstimateSubTxSerializer):
+class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
     def validate(self, data):
@@ -123,9 +113,6 @@ class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
 
         safe_address = data['safe']
         signatures = data['signatures']
-        refund_receiver = data.get('refund_receiver')
-        if refund_receiver and refund_receiver != NULL_ADDRESS:
-            raise ValidationError('Refund Receiver is not configurable')
 
         relay_service = RelayServiceProvider()
         eip1337_hash = relay_service.get_hash_for_eip_1337(
@@ -134,9 +121,9 @@ class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
             data['value'],
             data['data'],
             data['period'],
-            data['startDate'],
-            data['endDate'],
-            data['uniqId']
+            data['start_date'],
+            data['end_date'],
+            data['uniq_id']
         )
 
         owners = [
@@ -206,7 +193,8 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
 
 
 class SafeMultisigSubTxExecuteResponseSerializer(serializers.Serializer):
-    processed_hashes = serializers.ListField(required=True)
+    processed = serializers.ListField(required=True)
+    skipped = serializers.ListField(required=False)
 
 
 class SafeMultisigSubTxResponseSerializer(serializers.Serializer):
@@ -220,12 +208,4 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     operational_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
     last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
-    gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
-
-
-class SafeMultisigEstimateSubTxResponseSerializer(serializers.Serializer):
-    safe_tx_gas = serializers.IntegerField(min_value=0)
-    data_gas = serializers.IntegerField(min_value=0)
-    operational_gas = serializers.IntegerField(min_value=0)
-    gas_price = serializers.IntegerField(min_value=0)
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)

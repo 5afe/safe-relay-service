@@ -13,8 +13,6 @@ from safe_relay_service.gas_station.gas_station import GasStationProvider
 from .relay_service import RelayServiceException, RelayServiceProvider
 
 
-
-
 class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
@@ -38,10 +36,12 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, wallet_type: str, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
+    def create_safe_tx(self, wallet_type: str, s: int, owners: Iterable[str], threshold: int,
+                       payment_token: Union[str, None],
                        payment_token_eth_value: float = 1.0, fixed_creation_cost: Union[int, None] = None):
         """
         Create models for safe tx
+        :param wallet_type: type of wallet we're deploying
         :param s: Random s value for ecdsa signature
         :param owners: Owners of the new Safe
         :param threshold: Minimum number of users required to operate the Safe
@@ -55,8 +55,8 @@ class SafeCreationManager(models.Manager):
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
         fast_gas_price: int = 20
-        safe_creation_tx = relay_service.build_safe_creation_tx(s,
-                                                                wallet_type,
+        safe_creation_tx = relay_service.build_safe_creation_tx(wallet_type,
+                                                                s,
                                                                 owners,
                                                                 threshold,
                                                                 fast_gas_price,
@@ -292,25 +292,6 @@ class SafeMultisigSubTxManager(models.Manager):
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
 
-        # try:
-        #     tx_hash, tx = relay_service.send_multisig_subtx(
-        #         safe_address,
-        #         sub_module_address,
-        #         to,
-        #         value,
-        #         data,
-        #         operation,
-        #         safe_tx_gas,
-        #         data_gas,
-        #         gas_price,
-        #         gas_token,
-        #         refund_receiver,
-        #         meta,
-        #         signatures_packed
-        #     )
-        # except (SafeServiceException, RelayServiceException) as exc:
-        #     raise self.SafeMultisigSubTxError(str(exc)) from exc
-
         safe_contract = SafeContract.objects.get(address=safe_address)
 
         return super().create(
@@ -367,4 +348,4 @@ class SafeMultisigSubTx(TimeStampedModel):
         unique_together = ('safe', 'signatures')
 
     def __str__(self):
-        return '{} - Safe {}'.format(SafeOperation(self.operation).name, self.safe.address)
+        return 'Safe {}'.format(self.safe.address)

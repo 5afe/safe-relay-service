@@ -8,7 +8,8 @@ from hexbytes import HexBytes
 from py_eth_sig_utils.eip712 import encode_typed_data
 from web3.exceptions import BadFunctionCallOutput
 from .abis import load_contract_interface
-from .contracts import (get_paying_proxyb_contract,
+from .contracts import (get_paying_proxy_contract,
+                        get_paying_proxyb_contract,
                         get_paying_proxyb_deployed_bytecode,
                         get_safe_contract,
                         get_bulk_executor,
@@ -197,11 +198,11 @@ class SafeService:
         else:
             return get_bulk_executor(self.w3)
 
-    def build_safe_creation_tx(self, type: str, s: int, owners: List[str], threshold: int, gas_price: int,
+    def build_safe_creation_tx(self, wallet_type: str, s: int, owners: List[str], threshold: int, gas_price: int,
                                payment_token: Union[str, None], payment_token_eth_value: float = 1.0,
                                fixed_creation_cost: Union[int, None] = None) -> SafeCreationTx:
         safe_creation_tx = SafeCreationTx(w3=self.w3,
-                                          wallet_type=type,
+                                          wallet_type=wallet_type,
                                           owners=owners,
                                           threshold=threshold,
                                           signature_s=s,
@@ -551,6 +552,9 @@ class SafeService:
     def check_master_copy(self, address) -> bool:
         return self.retrieve_master_copy_address(address) in self.valid_master_copy_addresses
 
+    def check_merchant_module_master_copy(self, address) -> bool:
+        return self.retrieve_master_copy_address(address) in self.valid_master_copy_addresses
+
     def check_sub_module_master_copy(self, address) -> bool:
         return self.retrieve_master_copy_address(address) in self.valid_master_copy_addresses
 
@@ -573,8 +577,9 @@ class SafeService:
         return not (code == b'\x00')
 
     def retrieve_master_copy_address(self, safe_address, block_identifier='pending') -> str:
-        return get_paying_proxyb_contract(self.w3, safe_address).functions.implementation().call(
-            block_identifier=block_identifier)
+        return get_paying_proxy_contract(self.w3, safe_address).functions.implementation().call(
+            block_identifier=block_identifier
+        )
 
     def retrieve_is_hash_approved(self, safe_address, owner: str, safe_hash: bytes, block_identifier='pending') -> bool:
         return self.get_contract(safe_address
@@ -948,121 +953,115 @@ class SafeService:
         Send multisig tx to the Safe
         :param tx_gas: Gas for the external tx. If not, `(safe_tx_gas + data_gas) * 2` will be used
         :param tx_gas_price: Gas price of the external tx. If not, `gas_price` will be used
-        :return: Tuple(tx_hash, tx)
+        :return: Tuple(List, List)
         :raises: InvalidMultisigTx: If user tx cannot go through the Safe
         """
-
-        # relay_service = RelayServiceProvider()
-        # safe_address = data.safe.address,
-        # sub_module_address = safe_contract.subscription_module_address,
-        # to = data.to,
-        # value = data.value,
-        # data = data.data,
-        # operation = data.operation,
-        # safe_tx_gas = data.safe_tx_gas,
-        # data_gas = data.data_gas,
-        # gas_price = data.gas_price,
-        # gas_token = data.gas_token,
-        # refund_receiver = data.refund_receiver,
-        # meta = bytes(data.meta),
-        # signatures = bytes(data.signatures)
-
-        # loop the incoming subscriptions to execute, bucket them, and then process them.
-
-        # update the new txn table with the sent txns.
-
         customers = []
         to = []
         value = []
         data = []
         period = []
-        startDate = []
-        endDate = []
-        memo = []
+        start_date = []
+        end_date = []
+        uniq_id = []
         sig = []
 
-        # TODO: add in the ability to check subscription validity,
-        #  and check if there is enough funds for the needed txn
         skipped = []
+        succeed = []
+
+        tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
+        # TODO Use EthereumService, as it's a static method
+
+        tx_sender_address = self.ethereum_service.private_key_to_address(
+            tx_sender_private_key
+        )
+
+        bulk_executor = self.get_bulk_executor_contract(
+            self.bulk_executor_address
+        )
+
+        tx_gas = 100000
 
         for x in subscriptions_to_execute:
-            print("Subscription Multi Sg Data")
-            print(x)
-            print(x.safe)
-            # if not self.check_master_copy(x.safe.address):
-            #     skipped.append(x['id'])
-            #     print(skipped)
-            #     continue
+            # TODO: check to address is a merchant module
 
             x.data = x.data or b''
             x.data = bytes(x.data)
-            x.meta = x.meta or b''
-            x.meta = bytes(x.meta)
+
+            assert x.signatures is not b''
+            x.signatures = bytes(x.signatures)
+
+            try:
+                subscription_module = get_subscription_module(
+                    self.w3, x.safe.subscription_module_address
+                )
+
+                success = subscription_module.functions.execSubscription(
+                    x.to,
+                    x.value,
+                    x.data,
+                    x.period,
+                    x.start_date,
+                    x.end_date,
+                    x.uniq_id,
+                    x.signatures
+                ).call(
+                    {
+                        'from': tx_sender_address
+                    },
+                    block_identifier='pending'
+                )
+
+                if not success:
+                    skipped.append(x.id)
+                    continue
+            except BadFunctionCallOutput as exc:
+                # TODO: log the back execution PAY_SUB, SUB_NETXT_WIDTHDRAW, SUB_STATUS, INVALID_EXEC etc
+                skipped.append(x.id)
+                continue
 
             customers.append(x.safe.subscription_module_address)
             to.append(x.to)
             value.append(x.value)
             data.append(x.data)
             period.append(x.period)
-            startDate.append(x.startDate)
-            endDate.append(x.endDate)
-            memo.append(x.memo)
+            start_date.append(x.start_date)
+            end_date.append(x.end_date)
+            uniq_id.append(x.uniq_id)
             sig.append(x.signatures)
+            gas_needs = 100000
+            if x.data is not b'':
+                gas_needs = 150000
 
-        # tx_gas = tx_gas or (safe_tx_gas + data_gas) * 2
-        tx_sender_private_key = tx_sender_private_key or self.tx_sender_private_key
-        # TODO Use EthereumService, as it's a static method
-        tx_sender_address = self.ethereum_service.private_key_to_address(tx_sender_private_key)
+            tx_gas += gas_needs
 
-        print("before execution")
+        if len(customers) > 0:
+            tx = bulk_executor.functions.bulkExecute(
+                tuple(customers),
+                tuple(to),
+                tuple(value),
+                tuple(data),
+                tuple(period),
+                tuple(start_date),
+                tuple(end_date),
+                tuple(uniq_id),
+                tuple(sig)
+            ).buildTransaction({
+                'from': tx_sender_address,
+                'gas': tx_gas,
+                'gasPrice': tx_gas_price,
+                'nonce': self.ethereum_service.get_nonce_for_account(tx_sender_address)
+            })
 
-        bulk_executor = self.get_bulk_executor_contract(self.bulk_executor_address)
-        try:
-            success = bulk_executor.functions.execute(
-                customers,
-                to,
-                value,
-                data,
-                period,
-                startDate,
-                endDate,
-                memo,
-                sig
-            ).call({'from': tx_sender_address}, block_identifier='pending')
+            tx_signed = self.w3.eth.account.signTransaction(tx, tx_sender_private_key)
 
-            if not success:
-                raise InvalidInternalTx
-        except BadFunctionCallOutput as exc:
-            str_exc = str(exc)
-            if 'INVALID_DATA: SIG_NOT_OWNER' in str_exc:  # TODO: setup proper error handling
-                raise SignatureNotProvidedByOwner(str_exc)
-            elif 'INVALID_DATA: SIG_NOT_VALID' in str_exc:
-                raise InvalidSignaturesProvided(str_exc)
-            elif 'INVALID_BALANCE: ETHER' in str_exc:
-                raise CannotPayGasWithEther(str_exc)
-            else:
-                raise InvalidMultisigSubTx(str_exc)
-
-        tx = bulk_executor.functions.execute(
-            customers,
-            to,
-            value,
-            data,
-            period,
-            startDate,
-            endDate,
-            memo,
-            sig
-        ).buildTransaction({
-            'from': tx_sender_address,
-            'gas': 8000000,
-            'gasPrice': tx_gas_price,
-            'nonce': self.ethereum_service.get_nonce_for_account(tx_sender_address)
-        })
-
-        tx_signed = self.w3.eth.account.signTransaction(tx, tx_sender_private_key)
-
-        return self.w3.eth.sendRawTransaction(tx_signed.rawTransaction), tx
+            succeed.append(
+                (
+                    customers,
+                    self.w3.eth.sendRawTransaction(tx_signed.rawTransaction)
+                )
+            )
+        return (succeed, skipped)
 
     @staticmethod
     def get_hash_for_safe_tx(safe_address: str, to: str, value: int, data: bytes,
@@ -1135,7 +1134,7 @@ class SafeService:
                     {"name": 'uniqId', "type": 'uint256'}
                 ]
             },
-            "primaryType": 'EIP1337Execute',
+            "primaryType": "EIP1337Execute",
             "domain": {
                 "verifyingContract": sub_module_address,
             },

@@ -134,7 +134,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('MerchantModule contract deployed on %s' % merchant_module_address))
             self.stdout.write(self.style.SUCCESS('Bulk Executor contract deployed on %s' % bulk_executor_address))
             self.stdout.write(
-                self.style.SUCCESS('Get Create Add Modules contract deployed on %s' % create_add_modules_address))
+                self.style.SUCCESS('Create Add Modules contract deployed on %s' % create_add_modules_address))
             self.stdout.write(self.style.SUCCESS('DS Feed contract deployed on %s' % ds_feed_contract_address))
             self.stdout.write(
                 self.style.SUCCESS('Oracle Registry contract deployed on %s' % oracle_registry_contract_address))
