@@ -123,7 +123,7 @@ class TransactionService:
         """
 
         if SafeMultisigTx.objects.filter(safe=safe_address, nonce=nonce).exists():
-            raise SafeMultisigTxExists
+            raise SafeMultisigTxExists('Tx with nonce=%d for safe=%s already exists in DB' % (nonce, safe_address))
 
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
