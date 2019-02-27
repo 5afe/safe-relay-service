@@ -25,7 +25,7 @@ class Command(BaseCommand):
         # Positional arguments
         parser.add_argument('base_url', help='Base url of relay (e.g. http://safe-relay.gnosistest.com)')
         parser.add_argument('private_key', help='Private key')
-        parser.add_argument('--node_url', default='https://rinkeby.infura.io/gnosis',
+        parser.add_argument('--node_url', default='http://localhost:8545',
                             help='Ethereum node in the same net that the relay')
         parser.add_argument('--payment-token', help='Use payment token for creating/testing')
 
@@ -103,7 +103,7 @@ class Command(BaseCommand):
         safe_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment * 2)
-        self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt'))
+        self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash))
         self.w3.eth.waitForTransactionReceipt(tx_hash)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
