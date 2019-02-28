@@ -4,7 +4,7 @@ from django.db import connection
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from gnosis.safe.safe_service import SafeServiceException
-from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer, SafeMultisigEstimateSubTxSerializer)
+from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer)
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -15,7 +15,7 @@ from web3 import Web3
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx, SafeMultisigSubTx)
-from safe_relay_service.relay.tasks import fund_deployer_task
+from safe_relay_service.relay.tasks import fund_deployer_task, payment_status_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 
@@ -23,9 +23,9 @@ from .relay_service import RelayServiceException, RelayServiceProvider
 from .serializers import (SafeCreationSerializer,
                           SafeFundingResponseSerializer,
                           SafeMultisigEstimateTxResponseSerializer,
-                          SafeMultisigEstimateSubTxResponseSerializer,
                           SafeMultisigTxResponseSerializer,
                           SafeMultisigSubTxResponseSerializer,
+                          SafeMultisigSubTxExecuteResponseSerializer,
                           SafeRelayMultisigTxSerializer,
                           SafeRelayMultisigSubTxSerializer,
                           SafeRelayMultisigSubTxExecuteSerializer,
@@ -100,8 +100,11 @@ class SafeCreationView(CreateAPIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            s, owners, threshold, payment_token = (serializer.data['s'], serializer.data['owners'],
-                                                   serializer.data['threshold'], serializer.data['payment_token'])
+            s, owners, threshold, payment_token, wallet_type = (serializer.data['s'],
+                                                                serializer.data['owners'],
+                                                                serializer.data['threshold'],
+                                                                serializer.data['payment_token'],
+                                                                serializer.data['wallet_type'])
 
             if payment_token and payment_token != NULL_ADDRESS:
                 try:
@@ -112,7 +115,7 @@ class SafeCreationView(CreateAPIView):
             else:
                 payment_token_eth_value = 1.0
 
-            safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token,
+            safe_creation = SafeCreation.objects.create_safe_tx(wallet_type, s, owners, threshold, payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=settings.SAFE_FIXED_CREATION_COST)
             safe_transaction_response_data = SafeTransactionCreationResponseSerializer(data={
@@ -195,7 +198,8 @@ class SafeLookupView(APIView):
         else:
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("select address, subscription_module_address from relay_safecontract where address in (select safe_id from relay_safecreation where owners::varchar like '%%" + address + "%%')")
+                    cursor.execute(
+                        "select address, subscription_module_address from relay_safecontract where address in (select safe_id from relay_safecreation where owners::varchar like '%%" + address + "%%')")
                     safe_data = cursor.fetchall()
             except SafeCreation.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
@@ -376,64 +380,6 @@ class SafeMultisigTxView(CreateAPIView):
                                     data='Error procesing tx: ' + str(exc))
 
 
-class SafeMultisigSubTxEstimateView(CreateAPIView):
-    permission_classes = (AllowAny,)
-    # todo look at this function
-    serializer_class = SafeMultisigEstimateSubTxSerializer
-
-    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
-                                    400: 'Data not valid',
-                                    404: 'Safe not found',
-                                    422: 'Safe address checksum not valid/Tx not valid'})
-    def post(self, request, address, format=None):
-        """
-        Estimates a Safe Multisig Subscription Transaction
-        """
-        if not Web3.isChecksumAddress(address):
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        try:
-            # todo change to subscription_module_address
-            safe_contract = SafeContract.objects.get(address=address)
-        except SafeContract.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        request.data['safe'] = address
-        serializer = self.serializer_class(data=request.data)
-
-        if serializer.is_valid():
-            relay_service = RelayServiceProvider()
-            data = serializer.validated_data
-
-            safe_subtx_gas = relay_service.estimate_subtx_gas(safe_contract.subscription_module_address, data['to'],
-                                                              data['value'], data['data'],
-                                                              data['operation'], data['meta'])
-            safe_data_subtx_gas = relay_service.estimate_subtx_data_gas(address,
-                                                                        safe_contract.subscription_module_address,
-                                                                        data['to'], data['value'],
-                                                                        data['data'],
-                                                                        data['operation'], data['gas_token'],
-                                                                        data['meta'], safe_subtx_gas)
-            safe_operational_subtx_gas = relay_service.estimate_tx_operational_gas(address,
-                                                                                   len(data['data'])
-                                                                                   if data['data'] else 0)
-            try:
-                gas_price = relay_service.estimate_tx_gas_price(data['gas_token'])
-            except RelayServiceException as e:
-                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=str(e))
-
-            response_data = {'safe_tx_gas': safe_subtx_gas,
-                             'data_gas': safe_data_subtx_gas,
-                             'operational_gas': safe_operational_subtx_gas,
-                             'gas_price': gas_price,
-                             'gas_token': data['gas_token'] or NULL_ADDRESS}
-            response_serializer = SafeMultisigEstimateSubTxResponseSerializer(data=response_data)
-            assert response_serializer.is_valid(), response_serializer.errors
-            return Response(status=status.HTTP_200_OK, data=response_serializer.data)
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-
 class SafeMultisigSubTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeRelayMultisigSubTxSerializer
@@ -475,13 +421,10 @@ class SafeMultisigSubTxView(CreateAPIView):
                             to=data['to'],
                             value=data['value'],
                             data=data['data'],
-                            operation=data['operation'],
-                            safe_tx_gas=data['safe_tx_gas'],
-                            data_gas=data['data_gas'],
-                            gas_price=data['gas_price'],
-                            gas_token=data['gas_token'],
-                            refund_receiver=data['refund_receiver'],
-                            meta=data['meta'],
+                            period=data['period'],
+                            start_date=data['start_date'],
+                            end_date=data['end_date'],
+                            uniq_id=data['uniq_id'],
                             signatures=data['signatures']
                         )
                         response_serializer = SafeMultisigSubTxResponseSerializer(
@@ -490,36 +433,26 @@ class SafeMultisigSubTxView(CreateAPIView):
                         assert response_serializer.is_valid(), response_serializer.errors
                         return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
                     elif action == 'execute':
-                        sub_tx_id = data['sub_tx_id']
-                        data = SafeMultisigSubTx.objects.get(id=sub_tx_id)
+
+                        execute_ids = data['execute_ids']
+
+                        sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(
+                            id__in=execute_ids
+                        ).select_related('safe')
 
                         relay_service = RelayServiceProvider()
-                        if data.data:
-                            data.data = bytes(data.data)
 
-                        send_subscription_tx = relay_service.send_multisig_subtx(
-                            safe_address=data.safe.address,
-                            sub_module_address=safe_contract.subscription_module_address,
-                            to=data.to,
-                            value=data.value,
-                            data=data.data,
-                            operation=data.operation,
-                            safe_tx_gas=data.safe_tx_gas,
-                            data_gas=data.data_gas,
-                            gas_price=data.gas_price,
-                            gas_token=data.gas_token,
-                            refund_receiver=data.refund_receiver,
-                            meta=bytes(data.meta),
-                            signatures=bytes(data.signatures)
+                        (processed_subscriptions, skipped_subscriptions) = relay_service.send_multisig_subtx(
+                            sub_subscriptions_to_exec
                         )
 
-                        response_serializer = SafeMultisigSubTxResponseSerializer(
-                            data={'sub_tx_id': sub_tx_id,
-                                  'transaction_hash': send_subscription_tx[0]}
+                        response_serializer = SafeMultisigSubTxExecuteResponseSerializer(
+                            data={'processed': processed_subscriptions, 'skipped': skipped_subscriptions}
                         )
+
                         assert response_serializer.is_valid(), response_serializer.errors
 
-                        #TODO: add a seperate table that tracks txn hashes of subscriptions.
+                        # TODO: add a seperate table that tracks txn hashes of subscriptions.
                         return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
                 except SafeMultisigTx.objects.SafeMultisigTxExists:

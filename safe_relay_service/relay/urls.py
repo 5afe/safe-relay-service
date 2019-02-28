@@ -22,6 +22,4 @@ urlpatterns = [
     path('safes/<str:address>/transactions/estimate/', views.SafeMultisigTxEstimateView.as_view(),
          name='safe-multisig-tx-estimate'),
     path('safes/<str:address>/subscriptions/<str:action>', views.SafeMultisigSubTxView.as_view(), name='safe-multisig-subtx'),
-    path('safes/<str:address>/subscriptions/estimate/', views.SafeMultisigSubTxEstimateView.as_view(),
-         name='safe-multisig-subtx-estimate'),
 ]

@@ -30,4 +30,3 @@ requests==2.20.0
 web3==4.8.1
 #FIXME Remove this when 1.4.5 is updated
 py-ecc==1.4.3
-ptvsd==4.1.4
