@@ -746,60 +746,6 @@ class SafeService:
                 estimated_gas = int(estimated_gas_hex, 16)
                 return estimated_gas + base_gas
 
-    def estimate_subtx_data_gas(self,
-                                safe_address: str,
-                                sub_module_address: str,
-                                to: str,
-                                value: int,
-                                data: bytes,
-                                operation: int,
-                                gas_token: str,
-                                meta: bytes,
-                                estimate_tx_gas: int
-                                ) -> int:
-        data = data or b''
-        meta = meta or b''
-        sub_module_contract = self.get_subscription_contract(sub_module_address)
-        threshold = self.retrieve_threshold(safe_address)
-
-        # Calculate gas for signatures
-        signature_gas = threshold * (1 * 68 + 2 * 32 * 68)
-
-        safe_tx_gas = estimate_tx_gas
-        data_gas = 0
-        gas_price = 1
-        gas_token = gas_token or NULL_ADDRESS
-        signatures = b''
-        refund_receiver = NULL_ADDRESS
-        data = HexBytes(sub_module_contract.functions.execSubscription(
-            to,
-            value,
-            data,
-            operation,
-            safe_tx_gas,
-            data_gas,
-            gas_price,
-            gas_token,
-            refund_receiver,
-            meta,
-            signatures,
-        ).buildTransaction({
-            'gas': 1,
-            'gasPrice': 1
-        })['data'])
-
-        data_gas = signature_gas + self.ethereum_service.estimate_data_gas(data)
-
-        # Add aditional gas costs
-        if data_gas > 65536:
-            data_gas += 64
-        else:
-            data_gas += 128
-
-        data_gas += 32000  # Base tx costs, transfer costs...
-
-        return data_gas
-
     def estimate_tx_operational_gas(self, safe_address: str, data_bytes_length: int):
         """
         Estimates the gas for the verification of the signatures and other safe3 related tasks
@@ -996,7 +942,7 @@ class SafeService:
                     self.w3, x.safe.subscription_module_address
                 )
 
-                success = subscription_module.functions.execSubscription(
+                success = subscription_module.functions.execute(
                     x.to,
                     x.value,
                     x.data,
