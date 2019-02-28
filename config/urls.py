@@ -9,14 +9,13 @@ from drf_yasg.views import get_schema_view
 
 schema_view = get_schema_view(
     openapi.Info(
-        title='Gnosis Safe Relay API',
+        title='Groundhog Wallet Relay API',
         default_version='v1',
-        description='API to manage creation of safes and multisig transaction sending',
-        contact=openapi.Contact(email='uxio@gnosis.pm'),
+        description='API to manage creation of Wallets and assit with subscription and transaction execution',
+        contact=openapi.Contact(email='andrew@groundhog.network'),
         license=openapi.License(name='MIT License'),
     ),
     validators=['flex', 'ssv'],
-    url='http://localhost:8000',
     public=True,
     # permission_classes=(permissions.AllowAny,),
 )
