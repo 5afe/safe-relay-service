@@ -1,0 +1,145 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@1.0.0
+
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.6.1
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "requirements.txt" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements.txt
+
+      - save_cache:
+          paths:
+            - ./venv
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
+      # - run:
+      #     name: run tests
+      #     command: |
+      #       . venv/bin/activate
+      #       python manage.py test
+
+      # - store_artifacts:
+      #     path: test-reports
+      #     destination: test-reports
+
+  deploy_to_staging:
+    docker:
+      - image: google/cloud-sdk
+    environment:
+      - PROJECT_NAME: "phil-connors"
+      - GOOGLE_PROJECT_ID: "groundhog-relay"
+      - GOOGLE_COMPUTE_ZONE: "us-central1-a"
+      - GOOGLE_CLUSTER_NAME: "groundhog-staging"
+    steps:
+      - checkout
+      - run: 
+          name: Setup Google Cloud SDK
+          command: |
+            apt-get install -qq -y gettext
+            echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+            gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+            gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+            gcloud --quiet container clusters get-credentials ${GOOGLE_CLUSTER_NAME}
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: 
+          name: Docker build and push
+          command: |
+            docker build \
+              --build-arg COMMIT_REF=${CIRCLE_SHA1} \
+              --build-arg BUILD_DATE=`date -u +”%Y-%m-%dT%H:%M:%SZ”` \
+              -t ${PROJECT_NAME} \
+              -f docker/web/Dockerfile .
+            docker tag ${PROJECT_NAME} gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+      - run: 
+          name: Deploy to Kubernetes
+          command: |
+            envsubst < ${HOME}/project/node-deploy.yaml > ${HOME}/patched_node-deploy.yaml
+            kubectl get namespace ${PROJECT_NAME} > /dev/null 2>&1 || kubectl create namespace ${PROJECT_NAME}
+            kubectl apply -f ${HOME}/patched_node-deploy.yaml
+            kubectl rollout status deployment/${PROJECT_NAME}
+      - slack/status:
+          fail_only: "false" # Optional: if set to "true" then only failure messages will occur.
+  deploy_pr:
+    docker:
+      - image: google/cloud-sdk
+    environment:
+      - PROJECT_NAME: "phil-connors-dev"
+      - GOOGLE_PROJECT_ID: "groundhog-relay"
+      - GOOGLE_COMPUTE_ZONE: "us-central1-a"
+      - GOOGLE_CLUSTER_NAME: "groundhog-staging"
+      - GOOGLE_CLUSTER_NAMESPACE: "${PROJECT_NAME}"
+    steps:
+      - checkout
+      - run: 
+          name: Setup Google Cloud SDK
+          command: |
+            apt-get install -qq -y gettext
+            echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+            gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+            gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+            gcloud --quiet container clusters get-credentials ${GOOGLE_CLUSTER_NAME}
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: 
+          name: Docker build and push
+          command: |
+            env
+            docker build \
+              --build-arg COMMIT_REF=${CIRCLE_SHA1} \
+              --build-arg BUILD_DATE=`date -u +”%Y-%m-%dT%H:%M:%SZ”` \
+              -t ${PROJECT_NAME} \
+              -f docker/web/Dockerfile .
+            docker tag ${PROJECT_NAME} gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/${PROJECT_NAME}:${CIRCLE_SHA1}
+      - run: 
+          name: Deploy to Kubernetes
+          command: |
+            envsubst < ${HOME}/project/node-deploy-pr.yaml > ${HOME}/patched_node-deploy-pr.yaml
+            kubectl get namespace ${PROJECT_NAME} > /dev/null 2>&1 || kubectl create namespace ${PROJECT_NAME}
+            kubectl apply -f ${HOME}/patched_node-deploy-pr.yaml
+            kubectl --namespace ${PROJECT_NAME} rollout status deployment/${PROJECT_NAME}-${CIRCLE_SHA1}
+      - slack/status:
+          fail_only: "false" # Optional: if set to "true" then only failure messages will occur.
+workflows:
+  version: 2
+  JPI_Pipeline:
+    jobs:
+      - test
+      - deploy_to_staging:
+          requires:
+            - test
+          filters:
+            branches:
+              only: 
+                - develop
+      - deploy_pr:
+          requires:
+            - test
+          filters:
+            branches:
+              ignore:
+                - develop
+                - master
