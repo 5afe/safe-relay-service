@@ -257,19 +257,14 @@ class SafeSignalView(APIView):
         Force check of a safe balance to start the safe creation
         """
         if not Web3.isChecksumAddress(address):
-            print('should not be here')
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                print('getting safe')
                 SafeCreation.objects.get(safe=address)
-                print('got safe')
             except SafeCreation.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            print('trying to create task')
             fund_deployer_task.delay(address)
-            print('task created')
             return Response(status=status.HTTP_202_ACCEPTED)
 
 

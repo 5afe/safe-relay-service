@@ -21,13 +21,6 @@ class Command(BaseCommand):
         proxy_factory_address = None
         subscription_module_address = None
         create_add_modules_address = None
-        ds_feed_contract_address = None
-        oracle_registry_contract_address = None
-
-        self.stdout.write("TEST!!!!!!!!!!!")
-        self.stdout.write(account)
-        self.stdout.write(self.GANACHE_FIRST_ACCOUNT)
-        self.stdout.write("TEST!!!!!!!!!!!")
         if deployer_key:
             self.stdout.write(self.style.SUCCESS('Deploying master copy using deployer key'))
             master_copy_address = safe_service.deploy_master_contract(
