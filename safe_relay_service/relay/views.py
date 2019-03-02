@@ -15,7 +15,7 @@ from web3 import Web3
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx, SafeMultisigSubTx)
-from safe_relay_service.relay.tasks import fund_deployer_task, payment_status_task
+from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
 

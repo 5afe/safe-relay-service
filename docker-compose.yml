@@ -21,7 +21,7 @@ services:
       - 5678:5678
     volumes:
       - ./gnosis_package:/usr/local/lib/python3.6/site-packages/gnosis
-      - .:/app/safe-relay-service
+      - .:/app
     command: docker/web/run_web.sh
 
   redis:
