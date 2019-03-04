@@ -25,6 +25,7 @@ git+git://github.com/GroundhogNetwork/gnosis-py@master#egg=gnosis-py
 gunicorn==19.9.0
 hexbytes==0.1.0
 jsonschema==2.6.0
+kombu==4.3.0
 lxml==4.2.5
 numpy==1.15.4
 psycopg2-binary==2.7.6.1
