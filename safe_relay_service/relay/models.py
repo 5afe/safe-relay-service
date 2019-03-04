@@ -54,6 +54,7 @@ class SafeCreationManager(models.Manager):
         relay_service = RelayServiceProvider()
         gas_station = GasStationProvider()
         fast_gas_price: int = gas_station.get_gas_prices().fast
+        fast_gas_price: int = 8
         safe_creation_tx = relay_service.build_safe_creation_tx(wallet_type,
                                                                 s,
                                                                 owners,
