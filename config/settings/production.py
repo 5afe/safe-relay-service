@@ -6,7 +6,7 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['gnosis.pm'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['groundhog.network'])
 ALLOWED_HOSTS += ['10.128.{}.{}'.format(i,j) for i in range(256) for j in range(256)]
 
 # DATABASES
@@ -86,12 +86,12 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [  # noqa F405
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
     'DJANGO_DEFAULT_FROM_EMAIL',
-    default='Gnosis Safe Push Service <noreply@gnosis.pm>'
+    default='Groundhog Network: Wallet Push Service <noreply@groundhog.network>'
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env('DJANGO_SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
-EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[Gnosis Safe Push Service]')
+EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[Groundhog Network: Wallet Push Service]')
 
 # ADMIN
 # ------------------------------------------------------------------------------
