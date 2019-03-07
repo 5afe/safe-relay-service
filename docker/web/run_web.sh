@@ -9,6 +9,8 @@ python manage.py setup_gas_station
 echo "setup safe-relay"
 python manage.py setup_safe_relay
 
+
+
 if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
     echo "deploy master copy"
     python manage.py deploy_safe_master_copy
@@ -28,5 +30,6 @@ if [ "${DEBUG:-0}" = 1 ]; then
     sleep infinity
 else
     echo "==> Running Gunicorn ... "
-    gunicorn --pythonpath "$PWD" config.wsgi:application --log-file=- --error-logfile=- --access-logfile '-' --log-level info -b unix:$DOCKER_SHARED_DIR/gunicorn.socket -b 0.0.0.0:8888 --worker-class gevent
+    DOCKER_SHARED_DIR=/nginx
+    gunicorn --pythonpath "$PWD" config.wsgi:application --log-file=- --error-logfile=- --access-logfile '-' --log-level info -b 0.0.0.0:8888 --worker-class gevent
 fi
