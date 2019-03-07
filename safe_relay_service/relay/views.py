@@ -20,7 +20,7 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
+from .models import SafeContract, SafeFunding, SafeMultisigTx
 from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
@@ -87,6 +87,7 @@ class AboutView(APIView):
                 'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
                 'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
                 'SAFE_FIXED_CREATION_COST': settings.SAFE_FIXED_CREATION_COST,
+                'SAFE_PROXY_FACTORY_ADDRESS': settings.SAFE_PROXY_FACTORY_ADDRESS,
                 'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
                 'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
@@ -221,8 +222,8 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeCreation.objects.get(safe=address)
-            except SafeCreation.DoesNotExist:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             fund_deployer_task.delay(address)

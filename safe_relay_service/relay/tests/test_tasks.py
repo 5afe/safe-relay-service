@@ -6,8 +6,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from ..models import SafeContract, SafeFunding
-from ..tasks import (check_deployer_funded_task, deploy_safes_task,
-                     fund_deployer_task)
+from ..tasks import (check_deployer_funded_task, deploy_create2_safe_task,
+                     deploy_safes_task, fund_deployer_task)
 from .factories import SafeCreationFactory, SafeFundingFactory
 from .relay_test_case import RelayTestCaseMixin
 
@@ -206,3 +206,17 @@ class TestTasks(RelayTestCaseMixin, TestCase):
 
         # No error when trying to deploy again the contract
         deploy_safes_task.delay().get()
+
+    def test_deploy_create2_safe_task(self):
+        #FIXME Postgresql precission problems with Uint256
+        safe_creation2 = self.create2_test_safe_in_db()
+
+        safe_address = safe_creation2.safe.address
+        deploy_create2_safe_task.delay(safe_address, False).get()
+        safe_creation2.refresh_from_db()
+        self.assertIsNone(safe_creation2.tx_hash)
+
+        self.send_ether(to=safe_address, value=safe_creation2.payment)
+        deploy_create2_safe_task.delay(safe_address, False).get()
+        safe_creation2.refresh_from_db()
+        self.assertIsNotNone(safe_creation2.tx_hash)

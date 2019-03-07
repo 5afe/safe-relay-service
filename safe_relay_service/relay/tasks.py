@@ -12,7 +12,9 @@ from gnosis.eth import EthereumServiceProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
-                                             SafeFunding)
+                                             SafeCreation2, SafeFunding)
+from safe_relay_service.relay.services.safe_creation_service import \
+    SafeCreationServiceProvider
 
 from .services.funding_service import FundingServiceProvider
 from .services.notification_service import NotificationServiceProvider
@@ -22,6 +24,7 @@ logger = get_task_logger(__name__)
 
 ethereum_service = EthereumServiceProvider()
 funding_service = FundingServiceProvider()
+safe_creation_service = SafeCreationServiceProvider()
 redis = RedisService().redis
 notification_service = NotificationServiceProvider()
 
@@ -44,7 +47,10 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     """
 
     safe_contract = SafeContract.objects.get(address=safe_address)
-    safe_creation = SafeCreation.objects.get(safe=safe_address)
+    try:
+        safe_creation = SafeCreation.objects.get(safe=safe_address)
+    except SafeCreation.DoesNotExist:
+        deploy_create2_safe_task.delay(safe_address)
 
     deployer_address = safe_creation.deployer
     payment = safe_creation.payment
@@ -246,6 +252,46 @@ def deploy_safes_task(retry: bool = True) -> None:
     finally:
         if have_lock:
             lock.release()
+
+
+@app.shared_task(bind=True, max_retries=3)
+def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> None:
+    """
+    Check if user has sent enough ether or tokens to the safe account
+    If every condition is met safe is deployed
+    :param safe_address: safe account
+    :param retry: if True, retries are allowed, otherwise don't retry
+    """
+
+    safe_creation: SafeCreation2 = SafeCreation2.objects.get(safe=safe_address)
+    if safe_creation.tx_hash:
+        tx_receipt = ethereum_service.get_transaction_receipt(safe_creation.tx_hash)
+    else:
+        tx_receipt = None
+
+    # These asserts just to make sure we are not wasting money
+    assert check_checksum(safe_address)
+
+    with redis.lock('locks:deploy_create2_safe', timeout=LOCK_TIMEOUT):
+        if tx_receipt:
+            # TODO Mark when safe has been confirmed as deployed
+            logger.info('Safe=%s has already been deployed', safe_address)
+        else:
+            if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
+                safe_balance = ethereum_service.erc20.get_balance(safe_address, safe_creation.payment_token)
+            else:
+                safe_balance = ethereum_service.get_balance(safe_address)
+
+            if safe_balance < safe_creation.payment:
+                logger.info('Not found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
+                            safe_address, safe_creation.payment_token, safe_creation.payment)
+                if retry:
+                    raise self.retry(countdown=30)
+            else:
+                logger.info('Found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
+                            safe_address, safe_creation.payment_token, safe_creation.payment)
+                tx_hash = safe_creation_service.deploy_create2_safe_tx(safe_address)
+                logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
 
 
 @app.shared_task()

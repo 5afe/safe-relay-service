@@ -1,6 +1,7 @@
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Tuple, Union
 
+from gnosis.eth import EthereumService
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
                                       SafeService, SafeServiceException,
@@ -28,6 +29,10 @@ class InvalidGasToken(TransactionServiceException):
 
 
 class SignaturesNotFound(TransactionServiceException):
+    pass
+
+
+class SignaturesNotSorted(TransactionServiceException):
     pass
 
 
@@ -128,11 +133,22 @@ class TransactionService:
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
 
+        safe_version = self.safe_service.retrieve_version(safe_address)
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
         safe_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address, to, value, data,
                                                               operation, safe_tx_gas, data_gas, gas_price,
-                                                              gas_token, refund_receiver, nonce)
+                                                              gas_token, refund_receiver, nonce,
+                                                              safe_version=safe_version)
+
+        owners = [EthereumService.get_signing_address(safe_tx_hash,
+                                                      signature['v'],
+                                                      signature['r'],
+                                                      signature['s']) for signature in signatures]
+
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        if not SafeService.check_hash(safe_tx_hash, SafeService.signatures_to_bytes(signature_pairs), owners):
+            raise SignaturesNotSorted('Signatures are not sorted by owner: %s' % owners)
 
         try:
             tx_hash, tx = self.send_multisig_tx(

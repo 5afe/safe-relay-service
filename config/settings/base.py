@@ -280,6 +280,7 @@ SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  #
 SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
 SAFE_VALID_CONTRACT_ADDRESSES = env.list('SAFE_VALID_CONTRACT_ADDRESSES',
                                          default=[SAFE_CONTRACT_ADDRESS])
+SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x' + '0' * 39 + '2')
 # If FIXED_GAS_PRICE is None, GasStation will be used
 FIXED_GAS_PRICE = env.int('FIXED_GAS_PRICE', default=None)
 SAFE_TX_SENDER_PRIVATE_KEY = env('SAFE_TX_SENDER_PRIVATE_KEY', default=None)

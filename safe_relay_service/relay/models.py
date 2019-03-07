@@ -55,6 +55,34 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
+class SafeCreation2(TimeStampedModel):
+    safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
+    master_copy = EthereumAddressField()
+    proxy_factory = EthereumAddressField()
+    salt_nonce = Uint256Field()
+    owners = ArrayField(EthereumAddressField())
+    threshold = Uint256Field()
+    # to = EthereumAddressField(null=True)  # Contract address for optional delegate call
+    # data = models.BinaryField(null=True)  # Data payload for optional delegate call
+    payment_token = EthereumAddressField(null=True)
+    payment = Uint256Field()
+    payment_receiver = EthereumAddressField(null=True)  # If empty, `tx.origin` is used
+    setup_data = models.BinaryField(null=True)  # Binary data for safe `setup` call
+    gas_estimated = Uint256Field()
+    gas_price_estimated = Uint256Field()
+    tx_hash = Sha3HashField(unique=True, null=True, default=None)
+    block_number = models.IntegerField(null=True, default=None)  # If mined
+
+    def __str__(self):
+        return 'Safe {} - Deployer {}'.format(self.safe, self.deployer)
+
+    def wei_estimated_deploy_cost(self) -> int:
+        """
+        :return: int: Cost to deploy the contract in wei
+        """
+        return self.gas_estimated * self.gas_price_estimated
+
+
 class SafeFundingManager(models.Manager):
     def pending_just_to_deploy(self):
         return self.filter(

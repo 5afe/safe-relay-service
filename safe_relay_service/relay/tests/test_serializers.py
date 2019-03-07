@@ -4,6 +4,7 @@ from ethereum.transactions import secpk1n
 from faker import Faker
 from hexbytes import HexBytes
 
+from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe import SafeService
 
@@ -130,5 +131,31 @@ class TestSerializers(TestCase):
         )
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
         data['signatures'] = signatures
+        serializer = SafeRelayMultisigTxSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        data = {
+            "safe": safe,
+            "to": to,
+            "value": value,  # 1 ether
+            "data": tx_data,
+            "operation": operation,
+            "safe_tx_gas": safe_tx_gas,
+            "data_gas": data_gas,
+            "gas_price": gas_price,
+            "gas_token": gas_token,
+            "nonce": nonce,
+            "refund_receiver": owners[0],  # Refund must be empty or NULL_ADDRESS
+            "signatures": [
+                {
+                    'r': 5,
+                    's': 7,
+                    'v': 27
+                }]
+        }
+        serializer = SafeRelayMultisigTxSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+
+        data['refund_receiver'] = NULL_ADDRESS
         serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertTrue(serializer.is_valid())

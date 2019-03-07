@@ -2,6 +2,7 @@ import logging
 
 from django.urls import reverse
 
+from eth_account import Account
 from ethereum.utils import check_checksum
 from faker import Faker
 from rest_framework import status
@@ -11,11 +12,11 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
-from gnosis.safe.tests.utils import generate_valid_s
+from gnosis.safe.tests.utils import generate_salt_nonce, generate_valid_s
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..models import SafeContract, SafeCreation, SafeMultisigTx
+from ..models import SafeContract, SafeCreation, SafeCreation2, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
 from .factories import (SafeContractFactory, SafeFundingFactory,
@@ -39,6 +40,41 @@ class TestViews(APITestCase, RelayTestCaseMixin):
     def test_gas_station(self):
         response = self.client.get(reverse('v1:gas-station'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_safe_creation_v2(self):
+        salt_nonce = generate_salt_nonce()
+        owners = [Account.create().address for _ in range(2)]
+        data = {
+            'saltNonce': salt_nonce,
+            'owners': owners,
+            'threshold': len(owners)
+        }
+        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response_json = response.json()
+        safe_address = response_json['safe']
+        self.assertTrue(check_checksum(safe_address))
+        self.assertTrue(check_checksum(response_json['paymentReceiver']))
+        self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
+        self.assertGreater(response_json['payment'], 0)
+        self.assertGreater(response_json['gasEstimated'], 0)
+        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertGreater(len(response_json['setupData']), 2)
+
+        self.assertTrue(SafeContract.objects.filter(address=safe_address))
+        self.assertTrue(SafeCreation2.objects.filter(owners__contains=[owners[0]]))
+        safe_creation = SafeCreation2.objects.get(safe=safe_address)
+        self.assertEqual(safe_creation.payment_token, None)
+        # Payment includes deployment gas + gas to send eth to the deployer
+        self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost())
+
+        data = {
+            'salt_nonce': -1,
+            'owners': owners,
+            'threshold': 2
+        }
+        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     def test_safe_creation(self):
         s = generate_valid_s()

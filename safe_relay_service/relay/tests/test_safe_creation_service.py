@@ -29,7 +29,8 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
     def test_estimate_safe_creation(self):
         gas_station = GasStationMock()
         gas_price = gas_station.get_gas_prices().fast
-        safe_creation_service = SafeCreationService(self.safe_service, gas_station, settings.SAFE_FIXED_CREATION_COST)
+        safe_creation_service = SafeCreationService(self.safe_service, gas_station, settings.SAFE_FUNDER_PRIVATE_KEY,
+                                                    settings.SAFE_FIXED_CREATION_COST)
 
         number_owners = 4
         payment_token = None
