@@ -17,6 +17,7 @@ class Command(BaseCommand):
     base_url: str
     w3: Web3
     main_account: Account
+    create2: bool
 
     help = 'Do a basic testing of a deployed safe relay service ' \
            'You need to provide a valid account for the net you are testing'
@@ -28,6 +29,7 @@ class Command(BaseCommand):
         parser.add_argument('--node_url', default='http://localhost:8545',
                             help='Ethereum node in the same net that the relay')
         parser.add_argument('--payment-token', help='Use payment token for creating/testing')
+        parser.add_argument('--create2', help='Use CREATE2 for safe creation', action='store_true', default=False)
 
     def send_eth(self, w3, account, to, value, nonce=None):
         tx = {
@@ -64,6 +66,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.base_url = options['base_url']
+        self.create2 = options['create2']
         payment_token = options['payment_token']
 
         self.w3 = Web3(HTTPProvider(options['node_url']))
@@ -78,7 +81,6 @@ class Command(BaseCommand):
             return self.handle_without_payment_token(args, options)
 
     def handle_without_payment_token(self, *args, **options):
-        creation_url = urljoin(self.base_url, reverse('v1:safe-creation'))
         about_url = urljoin(self.base_url, reverse('v1:about'))
         about_json = requests.get(about_url).json()
         master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
@@ -92,15 +94,23 @@ class Command(BaseCommand):
         owners = [account.address for account in accounts]
 
         # Create safe with no tokens
-        r = requests.post(creation_url, json={
-            's': generate_valid_s(),
-            'owners': owners,
-            'threshold': 2,
-        })
+        if self.create2:
+            creation_url = urljoin(self.base_url, reverse('v2:safe-creation'))
+            r = requests.post(creation_url, json={
+                'saltNonce': generate_valid_s(),
+                'owners': owners,
+                'threshold': 2,
+            })
+        else:
+            creation_url = urljoin(self.base_url, reverse('v1:safe-creation'))
+            r = requests.post(creation_url, json={
+                's': generate_valid_s(),
+                'owners': owners,
+                'threshold': 2,
+            })
         assert r.ok, "Error creating safe %s" % r.content
         safe_address = r.json()['safe']
         payment = int(r.json()['payment'])
-        safe_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment * 2)
         self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
@@ -109,10 +119,12 @@ class Command(BaseCommand):
         signal_url = self.get_signal_url(safe_address)
         r = requests.put(signal_url)
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
-        self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
+
+        # safe_tx_hash = r.json()['txHash']
+        # self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
 
         while True:
-            if requests.get(signal_url).json()['safeDeployed']:
+            if self.w3.eth.getCode(safe_address):
                 break
             time.sleep(10)
 
@@ -188,16 +200,26 @@ class Command(BaseCommand):
         owners = [account.address for account in accounts]
 
         # Create safe with no tokens
-        r = requests.post(creation_url, json={
-            's': generate_valid_s(),
-            'owners': owners,
-            'threshold': 2,
-            'paymentToken': payment_token,
-        })
+        if self.create2:
+            creation_url = urljoin(self.base_url, reverse('v2:safe-creation'))
+            r = requests.post(creation_url, json={
+                'saltNonce': generate_valid_s(),
+                'owners': owners,
+                'threshold': 2,
+                'paymentToken': payment_token,
+            })
+        else:
+            creation_url = urljoin(self.base_url, reverse('v1:safe-creation'))
+            r = requests.post(creation_url, json={
+                's': generate_valid_s(),
+                'owners': owners,
+                'threshold': 2,
+                'paymentToken': payment_token,
+            })
         assert r.ok, "Error creating safe %s" % r.content
         safe_address = r.json()['safe']
         payment = int(r.json()['payment'])
-        safe_tx_hash = r.json()['txHash']
+        # safe_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need token payment=%d' % (safe_address, payment)))
         # We send the token and some ether too that will be recovered later
         tx_hash = self.send_token(self.w3, self.main_account, safe_address, payment * 2, payment_token)
@@ -211,10 +233,10 @@ class Command(BaseCommand):
         signal_url = self.get_signal_url(safe_address)
         r = requests.put(signal_url)
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
-        self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
+        # self.w3.eth.waitForTransactionReceipt(safe_tx_hash, timeout=500)
 
         while True:
-            if requests.get(signal_url).json()['safeDeployed']:
+            if self.w3.eth.getCode(safe_address):
                 break
             time.sleep(10)
 
