@@ -26,6 +26,10 @@ class InvalidPaymentToken(SafeCreationServiceException):
     pass
 
 
+class SafeNotDeployed(SafeCreationServiceException):
+    pass
+
+
 class SafeInfo(NamedTuple):
     address: str
     nonce: int
@@ -187,6 +191,8 @@ class SafeCreationService:
                                                         fixed_creation_cost=fixed_creation_cost)
 
     def retrieve_safe_info(self, address: str) -> SafeInfo:
+        if not self.safe_service.is_safe_deployed(address):
+            raise SafeNotDeployed('Safe with address=%s not deployed' % address)
         nonce = self.safe_service.retrieve_nonce(address)
         threshold = self.safe_service.retrieve_threshold(address)
         owners = self.safe_service.retrieve_owners(address)

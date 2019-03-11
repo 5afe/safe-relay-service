@@ -36,6 +36,4 @@ class RelayTestCaseMixin(SafeTestCaseMixin):
         owners = owners or [Account.create().address for _ in range(number_owners)]
         threshold = threshold if threshold else len(owners)
 
-        print(self.safe_creation_service.safe_service.proxy_factory_address)
-
         return self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)

@@ -182,8 +182,8 @@ class SafeView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeFunding.objects.get(safe=address, safe_deployed=True)
-            except SafeFunding.DoesNotExist:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)

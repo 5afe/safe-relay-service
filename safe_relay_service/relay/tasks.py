@@ -51,6 +51,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
         safe_creation = SafeCreation.objects.get(safe=safe_address)
     except SafeCreation.DoesNotExist:
         deploy_create2_safe_task.delay(safe_address)
+        return
 
     deployer_address = safe_creation.deployer
     payment = safe_creation.payment
