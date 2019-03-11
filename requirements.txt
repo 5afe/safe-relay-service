@@ -6,7 +6,7 @@ django-debug-toolbar==1.11
 django-environ==0.4.5
 django-filter==2.1.0
 django-model-utils==3.1.2
-django-redis==4.9.0
+django-redis==4.10.0
 djangorestframework-camel-case==1.0.3
 djangorestframework==3.9.1
 docutils==0.14
@@ -23,6 +23,6 @@ jsonschema==2.6.0
 lxml==4.2.5
 numpy==1.16.1
 psycopg2-binary==2.7.7
-redis==2.10.6
+redis==3.2.0
 requests==2.21.0
 web3==4.8.2
