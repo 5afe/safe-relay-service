@@ -24,9 +24,9 @@ logger = get_task_logger(__name__)
 
 ethereum_service = EthereumServiceProvider()
 funding_service = FundingServiceProvider()
-safe_creation_service = SafeCreationServiceProvider()
-redis = RedisService().redis
 notification_service = NotificationServiceProvider()
+redis = RedisService().redis
+safe_creation_service = SafeCreationServiceProvider()
 
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
@@ -304,3 +304,23 @@ def send_create_notification(safe_address: str, owners: List[str]) -> None:
     """
     logger.info('Safe=%s creation ended, sending notification to %s', safe_address, owners)
     return notification_service.send_create_notification(safe_address, owners)
+
+
+@app.shared_task()
+def check_balance_of_accounts_task() -> bool:
+    """
+    Checks if balance of relayer accounts (tx sender, safe funder) are less than the configured threshold
+    :return: True if every account have enough ether, False otherwise
+    """
+    balance_warning_wei = settings.SAFE_ACCOUNTS_BALANCE_WARNING
+    safe_service = safe_creation_service.safe_service
+    addresses = safe_service.tx_sender_address, safe_service.funder_address
+
+    result = True
+    for address in addresses:
+        balance_wei = ethereum_service.get_balance(address)
+        if balance_wei <= balance_warning_wei:
+            logger.error('Relayer account=%s current balance=%d . Balance must be greater than %d' %
+                         (address, balance_wei, balance_warning_wei))
+            result = False
+    return result
