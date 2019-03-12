@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if PeriodicTask.objects.filter(task=task_name).count():
             self.stdout.write(self.style.SUCCESS('Task %s was already created' % task_name))
         else:
-            interval, _ = IntervalSchedule.objects.get_or_create(every=1, period='hour')
+            interval, _ = IntervalSchedule.objects.get_or_create(every=1, period='hours')
             PeriodicTask.objects.create(
                 name='Check balance of relay accounts Task',
                 task=task_name,
