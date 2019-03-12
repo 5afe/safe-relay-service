@@ -30,7 +30,7 @@ services:
       - ganache
     working_dir: /app
     ports:
-      - "27017"
+      - "8888:8888"
     volumes:
       - nginx-shared:/nginx
     command: docker/web/run_web.sh

@@ -27,12 +27,11 @@ class Command(BaseCommand):
             master_copy_address = safe_service.deploy_master_contract(deployer_account=deployer_account)
         elif account == self.GANACHE_FIRST_ACCOUNT:
             self.stdout.write(self.style.SUCCESS('Ganache detected, deploying master copy if not deployed'))
-            code = safe_service.w3.eth.getCode(safe_service.master_copy_address)
-            if code == b'\x00':
+            if safe_service.is_safe_deployed(safe_service.master_copy_address):
                 master_copy_address = safe_service.deploy_master_contract(deployer_account=account)
             else:
                 self.stdout.write(self.style.NOTICE('Master copy already deployed'))
-        else:
+                master_copy_address = safe_service.master_copy_address
             self.stdout.write(self.style.NOTICE('Nothing done'))
 
         if master_copy_address:
