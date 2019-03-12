@@ -13,7 +13,11 @@ RUN set -ex \
 		" \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \
-    && /opt/venv/bin/pip3 install --no-cache-dir -r requirements.txt
+    && /opt/venv/bin/pip3 install --no-cache-dir -r requirements.txt \
+    && find /opt/venv \
+        \( -type d -a -name test -o -name tests \) \
+        -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
+        -exec rm -rf '{}' +
 
 FROM python:3.6-slim-stretch as runner
 
