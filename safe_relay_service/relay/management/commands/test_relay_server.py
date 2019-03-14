@@ -83,7 +83,10 @@ class Command(BaseCommand):
     def handle_without_payment_token(self, *args, **options):
         about_url = urljoin(self.base_url, reverse('v1:about'))
         about_json = requests.get(about_url).json()
-        master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
+        if self.create2:
+            master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
+        else:
+            master_copy_address = about_json['settings']['SAFE_OLD_CONTRACT_ADDRESS']
 
         accounts = [Account.create() for _ in range(3)]
         for account in accounts:
@@ -131,12 +134,13 @@ class Command(BaseCommand):
         # Check safe was created successfully
         self.stdout.write(self.style.SUCCESS('Safe was deployed'))
         r = requests.get(self.get_safe_url(safe_address))
-        assert r.ok, "Safe deployed is not working"
+        assert r.ok, "Safe deployed is not working %s" % r.content
         safe_info = r.json()
         assert set(safe_info['owners']) == set(owners)
         assert safe_info['threshold'] == 2
         assert safe_info['nonce'] == 0
         assert safe_info['masterCopy'] == master_copy_address
+        safe_version = safe_info['version']
 
         tx = {
             'to': self.main_account.address,
@@ -167,7 +171,7 @@ class Command(BaseCommand):
         safe_tx_hash = SafeService.get_hash_for_safe_tx(safe_address, tx['to'], tx['value'], tx['data'],
                                                         tx['operation'], tx['safeTxGas'], tx['dataGas'],
                                                         tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
-                                                        tx['nonce'])
+                                                        tx['nonce'], safe_version=safe_version)
 
         signatures = [account.signHash(safe_tx_hash) for account in accounts[:2]]
         curated_signatures = [{'r': signature['r'], 's': signature['s'], 'v': signature['v']}
@@ -189,7 +193,10 @@ class Command(BaseCommand):
         creation_url = urljoin(self.base_url, reverse('v1:safe-creation'))
         about_url = urljoin(self.base_url, reverse('v1:about'))
         about_json = requests.get(about_url).json()
-        master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
+        if self.create2:
+            master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
+        else:
+            master_copy_address = about_json['settings']['SAFE_OLD_CONTRACT_ADDRESS']
 
         accounts = [Account.create() for _ in range(3)]
         for account in accounts:
@@ -249,6 +256,7 @@ class Command(BaseCommand):
         assert safe_info['threshold'] == 2
         assert safe_info['nonce'] == 0
         assert safe_info['masterCopy'] == master_copy_address
+        safe_version = safe_info['version']
 
         tx = {
             'to': self.main_account.address,
@@ -277,7 +285,7 @@ class Command(BaseCommand):
         safe_tx_hash = SafeService.get_hash_for_safe_tx(safe_address, tx['to'], tx['value'], tx['data'],
                                                         tx['operation'], tx['safeTxGas'], tx['dataGas'],
                                                         tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
-                                                        tx['nonce'])
+                                                        tx['nonce'], safe_version=safe_version)
 
         signatures = [account.signHash(safe_tx_hash) for account in accounts[:2]]
         curated_signatures = [{'r': signature['r'], 's': signature['s'], 'v': signature['v']}
