@@ -110,6 +110,13 @@ class Migration(migrations.Migration):
                 ('end_date', django_eth.models.Uint256Field()),
                 ('uniq_id', django_eth.models.Uint256Field()),
                 ('signatures', models.BinaryField()),
+                ('status', models.PositiveSmallIntegerField(choices=[
+                    (0, 'INIT'),
+                    (1, 'TRIAL'),
+                    (2, 'VALID'),
+                    (3, 'CANCELLED'),
+                    (4, 'EXPIRED')
+                ]))
             ],
         ),
         migrations.CreateModel(
