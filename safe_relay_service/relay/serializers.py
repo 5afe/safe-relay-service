@@ -163,6 +163,11 @@ class SafeResponseSerializer(serializers.Serializer):
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
 
 
+class TxListSerializer(serializers.Serializer):
+    subscriptions = serializers.ListField()
+    transactions = serializers.ListField()
+
+
 class SafeLookupResponseSerializer(serializers.Serializer):
     safe = EthereumAddressField()
     subscription_module = EthereumAddressField()

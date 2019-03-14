@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core import serializers
 from django_eth.constants import NULL_ADDRESS
 from django.db import connection
 from drf_yasg.utils import swagger_auto_schema
@@ -12,12 +13,14 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
 from web3 import Web3
+from datetime import datetime
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeFunding, SafeMultisigTx, SafeMultisigSubTx)
 from safe_relay_service.relay.tasks import fund_deployer_task
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.version import __version__
+from hexbytes import HexBytes
 
 from .relay_service import RelayServiceException, RelayServiceProvider
 from .serializers import (SafeCreationSerializer,
@@ -31,7 +34,8 @@ from .serializers import (SafeCreationSerializer,
                           SafeRelayMultisigSubTxExecuteSerializer,
                           SafeResponseSerializer,
                           SafeLookupResponseSerializer,
-                          SafeTransactionCreationResponseSerializer)
+                          SafeTransactionCreationResponseSerializer,
+                          TxListSerializer)
 
 
 def custom_exception_handler(exc, context):
@@ -178,6 +182,67 @@ class SafeView(APIView):
                 'threshold': threshold,
                 'owners': owners,
             })
+            assert serializer.is_valid(), serializer.errors
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+
+class TxListView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = TxListSerializer
+
+    @swagger_auto_schema(responses={200: TxListSerializer(),
+                                    404: 'No transactions found',
+                                    422: 'Safe address checksum not valid'})
+    def get(self, request, address, flag, format=None):
+        """
+        Get all active subscriptions or all transactions for a safe
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                if flag == 'active':
+                    subscriptions = SafeMultisigSubTx.objects.all().filter(safe_id=address, status__in=[0, 1, 2])
+                    transactions = []
+                elif flag == 'all':
+                    subscriptions = SafeMultisigSubTx.objects.all().filter(safe_id=address)
+                    transactions = SafeMultisigTx.objects.all().filter(safe_id=address)
+
+            except SafeMultisigSubTx.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            data = {
+                'subscriptions': [],
+                'transactions': []
+            }
+            for sub in subscriptions:
+                subscription = {
+                    'created': sub.created,
+                    'to': sub.to,
+                    'value': sub.value,
+                    'data': HexBytes(sub.data) if sub.data else '0x',
+                    'period': sub.period,
+                    'start_date': sub.start_date,
+                    'end_date': sub.end_date,
+                    'unique': sub.uniq_id
+                }
+                if sub.status == 1 and flag == 'active':
+                    time_stamp = datetime.now().timestamp()
+                    if time_stamp < sub.start_date:
+                        data['subscriptions'].append(subscription)
+                else:
+                    data['subscriptions'].append(subscription)
+
+            for trans in transactions:
+                transaction = {
+                    'created': trans.created,
+                    'to': trans.to,
+                    'value': trans.value
+                    # todo figure out how to handle cancelations
+                }
+                data['transactions'].append(transaction)
+
+            serializer = self.serializer_class(data=data)
             assert serializer.is_valid(), serializer.errors
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 

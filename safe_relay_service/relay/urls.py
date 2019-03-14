@@ -16,6 +16,7 @@ urlpatterns = [
     url(r'^tokens/$', TokenView.as_view(), name='tokens'),
     url(r'^safes/$', views.SafeCreationView.as_view(), name='safes'),
     path('safes/<str:address>/', views.SafeView.as_view(), name='safe'),
+    path('subscriptions/<str:address>/<str:flag>', views.TxListView.as_view(), name='tx-list'),
     path('safes/lookup/<str:address>/', views.SafeLookupView.as_view(), name='safe-lookup'),
     path('safes/<str:address>/funded/', views.SafeSignalView.as_view(), name='safe-signal'),
     path('safes/<str:address>/transactions/', views.SafeMultisigTxView.as_view(), name='safe-multisig-tx'),
