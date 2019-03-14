@@ -164,7 +164,7 @@ class SafeResponseSerializer(serializers.Serializer):
 
 
 class TxListSerializer(serializers.Serializer):
-    subscriptions = serializers.ListField()
+    subscriptions = serializers.DictField()
     transactions = serializers.ListField()
 
 

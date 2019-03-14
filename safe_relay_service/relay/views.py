@@ -212,7 +212,7 @@ class TxListView(APIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             data = {
-                'subscriptions': [],
+                'subscriptions': {},
                 'transactions': []
             }
             for sub in subscriptions:
@@ -229,16 +229,15 @@ class TxListView(APIView):
                 if sub.status == 1 and flag == 'active':
                     time_stamp = datetime.now().timestamp()
                     if time_stamp < sub.start_date:
-                        data['subscriptions'].append(subscription)
+                        data['subscriptions'][subscription['to']] = subscription
                 else:
-                    data['subscriptions'].append(subscription)
+                    data['subscriptions'][subscription['to']] = subscription
 
             for trans in transactions:
                 transaction = {
                     'created': trans.created,
                     'to': trans.to,
                     'value': trans.value
-                    # todo figure out how to handle cancelations
                 }
                 data['transactions'].append(transaction)
 
