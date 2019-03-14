@@ -278,6 +278,7 @@ SAFE_FUNDER_MAX_ETH = env.int('SAFE_FUNDER_MAX_ETH', default=0.1)
 SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  # Set to at least 3
 # Master Copy Address of Safe Contract
 SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
+SAFE_OLD_CONTRACT_ADDRESS = env('SAFE_OLD_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
 SAFE_VALID_CONTRACT_ADDRESSES = env.list('SAFE_VALID_CONTRACT_ADDRESSES',
                                          default=[SAFE_CONTRACT_ADDRESS])
 SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x' + '0' * 39 + '2')

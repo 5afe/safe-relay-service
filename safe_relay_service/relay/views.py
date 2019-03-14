@@ -81,21 +81,22 @@ class AboutView(APIView):
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
+                'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
-                'NOTIFICATION_SERVICE_URI': settings.NOTIFICATION_SERVICE_URI,
                 'NOTIFICATION_SERVICE_PASS': bool(settings.NOTIFICATION_SERVICE_PASS),
+                'NOTIFICATION_SERVICE_URI': settings.NOTIFICATION_SERVICE_URI,
                 'SAFE_ACCOUNTS_BALANCE_WARNING': settings.SAFE_ACCOUNTS_BALANCE_WARNING,
                 'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
                 'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
+                'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
                 'SAFE_FIXED_CREATION_COST': settings.SAFE_FIXED_CREATION_COST,
-                'SAFE_PROXY_FACTORY_ADDRESS': settings.SAFE_PROXY_FACTORY_ADDRESS,
                 'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
                 'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
-                'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
-                'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
-                'SAFE_VALID_CONTRACT_ADDRESSES': settings.SAFE_VALID_CONTRACT_ADDRESSES,
+                'SAFE_OLD_CONTRACT_ADDRESS': settings.SAFE_OLD_CONTRACT_ADDRESS,
+                'SAFE_PROXY_FACTORY_ADDRESS': settings.SAFE_PROXY_FACTORY_ADDRESS,
                 'SAFE_TX_SENDER_PUBLIC_KEY': safe_sender_public_key,
+                'SAFE_VALID_CONTRACT_ADDRESSES': settings.SAFE_VALID_CONTRACT_ADDRESSES,
             }
         }
         return Response(content)
