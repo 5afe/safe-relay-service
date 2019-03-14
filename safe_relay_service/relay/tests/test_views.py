@@ -56,7 +56,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertTrue(check_checksum(safe_address))
         self.assertTrue(check_checksum(response_json['paymentReceiver']))
         self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
-        self.assertGreater(response_json['payment'], 0)
+        self.assertEqual(response_json['payment'], response_json['gasEstimated'] * response_json['gasPriceEstimated'])
         self.assertGreater(response_json['gasEstimated'], 0)
         self.assertGreater(response_json['gasPriceEstimated'], 0)
         self.assertGreater(len(response_json['setupData']), 2)
@@ -75,6 +75,69 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         }
         response = self.client.post(reverse('v2:safe-creation'), data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    def test_safe_creation_v2_with_fixed_cost(self):
+        salt_nonce = generate_salt_nonce()
+        owners = [Account.create().address for _ in range(2)]
+        data = {
+            'saltNonce': salt_nonce,
+            'owners': owners,
+            'threshold': len(owners)
+        }
+
+        fixed_creation_cost = 123
+        with self.settings(SAFE_FIXED_CREATION_COST=fixed_creation_cost):
+            response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response_json = response.json()
+        safe_address = response_json['safe']
+        self.assertTrue(check_checksum(safe_address))
+        self.assertTrue(check_checksum(response_json['paymentReceiver']))
+        self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
+        self.assertEqual(response_json['payment'], 123)
+        self.assertGreater(response_json['gasEstimated'], 0)
+        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertGreater(len(response_json['setupData']), 2)
+
+    def test_safe_creation_v2_with_payment_token(self):
+        salt_nonce = generate_salt_nonce()
+        owners = [Account.create().address for _ in range(2)]
+        payment_token = Account.create().address
+        data = {
+            'saltNonce': salt_nonce,
+            'owners': owners,
+            'threshold': len(owners),
+            'paymentToken': payment_token,
+        }
+
+        response = self.client.post(reverse('v2:safe-creation'), data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        response_json = response.json()
+        self.assertIn('InvalidPaymentToken', response_json['exception'])
+        self.assertIn(payment_token, response_json['exception'])
+
+        fixed_eth_conversion = 0.1
+        token_model = TokenFactory(address=payment_token, fixed_eth_conversion=fixed_eth_conversion)
+        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response_json = response.json()
+        safe_address = response_json['safe']
+        self.assertTrue(check_checksum(safe_address))
+        self.assertTrue(check_checksum(response_json['paymentReceiver']))
+        self.assertEqual(response_json['paymentToken'], payment_token)
+        self.assertEqual(response_json['payment'],
+                         response_json['gasEstimated'] * response_json['gasPriceEstimated'] *
+                         (1 / fixed_eth_conversion))
+        self.assertGreater(response_json['gasEstimated'], 0)
+        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertGreater(len(response_json['setupData']), 2)
+
+        self.assertTrue(SafeContract.objects.filter(address=safe_address))
+        self.assertTrue(SafeCreation2.objects.filter(owners__contains=[owners[0]]))
+        safe_creation = SafeCreation2.objects.get(safe=safe_address)
+        self.assertEqual(safe_creation.payment_token, payment_token)
+        # Payment includes deployment gas + gas to send eth to the deployer
+        self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost() * (1 / fixed_eth_conversion))
 
     def test_safe_creation(self):
         s = generate_valid_s()
