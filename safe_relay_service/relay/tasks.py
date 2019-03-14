@@ -35,7 +35,7 @@ LOCK_TIMEOUT = 60 * 2
 # TODO Control ConnectionError: HTTPConnectionPool for web3
 
 
-@app.shared_task(bind=True, max_retries=3)
+@app.shared_task(bind=True, max_retries=3, soft_time_limit=300)
 def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     """
     Check if user has sent enough ether or tokens to the safe account
@@ -124,6 +124,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
 
 
 @app.shared_task(bind=True,
+                 soft_time_limit=300,
                  max_retries=settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
                  default_retry_delay=settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY)
 def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> None:
@@ -186,7 +187,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> N
             lock.release()
 
 
-@app.shared_task()
+@app.shared_task(soft_time_limit=300)
 def deploy_safes_task(retry: bool = True) -> None:
     """
     Deploy pending safes (deployer funded and tx-hash checked). Then raw creation tx is sent to the ethereum network.
@@ -255,7 +256,7 @@ def deploy_safes_task(retry: bool = True) -> None:
             lock.release()
 
 
-@app.shared_task(bind=True, max_retries=3)
+@app.shared_task(bind=True, soft_time_limit=300, max_retries=3)
 def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> None:
     """
     Check if user has sent enough ether or tokens to the safe account
@@ -295,7 +296,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
                 logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
 
 
-@app.shared_task()
+@app.shared_task(soft_time_limit=300)
 def send_create_notification(safe_address: str, owners: List[str]) -> None:
     """
     Send create notification to owner
@@ -306,7 +307,7 @@ def send_create_notification(safe_address: str, owners: List[str]) -> None:
     return notification_service.send_create_notification(safe_address, owners)
 
 
-@app.shared_task()
+@app.shared_task(soft_time_limit=300)
 def check_balance_of_accounts_task() -> bool:
     """
     Checks if balance of relayer accounts (tx sender, safe funder) are less than the configured threshold
