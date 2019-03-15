@@ -55,7 +55,27 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
+class SafeCreation2Manager(models.Manager):
+    def pending_to_check(self):
+        return self.exclude(
+            tx_hash=None,
+        ).filter(
+            block_number=None,
+        ).select_related(
+            'safe'
+        )
+
+    def deployed_and_checked(self):
+        return self.exclude(
+            tx_hash=None,
+            block_number=None,
+        ).select_related(
+            'safe'
+        )
+
+
 class SafeCreation2(TimeStampedModel):
+    objects = SafeCreation2Manager()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()

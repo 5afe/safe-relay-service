@@ -297,6 +297,34 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
 
 
 @app.shared_task(soft_time_limit=300)
+def check_create2_deployed_safes_task() -> None:
+    """
+    Check if create2 safes were deployed and store the `blockNumber` if there are enough confirmations
+    """
+
+    confirmations = 6
+    current_block_number = ethereum_service.current_block_number
+    for safe_creation2 in SafeCreation2.objects.pending_to_check():
+        tx_receipt = ethereum_service.get_transaction_receipt(safe_creation2.tx_hash)
+        safe_address = safe_creation2.safe.address
+        if tx_receipt:
+            block_number = tx_receipt.blockNumber
+            if (current_block_number - block_number) >= confirmations:
+                logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
+                            safe_address, safe_creation2.tx_hash, block_number)
+                safe_creation2.block_number = block_number
+                safe_creation2.save()
+        else:
+            # If safe was not included in any block after 10 minutes, we try to deploy it again
+            if safe_creation2.modified + timedelta(minutes=10) < timezone.now():
+                logger.info('Safe=%s with tx-hash=%s was not deployed after 10 minutes',
+                            safe_address, safe_creation2.tx_hash)
+                safe_creation2.tx_hash = None
+                safe_creation2.save()
+                deploy_create2_safe_task.delay(safe_address)
+
+
+@app.shared_task(soft_time_limit=300)
 def send_create_notification(safe_address: str, owners: List[str]) -> None:
     """
     Send create notification to owner
