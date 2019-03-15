@@ -87,7 +87,10 @@ class TestViews(APITestCase, RelayTestCaseMixin):
 
         fixed_creation_cost = 123
         with self.settings(SAFE_FIXED_CREATION_COST=fixed_creation_cost):
+            SafeCreationServiceProvider.del_singleton()
             response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+            SafeCreationServiceProvider.del_singleton()
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json['safe']
