@@ -14,7 +14,7 @@ from gnosis.safe import SafeOperation, SafeService
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import SafeFunding
+from safe_relay_service.relay.models import SafeCreation2, SafeFunding
 from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
@@ -142,6 +142,12 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = SafeFunding
         fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
+
+
+class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeCreation2
+        fields = ('tx_hash', 'block_number')
 
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):

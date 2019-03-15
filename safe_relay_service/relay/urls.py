@@ -11,10 +11,10 @@ app_name = "safe"
 timestamp_regex = '\\d{4}[-]?\\d{1,2}[-]?\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}'
 
 urlpatterns = [
-    url(r'^about/$', views.AboutView.as_view(), name='about'),
-    url(r'^gas-station/$', GasStationView.as_view(), name='gas-station'),
-    url(r'^tokens/$', TokenView.as_view(), name='tokens'),
-    url(r'^safes/$', views.SafeCreationView.as_view(), name='safe-creation'),
+    path('about/', views.AboutView.as_view(), name='about'),
+    path('gas-station/', GasStationView.as_view(), name='gas-station'),
+    path('tokens/', TokenView.as_view(), name='tokens'),
+    path('safes/', views.SafeCreationView.as_view(), name='safe-creation'),
     path('safes/estimate/', views.SafeCreationEstimateView.as_view(), name='safe-creation-estimate'),
     path('safes/<str:address>/', views.SafeView.as_view(), name='safe'),
     path('safes/<str:address>/funded/', views.SafeSignalView.as_view(), name='safe-signal'),

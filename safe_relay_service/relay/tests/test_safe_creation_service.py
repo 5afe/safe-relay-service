@@ -13,7 +13,8 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.safe_creation_service import (InvalidPaymentToken,
                                               SafeCreationService,
-                                              SafeCreationServiceProvider, SafeNotDeployed)
+                                              SafeCreationServiceProvider,
+                                              SafeNotDeployed)
 
 logger = logging.getLogger(__name__)
 
@@ -72,4 +73,3 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         safe_address = self.deploy_test_safe(threshold=threshold).safe_address
         safe_info = self.safe_creation_service.retrieve_safe_info(safe_address)
         self.assertEqual(safe_info.threshold, threshold)
-

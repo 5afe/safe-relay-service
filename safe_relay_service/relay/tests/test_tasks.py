@@ -6,8 +6,9 @@ from django.test import TestCase
 from django.utils import timezone
 
 from ..models import SafeContract, SafeFunding
-from ..tasks import (check_deployer_funded_task, deploy_create2_safe_task,
-                     deploy_safes_task, fund_deployer_task, check_balance_of_accounts_task)
+from ..tasks import (check_balance_of_accounts_task,
+                     check_deployer_funded_task, deploy_create2_safe_task,
+                     deploy_safes_task, fund_deployer_task)
 from .factories import SafeCreationFactory, SafeFundingFactory
 from .relay_test_case import RelayTestCaseMixin
 
