@@ -448,24 +448,20 @@ class SafeMultisigSubTxView(CreateAPIView):
                                     400: 'Data not valid',
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
-    def post(self, request, address, action='create', format=None):
+    def post(self, request, format=None):
         """
         Send a Safe Multisig Transaction
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.isChecksumAddress(request.data['sub_module_address']):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                safe_contract = SafeContract.objects.get(address=address)
+                safe_contract = SafeContract.objects.get(sub_module_address=request.data['sub_module_address'])
             except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            request.data['safe'] = address
-            request.data['action'] = action
-            if action == 'create':
-                serializer = self.serializer_class(data=request.data)
-            else:
-                serializer = self.execute_serializer_class(data=request.data)
+            request.data['safe'] = safe_contract
+            serializer = self.serializer_class(data=request.data)
 
             if not serializer.is_valid():
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -473,46 +469,23 @@ class SafeMultisigSubTxView(CreateAPIView):
                 data = serializer.validated_data
 
                 try:
-                    if action == 'create':
-                        safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
-                            safe_address=data['safe'],
-                            sub_module_address=safe_contract.subscription_module_address,
-                            to=data['to'],
-                            value=data['value'],
-                            data=data['data'],
-                            period=data['period'],
-                            start_date=data['start_date'],
-                            end_date=data['end_date'],
-                            uniq_id=data['uniq_id'],
-                            signatures=data['signatures']
-                        )
-                        response_serializer = SafeMultisigSubTxResponseSerializer(
-                            data={'sub_tx_id': safe_multisig_subtx.id}
-                        )
-                        assert response_serializer.is_valid(), response_serializer.errors
-                        return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
-                    elif action == 'execute':
-
-                        execute_ids = data['execute_ids']
-
-                        sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(
-                            id__in=execute_ids
-                        ).select_related('safe')
-
-                        relay_service = RelayServiceProvider()
-
-                        (processed_subscriptions, skipped_subscriptions) = relay_service.send_multisig_subtx(
-                            sub_subscriptions_to_exec
-                        )
-
-                        response_serializer = SafeMultisigSubTxExecuteResponseSerializer(
-                            data={'processed': processed_subscriptions, 'skipped': skipped_subscriptions}
-                        )
-
-                        assert response_serializer.is_valid(), response_serializer.errors
-
-                        # TODO: add a seperate table that tracks txn hashes of subscriptions.
-                        return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+                    safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
+                        safe_address=data['safe'],
+                        sub_module_address=safe_contract.subscription_module_address,
+                        to=data['to'],
+                        value=data['value'],
+                        data=data['data'],
+                        period=data['period'],
+                        start_date=data['start_date'],
+                        end_date=data['end_date'],
+                        uniq_id=data['uniq_id'],
+                        signatures=data['signatures']
+                    )
+                    response_serializer = SafeMultisigSubTxResponseSerializer(
+                        data={'sub_tx_id': safe_multisig_subtx.id}
+                    )
+                    assert response_serializer.is_valid(), response_serializer.errors
+                    return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
                 except SafeMultisigTx.objects.SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -520,3 +493,53 @@ class SafeMultisigSubTxView(CreateAPIView):
                 except SafeMultisigTx.objects.SafeMultisigTxError as exc:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Error procesing tx: ' + str(exc))
+
+
+class SafeMultisigSubTxExecute(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeRelayMultisigSubTxExecuteSerializer
+
+    @swagger_auto_schema(responses={201: SafeMultisigSubTxResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def post(self, request, format=None):
+        """
+        Send a Safe Multisig Transaction
+        """
+
+        serializer = self.execute_serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+        else:
+            data = serializer.validated_data
+
+            try:
+                execute_ids = data['execute_ids']
+
+                sub_subscriptions_to_exec = SafeMultisigSubTx.objects.all().filter(
+                    id__in=execute_ids
+                ).select_related('safe')
+
+                relay_service = RelayServiceProvider()
+
+                (processed_subscriptions, skipped_subscriptions) = relay_service.send_multisig_subtx(
+                    sub_subscriptions_to_exec
+                )
+
+                response_serializer = SafeMultisigSubTxExecuteResponseSerializer(
+                    data={'processed': processed_subscriptions, 'skipped': skipped_subscriptions}
+                )
+
+                assert response_serializer.is_valid(), response_serializer.errors
+
+                # TODO: add a seperate table that tracks txn hashes of subscriptions.
+                return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
+
+            except SafeMultisigTx.objects.SafeMultisigTxExists:
+                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                data='Safe Multisig Tx with that nonce already exists')
+            except SafeMultisigTx.objects.SafeMultisigTxError as exc:
+                return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                data='Error procesing tx: ' + str(exc))

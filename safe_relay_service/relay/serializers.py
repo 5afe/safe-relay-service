@@ -112,11 +112,12 @@ class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
         super().validate(data)
 
         safe_address = data['safe']
+        sub_module_address = data['sub_module_address']
         signatures = data['signatures']
 
         relay_service = RelayServiceProvider()
         eip1337_hash = relay_service.get_hash_for_eip_1337(
-            safe_address,
+            sub_module_address,
             data['to'],
             data['value'],
             data['data'],
