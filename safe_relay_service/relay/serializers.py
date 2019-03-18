@@ -111,7 +111,6 @@ class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
     def validate(self, data):
         super().validate(data)
 
-        safe_address = data['safe']
         sub_module_address = data['sub_module_address']
         signatures = data['signatures']
 

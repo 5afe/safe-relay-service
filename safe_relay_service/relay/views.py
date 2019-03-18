@@ -4,8 +4,9 @@ from django_eth.constants import NULL_ADDRESS
 from django.db import connection
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
-from gnosis.safe.safe_service import SafeServiceException
+from gnosis.safe.safe_service import SafeServiceException, SubscriptionStatuses
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer)
+
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
@@ -442,7 +443,6 @@ class SafeMultisigTxView(CreateAPIView):
 class SafeMultisigSubTxView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeRelayMultisigSubTxSerializer
-    execute_serializer_class = SafeRelayMultisigSubTxExecuteSerializer
 
     @swagger_auto_schema(responses={201: SafeMultisigSubTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -456,11 +456,10 @@ class SafeMultisigSubTxView(CreateAPIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                safe_contract = SafeContract.objects.get(sub_module_address=request.data['sub_module_address'])
+                safe_contract = SafeContract.objects.get(subscription_module_address=request.data['sub_module_address'])
             except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            request.data['safe'] = safe_contract
             serializer = self.serializer_class(data=request.data)
 
             if not serializer.is_valid():
@@ -470,7 +469,7 @@ class SafeMultisigSubTxView(CreateAPIView):
 
                 try:
                     safe_multisig_subtx = SafeMultisigSubTx.objects.create_multisig_subtx(
-                        safe_address=data['safe'],
+                        safe_address=safe_contract,
                         sub_module_address=safe_contract.subscription_module_address,
                         to=data['to'],
                         value=data['value'],
@@ -508,7 +507,7 @@ class SafeMultisigSubTxExecute(CreateAPIView):
         Send a Safe Multisig Transaction
         """
 
-        serializer = self.execute_serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data)
 
         if not serializer.is_valid():
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

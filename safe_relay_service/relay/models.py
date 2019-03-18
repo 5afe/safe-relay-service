@@ -302,7 +302,8 @@ class SafeMultisigSubTxManager(models.Manager):
             start_date=start_date,
             end_date=end_date,
             uniq_id=uniq_id,
-            signatures=signatures_packed
+            signatures=signatures_packed,
+            status=SubscriptionStatuses.INIT.value
         )
 
 
