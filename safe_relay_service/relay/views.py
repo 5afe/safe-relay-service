@@ -225,7 +225,8 @@ class TxListView(APIView):
                     'period': sub.period,
                     'start_date': sub.start_date,
                     'end_date': sub.end_date,
-                    'unique': sub.uniq_id
+                    'unique': sub.uniq_id,
+                    'status': sub.status
                 }
                 if sub.status == 1 and flag == 'active':
                     time_stamp = datetime.now().timestamp()
