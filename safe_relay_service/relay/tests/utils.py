@@ -25,8 +25,8 @@ def generate_safe(owners=None, number_owners=3, threshold=None, payment_token=No
             owners.append(owner)
 
     threshold = threshold if threshold else len(owners)
-
-    safe_creation = SafeCreation.objects.create_safe_tx(s, owners, threshold, payment_token)
+    wallet_type = "customer"
+    safe_creation = SafeCreation.objects.create_safe_tx(wallet_type, s, owners, threshold, payment_token)
     return safe_creation
 
 

@@ -5,7 +5,7 @@ from django.db import models
 from django_eth.constants import NULL_ADDRESS
 from django_eth.models import EthereumAddressField, Sha3HashField, Uint256Field
 from gnosis.safe.ethereum_service import EthereumServiceProvider
-from gnosis.safe.safe_service import SafeOperation, SafeServiceException
+from gnosis.safe.safe_service import SafeOperation, SafeServiceException, EIP1337Periods, SubscriptionStatuses
 from model_utils.models import TimeStampedModel
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
@@ -16,12 +16,17 @@ from .relay_service import RelayServiceException, RelayServiceProvider
 class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
+    subscription_module_address = EthereumAddressField(null=True)
+    salt = Uint256Field(unique=True)
 
     def has_valid_code(self) -> bool:
         return RelayServiceProvider().check_proxy_code(self.address)
 
     def has_valid_master_copy(self) -> bool:
         return RelayServiceProvider().check_master_copy(self.address)
+
+    def has_valid_sub_module_master_copy(self) -> bool:
+        return RelayServiceProvider().check_sub_module_master_copy(self.subscription_module_address)
 
     def get_balance(self, block_identifier=None):
         return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
@@ -31,10 +36,12 @@ class SafeContract(TimeStampedModel):
 
 
 class SafeCreationManager(models.Manager):
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int, payment_token: Union[str, None],
-                       payment_token_eth_value: float=1.0, fixed_creation_cost: Union[int, None]=None):
+    def create_safe_tx(self, wallet_type: str, s: int, owners: Iterable[str], threshold: int,
+                       payment_token: Union[str, None],
+                       payment_token_eth_value: float = 1.0, fixed_creation_cost: Union[int, None] = None):
         """
         Create models for safe tx
+        :param wallet_type: type of wallet we're deploying
         :param s: Random s value for ecdsa signature
         :param owners: Owners of the new Safe
         :param threshold: Minimum number of users required to operate the Safe
@@ -46,14 +53,25 @@ class SafeCreationManager(models.Manager):
 
         relay_service = RelayServiceProvider()
         gas_station = GasStationProvider()
-        fast_gas_price: int = gas_station.get_gas_prices().fast
-        safe_creation_tx = relay_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+        fast_gas_price: int = gas_station.get_gas_prices().standard
+        safe_creation_tx = relay_service.build_safe_creation_tx(wallet_type,
+                                                                s,
+                                                                owners,
+                                                                threshold,
+                                                                fast_gas_price,
+                                                                payment_token,
                                                                 payment_token_eth_value=payment_token_eth_value,
                                                                 fixed_creation_cost=fixed_creation_cost)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
-                                                    master_copy=safe_creation_tx.master_copy)
+        safe_contract = SafeContract.objects.create(
+            master_copy=safe_creation_tx.master_copy,
+            salt=safe_creation_tx.salt,
+            subscription_module_address=safe_creation_tx.cx_sub_module_address,
+            address=safe_creation_tx.safe_address
+        )
 
+        # todo add in salt and module address?
+        # dont think this is required since we already pass the GH module data into the safe_contract above.
         return super().create(
             deployer=safe_creation_tx.deployer_address,
             safe=safe_contract,
@@ -237,6 +255,58 @@ class SafeMultisigTxManager(models.Manager):
         )
 
 
+class SafeMultisigSubTxManager(models.Manager):
+    class SafeMultisigSubTxExists(Exception):
+        pass
+
+    class SafeMultisigSubTxError(Exception):
+        pass
+
+    def get_last_nonce_for_safe(self, safe_address: str):
+        tx = self.filter(safe=safe_address).order_by('-nonce').first()
+        return tx.nonce if tx else None
+
+    def create_multisig_subtx(self,
+                              safe_address: str,
+                              sub_module_address: str,
+                              to: str,
+                              value: int,
+                              data: bytes,
+                              period: int,
+                              start_date: int,
+                              end_date: int,
+                              uniq_id: int,
+                              signatures: List[Dict[str, int]]):
+        """
+        :return: Database model of SafeMultisigTx
+        :raises: SafeMultisigTxExists: If Safe Multisig Tx with nonce already exists
+        :raises: SafeMultisigTxError: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
+        """
+
+        # if self.filter(safe=safe_address, meta=meta).exists():
+        #     raise self.SafeMultisigTxExists
+
+        relay_service = RelayServiceProvider()
+
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        signatures_packed = relay_service.signatures_to_bytes(signature_pairs)
+
+        safe_contract = SafeContract.objects.get(address=safe_address)
+
+        return super().create(
+            safe=safe_contract,
+            to=to,
+            value=value,
+            data=data,
+            period=period,
+            start_date=start_date,
+            end_date=end_date,
+            uniq_id=uniq_id,
+            signatures=signatures_packed,
+            status=SubscriptionStatuses.INIT.value
+        )
+
+
 class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
@@ -260,3 +330,23 @@ class SafeMultisigTx(TimeStampedModel):
 
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
+
+
+class SafeMultisigSubTx(TimeStampedModel):
+    objects = SafeMultisigSubTxManager()
+    safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
+    to = EthereumAddressField(null=True)
+    value = Uint256Field()
+    data = models.BinaryField(null=True)
+    period = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in EIP1337Periods])
+    start_date = Uint256Field()
+    end_date = Uint256Field()
+    uniq_id = Uint256Field()
+    signatures = models.BinaryField()
+    status = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SubscriptionStatuses])
+
+    class Meta:
+        unique_together = ('safe', 'signatures')
+
+    def __str__(self):
+        return 'Safe {}'.format(self.safe.address)

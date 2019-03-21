@@ -54,7 +54,7 @@ class RelayService:
         return refund_receiver == NULL_ADDRESS
 
     # FIXME Estimate everything in one method, same with Safe info
-    def estimate_tx_gas_price(self, gas_token: Union[str, None]=None):
+    def estimate_tx_gas_price(self, gas_token: Union[str, None] = None):
         gas_token = gas_token or NULL_ADDRESS
         gas_price_fast = self.gas_station.get_gas_prices().fast
 
@@ -142,6 +142,29 @@ class RelayService:
             gas_token,
             refund_receiver,
             signatures,
+            tx_sender_private_key=tx_sender_private_key,
+            tx_gas=tx_gas,
+            tx_gas_price=tx_gas_price)
+
+    def send_multisig_subtx(self,
+                            subscriptions_to_execute: any,
+                            tx_sender_private_key=None,
+                            tx_gas=None) -> Tuple[str, any]:
+        """
+        This function calls the `send_multisig_subtx` of the SafeService, but has some limitations to prevent abusing
+        the relay
+        :return: Tuple(tx_hash, tx)
+        :raises: InvalidMultisigTx: If user tx cannot go through the Safe
+        """
+
+        current_gas_prices = self.gas_station.get_gas_prices()
+        current_fast_gas_price = current_gas_prices.fast
+        current_standard_gas_price = current_gas_prices.standard
+
+        tx_gas_price = current_fast_gas_price
+
+        return self.safe_service.send_multisig_subtx(
+            subscriptions_to_execute,
             tx_sender_private_key=tx_sender_private_key,
             tx_gas=tx_gas,
             tx_gas_price=tx_gas_price)

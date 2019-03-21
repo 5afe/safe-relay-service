@@ -8,6 +8,7 @@ from django_eth.serializers import (EthereumAddressField, Sha3HashField,
 from gnosis.safe.ethereum_service import EthereumService
 from gnosis.safe.serializers import (SafeMultisigEstimateTxSerializer,
                                      SafeMultisigTxSerializer,
+                                     SafeMultisigSubTxSerializer,
                                      SafeSignatureSerializer)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -43,6 +44,7 @@ class SafeCreationSerializer(serializers.Serializer):
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+    wallet_type = serializers.CharField(default="customer")
 
     def validate_payment_token(self, value):
         return validate_gas_token(value)
@@ -67,7 +69,6 @@ class SafeRelayMultisigEstimateTxSerializer(SafeMultisigEstimateTxSerializer):
         return data
 
 
-# TODO Rename this
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
@@ -76,9 +77,6 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
 
         safe_address = data['safe']
         signatures = data['signatures']
-        refund_receiver = data.get('refund_receiver')
-        if refund_receiver and refund_receiver != NULL_ADDRESS:
-            raise ValidationError('Refund Receiver is not configurable')
 
         relay_service = RelayServiceProvider()
         tx_hash = relay_service.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
@@ -93,6 +91,52 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         if not relay_service.check_hash(tx_hash, relay_service.signatures_to_bytes(signature_pairs), owners):
+            raise ValidationError('Signatures are not sorted by owner: %s' % owners)
+
+        data['owners'] = owners
+        return data
+
+
+class SafeRelayMultisigSubTxExecuteSerializer(serializers.Serializer):
+    execute_ids = serializers.ListField(min_length=1)
+
+    def validate(self, data):
+        super().validate(data)
+        return data
+
+
+class SafeRelayMultisigSubTxSerializer(SafeMultisigSubTxSerializer):
+    signatures = serializers.ListField(child=SafeSignatureSerializer())
+
+    def validate(self, data):
+        super().validate(data)
+
+        sub_module_address = data['sub_module_address']
+        signatures = data['signatures']
+
+        relay_service = RelayServiceProvider()
+        eip1337_hash = relay_service.get_hash_for_eip_1337(
+            sub_module_address,
+            data['to'],
+            data['value'],
+            data['data'],
+            data['period'],
+            data['start_date'],
+            data['end_date'],
+            data['uniq_id']
+        )
+
+        owners = [
+            EthereumService.get_signing_address(
+                eip1337_hash,
+                signature['v'],
+                signature['r'],
+                signature['s']
+            ) for signature in signatures
+        ]
+
+        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
+        if not relay_service.check_hash(eip1337_hash, relay_service.signatures_to_bytes(signature_pairs), owners):
             raise ValidationError('Signatures are not sorted by owner: %s' % owners)
 
         data['owners'] = owners
@@ -119,12 +163,26 @@ class SafeResponseSerializer(serializers.Serializer):
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
 
 
+class TxListSerializer(serializers.Serializer):
+    subscriptions = serializers.DictField()
+    transactions = serializers.ListField()
+
+
+class SafeLookupResponseSerializer(serializers.Serializer):
+    safe = EthereumAddressField()
+    subscription_module = EthereumAddressField()
+    master_copy = EthereumAddressField()
+    threshold = serializers.IntegerField(min_value=1)
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+
+
 class SafeTransactionCreationResponseSerializer(serializers.Serializer):
     signature = SignatureResponseSerializer()
     tx = TransactionResponseSerializer()
     payment = serializers.CharField()
     payment_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     safe = EthereumAddressField()
+    subscription_module = EthereumAddressField()
     deployer = EthereumAddressField()
     funder = EthereumAddressField()
 
@@ -137,6 +195,16 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     transaction_hash = Sha3HashField()
+
+
+class SafeMultisigSubTxExecuteResponseSerializer(serializers.Serializer):
+    processed = serializers.ListField(required=True)
+    skipped = serializers.ListField(required=False)
+
+
+class SafeMultisigSubTxResponseSerializer(serializers.Serializer):
+    sub_tx_id = serializers.IntegerField(min_value=0)
+    transaction_hash = Sha3HashField(required=False, allow_null=True)
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):

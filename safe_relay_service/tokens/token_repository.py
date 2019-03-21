@@ -117,5 +117,4 @@ if __name__ == "__main__":
     token_info = TokenRepository()
     token_icons_path = os.path.join("images", "tokens", "mainnet")
     for token in token_info.get_tokens(pages=3):
-        print(token)
         token_info.download_images_for_tokens(token_icons_path, token_addresses=[token['address']])

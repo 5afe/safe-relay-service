@@ -49,7 +49,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool=True) -> None:
     # These asserts just to make sure we are not wasting money
     assert check_checksum(safe_address)
     assert check_checksum(deployer_address)
-    assert checksum_encode(mk_contract_address(sender=deployer_address, nonce=0)) == safe_address
+    # assert checksum_encode(mk_contract_address(sender=deployer_address, nonce=0)) == safe_address #todo fix this line
     assert payment > 0
 
     with redis.lock('locks:fund_deployer_task', timeout=LOCK_TIMEOUT):
@@ -194,6 +194,7 @@ def deploy_safes_task(retry: bool=True) -> None:
     lock = redis.lock("tasks:deploy_safes_task", timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
+        logger.debug('exiting')
         return
     try:
         logger.debug('Starting deploy safes task')
@@ -253,7 +254,6 @@ def deploy_safes_task(retry: bool=True) -> None:
     finally:
         if have_lock:
             lock.release()
-
 
 @app.shared_task()
 def send_create_notification(safe_address: str, owners: List[str]) -> None:

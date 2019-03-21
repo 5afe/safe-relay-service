@@ -15,6 +15,7 @@ RUN set -ex \
 		libssl-dev \
 		libgmp-dev \
 		pkg-config \
+                git \
 		" \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \
@@ -27,5 +28,11 @@ RUN set -ex \
         -exec rm -rf '{}' +
 
 COPY . .
+
+ARG BUILD_ID
+ARG BUILD_DATE
+
+ENV APP_COMMIT_REF=${BUILD_ID} \
+    APP_BUILD_DATE=${BUILD_DATE}
 
 ENTRYPOINT ["/tini", "--"]
