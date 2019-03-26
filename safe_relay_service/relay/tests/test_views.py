@@ -2,7 +2,6 @@ import logging
 
 from django.urls import reverse
 
-from eth_account import Account
 from ethereum.utils import check_checksum
 from faker import Faker
 from rest_framework import status
@@ -12,11 +11,11 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
-from gnosis.safe.tests.utils import generate_salt_nonce, generate_valid_s
+from gnosis.safe.tests.utils import generate_valid_s
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..models import SafeContract, SafeCreation, SafeCreation2, SafeMultisigTx
+from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
 from .factories import (SafeContractFactory, SafeFundingFactory,

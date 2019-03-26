@@ -13,8 +13,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
-from safe_relay_service.relay.services.safe_creation_service import \
-    SafeCreationServiceProvider
+from .services.safe_creation_service import SafeCreationServiceProvider
+from .services.transaction_service import TransactionServiceProvider
 
 from .services.funding_service import FundingServiceProvider
 from .services.notification_service import NotificationServiceProvider
@@ -27,6 +27,7 @@ funding_service = FundingServiceProvider()
 notification_service = NotificationServiceProvider()
 redis = RedisService().redis
 safe_creation_service = SafeCreationServiceProvider()
+transaction_service = TransactionServiceProvider()
 
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
@@ -342,8 +343,7 @@ def check_balance_of_accounts_task() -> bool:
     :return: True if every account have enough ether, False otherwise
     """
     balance_warning_wei = settings.SAFE_ACCOUNTS_BALANCE_WARNING
-    safe_service = safe_creation_service.safe_service
-    addresses = safe_service.tx_sender_address, safe_service.funder_address
+    addresses = funding_service.funder_account.address, transaction_service.tx_sender_account.address
 
     result = True
     for address in addresses:

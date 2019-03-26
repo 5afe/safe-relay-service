@@ -5,14 +5,12 @@ from hexbytes import HexBytes
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      NotEnoughFundsForMultisigTx)
+from gnosis.safe.exceptions import GasPriceTooLow
 from gnosis.safe.tests.test_safe_service import TestSafeService
 
-from safe_relay_service.gas_station.gas_station import GasStationMock
-
-from ..services.transaction_service import (RefundMustBeEnabled,
-                                            TransactionService,
+from ..services.transaction_service import (NotEnoughFundsForMultisigTx,
+                                            InvalidRefundReceiver,
+                                            RefundMustBeEnabled,
                                             TransactionServiceProvider)
 
 logger = logging.getLogger(__name__)
@@ -27,8 +25,8 @@ class TestTransactionService(TestSafeService):
 
     def test_send_multisig_tx(self):
         w3 = self.w3
-        gas_station = GasStationMock()
-        transaction_service = TransactionService(self.safe_service, gas_station)
+        transaction_service = TransactionServiceProvider()
+        gas_station = transaction_service.gas_station
 
         # The balance we will send to the safe
         safe_balance = w3.toWei(0.02, 'ether')

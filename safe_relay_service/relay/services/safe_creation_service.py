@@ -1,3 +1,4 @@
+from eth_account import Account
 from logging import getLogger
 from typing import Iterable, List, NamedTuple, Union
 
@@ -58,7 +59,7 @@ class SafeCreationService:
                  safe_fixed_creation_cost: int):
         self.safe_service = safe_service
         self.gas_station = gas_station
-        self.safe_funder_private_key = safe_funder_private_key
+        self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
     def _get_token_eth_value_or_raise(self, address: str) -> float:
@@ -95,6 +96,7 @@ class SafeCreationService:
         fast_gas_price: int = self.gas_station.get_gas_prices().fast
         logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
         safe_creation_tx = self.safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+                                                                    self.safe_funder_account.address,
                                                                     payment_token_eth_value=payment_token_eth_value,
                                                                     fixed_creation_cost=self.safe_fixed_creation_cost)
 
@@ -170,7 +172,7 @@ class SafeCreationService:
                                                                         safe_creation2.gas_estimated,
                                                                         safe_creation2.gas_price_estimated,
                                                                         deployer_private_key=
-                                                                        self.safe_funder_private_key)
+                                                                        self.safe_funder_account.privateKey)
         safe_creation2.tx_hash = tx_hash
         safe_creation2.save()
         return tx_hash

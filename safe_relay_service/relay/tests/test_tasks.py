@@ -209,7 +209,6 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         deploy_safes_task.delay().get()
 
     def test_deploy_create2_safe_task(self):
-        #FIXME Postgresql precission problems with Uint256
         safe_creation2 = self.create2_test_safe_in_db()
 
         safe_address = safe_creation2.safe.address

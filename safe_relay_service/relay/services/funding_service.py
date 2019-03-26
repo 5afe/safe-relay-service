@@ -1,3 +1,4 @@
+from eth_account import Account
 from logging import getLogger
 
 from django.conf import settings
@@ -29,14 +30,14 @@ class FundingService:
                  funder_private_key: str, max_eth_to_send: int):
         self.ethereum_service = ethereum_service
         self.gas_station = gas_station
-        self.funder_private_key = funder_private_key
+        self.funder_account = Account.privateKeyToAccount(funder_private_key)
         self.max_eth_to_send = max_eth_to_send
 
     def send_eth_to(self, to: str, value: int, gas: int = 22000, gas_price=None,
                     retry: bool = False, block_identifier='pending'):
         if not gas_price:
             gas_price = self.gas_station.get_gas_prices().standard
-        return self.ethereum_service.send_eth_to(self.funder_private_key, to, gas_price, value,
+        return self.ethereum_service.send_eth_to(self.funder_account.privateKey, to, gas_price, value,
                                                  gas=gas,
                                                  retry=retry,
                                                  block_identifier=block_identifier,

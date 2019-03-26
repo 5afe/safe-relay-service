@@ -1,11 +1,13 @@
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Tuple, Union
 
+from eth_account import Account
+
 from gnosis.eth import EthereumService
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      SafeService, SafeServiceException,
-                                      SafeServiceProvider)
+from gnosis.safe.exceptions import (GasPriceTooLow,
+                                    SafeServiceException)
+from gnosis.safe.safe_service import SafeService, SafeServiceProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
@@ -44,6 +46,22 @@ class SafeMultisigTxError(TransactionServiceException):
     pass
 
 
+class NotEnoughFundsForMultisigTx(TransactionServiceException):
+    pass
+
+
+class InvalidMasterCopyAddress(TransactionServiceException):
+    pass
+
+
+class InvalidProxyContract(TransactionServiceException):
+    pass
+
+
+class InvalidRefundReceiver(TransactionServiceException):
+    pass
+
+
 class TransactionEstimation(NamedTuple):
     safe_tx_gas: int
     data_gas: int
@@ -56,7 +74,9 @@ class TransactionEstimation(NamedTuple):
 class TransactionServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider())
+            from django.conf import settings
+            cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider(),
+                                              settings.SAFE_TX_SENDER_PRIVATE_KEY)
         return cls.instance
 
     @classmethod
@@ -66,11 +86,13 @@ class TransactionServiceProvider:
 
 
 class TransactionService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation):
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, tx_sender_private_key: str):
         self.safe_service = safe_service
         self.gas_station = gas_station
+        self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
 
-    def _check_refund_receiver(self, refund_receiver: str) -> bool:
+    @staticmethod
+    def _check_refund_receiver(refund_receiver: str) -> bool:
         """
         We only support tx.origin as refund receiver right now
         In the future we can also accept transactions where it is set to our service account to receive the payments.
@@ -234,12 +256,26 @@ class TransactionService:
         refund_receiver = refund_receiver or NULL_ADDRESS
         to = to or NULL_ADDRESS
 
+        if gas_price < 1:
+            raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less')
+
         # Make sure refund receiver is set to 0x0 so that the contract refunds the gas costs to tx.origin
         if not self._check_refund_receiver(refund_receiver):
             raise InvalidRefundReceiver(refund_receiver)
 
-        if gas_price == 0:
-            raise RefundMustBeEnabled('Tx internal gas price cannot be 0')
+        # Make sure proxy contract is ours
+        # TODO Test this
+        if not self.safe_service.check_proxy_code(safe_address):
+            raise InvalidProxyContract(safe_address)
+
+        # Make sure master copy is valid
+        # TODO Test this
+        if not self.safe_service.check_master_copy(safe_address):
+            raise InvalidMasterCopyAddress
+
+        # Check enough funds to pay for the gas
+        if not self.safe_service.check_funds_for_tx_gas(safe_address, safe_tx_gas, data_gas, gas_price, gas_token):
+            raise NotEnoughFundsForMultisigTx
 
         threshold = self.safe_service.retrieve_threshold(safe_address)
         number_signatures = len(signatures) // 65  # One signature = 65 bytes
@@ -272,7 +308,10 @@ class TransactionService:
         # We use fast tx gas price, if not txs could we stuck
         tx_gas_price = current_fast_gas_price
 
-        return self.safe_service.send_multisig_tx(
+        tx_sender_private_key = tx_sender_private_key or self.tx_sender_account.privateKey
+        tx_sender_address = Account.privateKeyToAccount(tx_sender_private_key).address
+
+        safe_tx = self.safe_service.build_multisig_tx(
             safe_address,
             to,
             value,
@@ -284,7 +323,10 @@ class TransactionService:
             gas_token,
             refund_receiver,
             signatures,
-            tx_sender_private_key=tx_sender_private_key,
-            tx_gas=tx_gas,
-            tx_gas_price=tx_gas_price,
-            block_identifier=block_identifier)
+        )
+
+        safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
+
+        #TODO Send nonce
+        return safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
+                               block_identifier=block_identifier)
