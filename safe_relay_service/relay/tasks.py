@@ -14,9 +14,9 @@ from gnosis.eth.constants import NULL_ADDRESS
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
 
+from .repositories.redis_repository import RedisRepository
 from .services.funding_service import FundingServiceProvider
 from .services.notification_service import NotificationServiceProvider
-from .services.redis_service import RedisService
 from .services.safe_creation_service import (NotEnoughFundingForCreation,
                                              SafeCreationServiceProvider)
 from .services.transaction_service import TransactionServiceProvider
@@ -26,7 +26,7 @@ logger = get_task_logger(__name__)
 ethereum_service = EthereumServiceProvider()
 funding_service = FundingServiceProvider()
 notification_service = NotificationServiceProvider()
-redis = RedisService().redis
+redis = RedisRepository().redis
 safe_creation_service = SafeCreationServiceProvider()
 transaction_service = TransactionServiceProvider()
 
