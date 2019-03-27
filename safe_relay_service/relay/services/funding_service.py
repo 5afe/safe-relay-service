@@ -1,7 +1,8 @@
-from eth_account import Account
 from logging import getLogger
 
 from django.conf import settings
+
+from eth_account import Account
 
 from gnosis.eth import EthereumService, EthereumServiceProvider
 

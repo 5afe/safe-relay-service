@@ -3,10 +3,9 @@ from typing import Dict, List, NamedTuple, Tuple, Union
 
 from eth_account import Account
 
-from gnosis.eth import EthereumService
+from gnosis.eth import EthereumService, EthereumServiceProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.exceptions import (GasPriceTooLow,
-                                    SafeServiceException)
+from gnosis.safe.exceptions import GasPriceTooLow, SafeServiceException
 from gnosis.safe.safe_service import SafeService, SafeServiceProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
@@ -14,8 +13,11 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 
 from ..models import SafeContract, SafeMultisigTx
+from .redis_service import RedisService
 
 logger = getLogger(__name__)
+
+redis = RedisService().redis
 
 
 class TransactionServiceException(Exception):
@@ -76,6 +78,7 @@ class TransactionServiceProvider:
         if not hasattr(cls, 'instance'):
             from django.conf import settings
             cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider(),
+                                              EthereumServiceProvider(),
                                               settings.SAFE_TX_SENDER_PRIVATE_KEY)
         return cls.instance
 
@@ -86,9 +89,11 @@ class TransactionServiceProvider:
 
 
 class TransactionService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation, tx_sender_private_key: str):
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_service: EthereumService,
+                 tx_sender_private_key: str):
         self.safe_service = safe_service
         self.gas_station = gas_station
+        self.ethereum_service = ethereum_service
         self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
 
     @staticmethod
@@ -327,6 +332,10 @@ class TransactionService:
 
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 
-        #TODO Send nonce
-        return safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
-                               block_identifier=block_identifier)
+        with redis.lock('locks:send-multisig-tx:%s' % self.tx_sender_account.address, timeout=60 * 2):
+            tx_nonce = redis.incr('%s:nonce' % self.tx_sender_account.address)
+            if tx_nonce == 1:
+                tx_nonce = self.ethereum_service.get_nonce_for_account(safe_address)
+
+            return safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price, tx_nonce=tx_nonce,
+                                   block_identifier=block_identifier)

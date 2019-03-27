@@ -8,8 +8,8 @@ from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.exceptions import GasPriceTooLow
 from gnosis.safe.tests.test_safe_service import TestSafeService
 
-from ..services.transaction_service import (NotEnoughFundsForMultisigTx,
-                                            InvalidRefundReceiver,
+from ..services.transaction_service import (InvalidRefundReceiver,
+                                            NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
                                             TransactionServiceProvider)
 

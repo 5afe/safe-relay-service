@@ -13,12 +13,12 @@ from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
-from .services.safe_creation_service import SafeCreationServiceProvider
-from .services.transaction_service import TransactionServiceProvider
 
 from .services.funding_service import FundingServiceProvider
 from .services.notification_service import NotificationServiceProvider
 from .services.redis_service import RedisService
+from .services.safe_creation_service import SafeCreationServiceProvider
+from .services.transaction_service import TransactionServiceProvider
 
 logger = get_task_logger(__name__)
 

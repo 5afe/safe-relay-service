@@ -1,9 +1,9 @@
-from eth_account import Account
 from logging import getLogger
 from typing import Iterable, List, NamedTuple, Union
 
 from django.conf import settings
 
+from eth_account import Account
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
