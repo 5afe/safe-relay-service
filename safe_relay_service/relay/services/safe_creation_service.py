@@ -3,8 +3,10 @@ from typing import Iterable, List, NamedTuple, Union
 
 from django.conf import settings
 
+from eth_account import Account
 from hexbytes import HexBytes
 
+from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (SafeCreationEstimate, SafeService,
                                       SafeServiceProvider)
@@ -30,6 +32,10 @@ class SafeNotDeployed(SafeCreationServiceException):
     pass
 
 
+class NotEnoughFundingForCreation(SafeCreationServiceException):
+    pass
+
+
 class SafeInfo(NamedTuple):
     address: str
     nonce: int
@@ -43,6 +49,7 @@ class SafeCreationServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = SafeCreationService(SafeServiceProvider(), GasStationProvider(),
+                                               EthereumClientProvider(),
                                                settings.SAFE_FUNDER_PRIVATE_KEY,
                                                settings.SAFE_FIXED_CREATION_COST)
         return cls.instance
@@ -54,11 +61,12 @@ class SafeCreationServiceProvider:
 
 
 class SafeCreationService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation, safe_funder_private_key: str,
-                 safe_fixed_creation_cost: int):
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_client: EthereumClient,
+                 safe_funder_private_key: str, safe_fixed_creation_cost: int):
         self.safe_service = safe_service
         self.gas_station = gas_station
-        self.safe_funder_private_key = safe_funder_private_key
+        self.ethereum_client = ethereum_client
+        self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
     def _get_token_eth_value_or_raise(self, address: str) -> float:
@@ -95,6 +103,7 @@ class SafeCreationService:
         fast_gas_price: int = self.gas_station.get_gas_prices().fast
         logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
         safe_creation_tx = self.safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
+                                                                    self.safe_funder_account.address,
                                                                     payment_token_eth_value=payment_token_eth_value,
                                                                     fixed_creation_cost=self.safe_fixed_creation_cost)
 
@@ -164,15 +173,38 @@ class SafeCreationService:
 
     def deploy_create2_safe_tx(self, safe_address: str):
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
+
+        if safe_creation2.tx_hash:
+            logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash.hex())
+            return safe_creation2.tx_hash
+
+        if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
+            safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
+        else:
+            safe_balance = self.ethereum_client.get_balance(safe_address)
+
+        if safe_balance < safe_creation2.payment:
+            message = 'Not found %d balance for Safe=%s with payment-token=%s. ' \
+                      'Required=%d' % (safe_balance,
+                                       safe_address,
+                                       safe_creation2.payment_token,
+                                       safe_creation2.payment)
+            logger.info(message)
+            raise NotEnoughFundingForCreation(message)
+
+        logger.info('Found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
+                    safe_address, safe_creation2.payment_token, safe_creation2.payment)
+
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
         tx_hash, _ = self.safe_service.deploy_proxy_contract_with_nonce(safe_creation2.salt_nonce,
                                                                         setup_data,
                                                                         safe_creation2.gas_estimated,
                                                                         safe_creation2.gas_price_estimated,
                                                                         deployer_private_key=
-                                                                        self.safe_funder_private_key)
+                                                                        self.safe_funder_account.privateKey)
         safe_creation2.tx_hash = tx_hash
         safe_creation2.save()
+        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
         return tx_hash
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:

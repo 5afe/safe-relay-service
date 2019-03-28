@@ -1,17 +1,21 @@
+from gnosis.safe.signatures import signatures_to_bytes
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Tuple, Union
 
-from gnosis.eth import EthereumService
+from eth_account import Account
+from redis import Redis
+
+from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import (GasPriceTooLow, InvalidRefundReceiver,
-                                      SafeService, SafeServiceException,
-                                      SafeServiceProvider)
+from gnosis.safe.exceptions import SafeServiceException
+from gnosis.safe.safe_service import SafeService, SafeServiceProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 
 from ..models import SafeContract, SafeMultisigTx
+from ..repositories.redis_repository import RedisRepository
 
 logger = getLogger(__name__)
 
@@ -44,6 +48,30 @@ class SafeMultisigTxError(TransactionServiceException):
     pass
 
 
+class NotEnoughFundsForMultisigTx(TransactionServiceException):
+    pass
+
+
+class InvalidMasterCopyAddress(TransactionServiceException):
+    pass
+
+
+class InvalidProxyContract(TransactionServiceException):
+    pass
+
+
+class InvalidRefundReceiver(TransactionServiceException):
+    pass
+
+
+class InvalidGasEstimation(TransactionServiceException):
+    pass
+
+
+class GasPriceTooLow(TransactionServiceException):
+    pass
+
+
 class TransactionEstimation(NamedTuple):
     safe_tx_gas: int
     data_gas: int
@@ -56,7 +84,11 @@ class TransactionEstimation(NamedTuple):
 class TransactionServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider())
+            from django.conf import settings
+            cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider(),
+                                              EthereumClientProvider(),
+                                              RedisRepository().redis,
+                                              settings.SAFE_TX_SENDER_PRIVATE_KEY)
         return cls.instance
 
     @classmethod
@@ -66,11 +98,16 @@ class TransactionServiceProvider:
 
 
 class TransactionService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation):
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_client: EthereumClient,
+                 redis: Redis, tx_sender_private_key: str):
         self.safe_service = safe_service
         self.gas_station = gas_station
+        self.ethereum_client = ethereum_client
+        self.redis = redis
+        self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
 
-    def _check_refund_receiver(self, refund_receiver: str) -> bool:
+    @staticmethod
+    def _check_refund_receiver(refund_receiver: str) -> bool:
         """
         We only support tx.origin as refund receiver right now
         In the future we can also accept transactions where it is set to our service account to receive the payments.
@@ -135,19 +172,19 @@ class TransactionService:
 
         safe_version = self.safe_service.retrieve_version(safe_address)
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
+        signatures_packed = signatures_to_bytes(signature_pairs)
         safe_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address, to, value, data,
                                                               operation, safe_tx_gas, data_gas, gas_price,
                                                               gas_token, refund_receiver, nonce,
                                                               safe_version=safe_version)
 
-        owners = [EthereumService.get_signing_address(safe_tx_hash,
-                                                      signature['v'],
-                                                      signature['r'],
-                                                      signature['s']) for signature in signatures]
+        owners = [EthereumClient.get_signing_address(safe_tx_hash,
+                                                     signature['v'],
+                                                     signature['r'],
+                                                     signature['s']) for signature in signatures]
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        if not SafeService.check_hash(safe_tx_hash, SafeService.signatures_to_bytes(signature_pairs), owners):
+        if not SafeService.check_hash(safe_tx_hash, signatures_to_bytes(signature_pairs), owners):
             raise SignaturesNotSorted('Signatures are not sorted by owner: %s' % owners)
 
         try:
@@ -234,17 +271,39 @@ class TransactionService:
         refund_receiver = refund_receiver or NULL_ADDRESS
         to = to or NULL_ADDRESS
 
+        if gas_price < 1:
+            raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less, it was %d' % gas_price)
+
         # Make sure refund receiver is set to 0x0 so that the contract refunds the gas costs to tx.origin
         if not self._check_refund_receiver(refund_receiver):
             raise InvalidRefundReceiver(refund_receiver)
 
-        if gas_price == 0:
-            raise RefundMustBeEnabled('Tx internal gas price cannot be 0')
+        # Make sure proxy contract is ours
+        # TODO Test this
+        if not self.safe_service.check_proxy_code(safe_address):
+            raise InvalidProxyContract(safe_address)
+
+        # Make sure master copy is valid
+        # TODO Test this
+        if not self.safe_service.check_master_copy(safe_address):
+            raise InvalidMasterCopyAddress
+
+        # Check enough funds to pay for the gas
+        if not self.safe_service.check_funds_for_tx_gas(safe_address, safe_tx_gas, data_gas, gas_price, gas_token):
+            raise NotEnoughFundsForMultisigTx
 
         threshold = self.safe_service.retrieve_threshold(safe_address)
         number_signatures = len(signatures) // 65  # One signature = 65 bytes
         if number_signatures < threshold:
             raise SignaturesNotFound('Need at least %d signatures' % threshold)
+
+        safe_tx_gas_estimation = self.safe_service.estimate_tx_gas(safe_address, to, value, data, operation)
+        safe_data_gas_estimation = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation,
+                                                                          gas_token, safe_tx_gas_estimation)
+        if safe_tx_gas < safe_tx_gas_estimation or data_gas < safe_data_gas_estimation:
+            raise InvalidGasEstimation("Gas should be at least equal to safe-tx-gas=%d and data-gas=%d. Current is "
+                                       "safe-tx-gas=%d and data-gas=%d" %
+                                       (safe_tx_gas_estimation, safe_data_gas_estimation, safe_tx_gas, data_gas))
 
         # If gas_token is specified, we see if the `gas_price` matches the current token value and use as the
         # external tx gas the fast gas price from the gas station.
@@ -272,7 +331,10 @@ class TransactionService:
         # We use fast tx gas price, if not txs could we stuck
         tx_gas_price = current_fast_gas_price
 
-        return self.safe_service.send_multisig_tx(
+        tx_sender_private_key = tx_sender_private_key or self.tx_sender_account.privateKey
+        tx_sender_address = Account.privateKeyToAccount(tx_sender_private_key).address
+
+        safe_tx = self.safe_service.build_multisig_tx(
             safe_address,
             to,
             value,
@@ -284,7 +346,19 @@ class TransactionService:
             gas_token,
             refund_receiver,
             signatures,
-            tx_sender_private_key=tx_sender_private_key,
-            tx_gas=tx_gas,
-            tx_gas_price=tx_gas_price,
-            block_identifier=block_identifier)
+        )
+
+        safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
+
+        with self.redis.lock('locks:send-multisig-tx:%s' % self.tx_sender_account.address, timeout=60 * 2):
+            nonce_key = '%s:nonce' % self.tx_sender_account.address
+            tx_nonce = self.redis.incr(nonce_key)
+            if tx_nonce == 1:
+                tx_nonce = self.ethereum_client.get_nonce_for_account(safe_address)
+
+            try:
+                return safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price, tx_nonce=tx_nonce,
+                                       block_identifier=block_identifier)
+            except Exception as e:
+                self.redis.delete(nonce_key)
+                raise e

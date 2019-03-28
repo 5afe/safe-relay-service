@@ -8,25 +8,27 @@ from celery import app
 from celery.utils.log import get_task_logger
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 
-from gnosis.eth import EthereumServiceProvider, TransactionAlreadyImported
+from gnosis.eth import EthereumClientProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
-from safe_relay_service.relay.services.safe_creation_service import \
-    SafeCreationServiceProvider
 
+from .repositories.redis_repository import RedisRepository
 from .services.funding_service import FundingServiceProvider
 from .services.notification_service import NotificationServiceProvider
-from .services.redis_service import RedisService
+from .services.safe_creation_service import (NotEnoughFundingForCreation,
+                                             SafeCreationServiceProvider)
+from .services.transaction_service import TransactionServiceProvider
 
 logger = get_task_logger(__name__)
 
-ethereum_service = EthereumServiceProvider()
+ethereum_client = EthereumClientProvider()
 funding_service = FundingServiceProvider()
 notification_service = NotificationServiceProvider()
-redis = RedisService().redis
+redis = RedisRepository().redis
 safe_creation_service = SafeCreationServiceProvider()
+transaction_service = TransactionServiceProvider()
 
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
@@ -78,15 +80,15 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
             check_deployer_funded_task.delay(safe_address)
         elif not safe_funding.deployer_funded:
             confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
-            last_block_number = ethereum_service.current_block_number
+            last_block_number = ethereum_client.current_block_number
 
             assert (last_block_number - confirmations) > 0
 
             if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
                 # FIXME Add block number for confirmations
-                safe_balance = ethereum_service.erc20.get_balance(safe_address, safe_creation.payment_token)
+                safe_balance = ethereum_client.erc20.get_balance(safe_address, safe_creation.payment_token)
             else:
-                safe_balance = ethereum_service.get_balance(safe_address, last_block_number - confirmations)
+                safe_balance = ethereum_client.get_balance(safe_address, last_block_number - confirmations)
 
             if safe_balance >= payment:
                 logger.info('Found %d balance for safe=%s', safe_balance, safe_address)
@@ -94,7 +96,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                 safe_funding.save()
 
                 # Check deployer has no eth. This should never happen
-                balance = ethereum_service.get_balance(deployer_address)
+                balance = ethereum_client.get_balance(deployer_address)
                 if balance:
                     logger.error('Deployer=%s for safe=%s has eth already (%d wei)!',
                                  deployer_address, safe_address, balance)
@@ -152,7 +154,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> N
             return
 
         logger.debug('Checking safe=%s deployer tx-hash=%s', safe_address, deployer_funded_tx_hash)
-        if ethereum_service.get_transaction_receipt(deployer_funded_tx_hash):
+        if ethereum_client.get_transaction_receipt(deployer_funded_tx_hash):
             logger.info('Found transaction to deployer of safe=%s with receipt=%s', safe_address,
                         deployer_funded_tx_hash)
             safe_funding.deployer_funded = True
@@ -162,7 +164,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> N
             # If no more retries
             if not retry or (self.request.retries == self.max_retries):
                 safe_creation = SafeCreation.objects.get(safe=safe_address)
-                balance = ethereum_service.get_balance(safe_creation.deployer)
+                balance = ethereum_client.get_balance(safe_creation.deployer)
                 if balance >= safe_creation.wei_deploy_cost():
                     logger.warning('Safe=%s. Deployer=%s. Cannot find transaction receipt with tx-hash=%s, '
                                    'but balance is there. This should never happen',
@@ -213,7 +215,7 @@ def deploy_safes_task(retry: bool = True) -> None:
             if not safe_deployed_tx_hash:
                 # Deploy the Safe
                 try:
-                    creation_tx_hash = ethereum_service.send_raw_transaction(safe_creation.signed_tx)
+                    creation_tx_hash = ethereum_client.send_raw_transaction(safe_creation.signed_tx)
                     if creation_tx_hash:
                         creation_tx_hash = creation_tx_hash.hex()
                         logger.info('Safe=%s creation tx has just been sent to the network with tx-hash=%s',
@@ -237,15 +239,15 @@ def deploy_safes_task(retry: bool = True) -> None:
                 logger.debug('Safe=%s creation tx has already been sent to the network with tx-hash=%s',
                              safe_address, safe_deployed_tx_hash)
 
-                if ethereum_service.check_tx_with_confirmations(safe_deployed_tx_hash,
-                                                                settings.SAFE_FUNDING_CONFIRMATIONS):
+                if ethereum_client.check_tx_with_confirmations(safe_deployed_tx_hash,
+                                                               settings.SAFE_FUNDING_CONFIRMATIONS):
                     logger.info('Safe=%s was deployed!', safe_funding.safe.address)
                     safe_funding.safe_deployed = True
                     safe_funding.save()
                     # Send creation notification
                     send_create_notification.delay(safe_address, safe_creation.owners)
                 elif (safe_funding.modified + timedelta(minutes=10) < timezone.now()
-                      and not ethereum_service.get_transaction_receipt(safe_deployed_tx_hash)):
+                      and not ethereum_client.get_transaction_receipt(safe_deployed_tx_hash)):
                     # A reorg happened
                     logger.warning('Safe=%s deploy tx=%s was not found after 10 minutes. Trying deploying again...',
                                    safe_funding.safe.address, safe_deployed_tx_hash)
@@ -265,35 +267,14 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     :param retry: if True, retries are allowed, otherwise don't retry
     """
 
-    safe_creation: SafeCreation2 = SafeCreation2.objects.get(safe=safe_address)
-    if safe_creation.tx_hash:
-        tx_receipt = ethereum_service.get_transaction_receipt(safe_creation.tx_hash)
-    else:
-        tx_receipt = None
-
-    # These asserts just to make sure we are not wasting money
     assert check_checksum(safe_address)
 
     with redis.lock('locks:deploy_create2_safe', timeout=LOCK_TIMEOUT):
-        if tx_receipt:
-            # TODO Mark when safe has been confirmed as deployed
-            logger.info('Safe=%s has already been deployed', safe_address)
-        else:
-            if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
-                safe_balance = ethereum_service.erc20.get_balance(safe_address, safe_creation.payment_token)
-            else:
-                safe_balance = ethereum_service.get_balance(safe_address)
-
-            if safe_balance < safe_creation.payment:
-                logger.info('Not found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
-                            safe_address, safe_creation.payment_token, safe_creation.payment)
-                if retry:
-                    raise self.retry(countdown=30)
-            else:
-                logger.info('Found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
-                            safe_address, safe_creation.payment_token, safe_creation.payment)
-                tx_hash = safe_creation_service.deploy_create2_safe_tx(safe_address)
-                logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
+        try:
+            safe_creation_service.deploy_create2_safe_tx(safe_address)
+        except NotEnoughFundingForCreation:
+            if retry:
+                raise self.retry(countdown=30)
 
 
 @app.shared_task(soft_time_limit=300)
@@ -301,11 +282,10 @@ def check_create2_deployed_safes_task() -> None:
     """
     Check if create2 safes were deployed and store the `blockNumber` if there are enough confirmations
     """
-
     confirmations = 6
-    current_block_number = ethereum_service.current_block_number
+    current_block_number = ethereum_client.current_block_number
     for safe_creation2 in SafeCreation2.objects.pending_to_check():
-        tx_receipt = ethereum_service.get_transaction_receipt(safe_creation2.tx_hash)
+        tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
         safe_address = safe_creation2.safe.address
         if tx_receipt:
             block_number = tx_receipt.blockNumber
@@ -315,8 +295,8 @@ def check_create2_deployed_safes_task() -> None:
                 safe_creation2.block_number = block_number
                 safe_creation2.save()
         else:
-            # If safe was not included in any block after 10 minutes, we try to deploy it again
-            if safe_creation2.modified + timedelta(minutes=10) < timezone.now():
+            # If safe was not included in any block after 15 minutes, we try to deploy it again
+            if safe_creation2.modified + timedelta(minutes=15) < timezone.now():
                 logger.info('Safe=%s with tx-hash=%s was not deployed after 10 minutes',
                             safe_address, safe_creation2.tx_hash)
                 safe_creation2.tx_hash = None
@@ -342,12 +322,11 @@ def check_balance_of_accounts_task() -> bool:
     :return: True if every account have enough ether, False otherwise
     """
     balance_warning_wei = settings.SAFE_ACCOUNTS_BALANCE_WARNING
-    safe_service = safe_creation_service.safe_service
-    addresses = safe_service.tx_sender_address, safe_service.funder_address
+    addresses = funding_service.funder_account.address, transaction_service.tx_sender_account.address
 
     result = True
     for address in addresses:
-        balance_wei = ethereum_service.get_balance(address)
+        balance_wei = ethereum_client.get_balance(address)
         if balance_wei <= balance_warning_wei:
             logger.error('Relayer account=%s current balance=%d . Balance must be greater than %d' %
                          (address, balance_wei, balance_warning_wei))

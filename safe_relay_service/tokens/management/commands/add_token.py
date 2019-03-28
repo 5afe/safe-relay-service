@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from gnosis.eth import EthereumServiceProvider
+from gnosis.eth import EthereumClientProvider
 
 from ...models import Token
 
@@ -17,11 +17,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         tokens = options['tokens']
         no_prompt = options['no_prompt']
-        ethereum_service = EthereumServiceProvider()
+        ethereum_client = EthereumClientProvider()
 
         for token_address in tokens:
-            token_address = ethereum_service.w3.toChecksumAddress(token_address)
-            info = ethereum_service.erc20.get_info(token_address)
+            token_address = ethereum_client.w3.toChecksumAddress(token_address)
+            info = ethereum_client.erc20.get_info(token_address)
             if no_prompt:
                 response = 'y'
             else:

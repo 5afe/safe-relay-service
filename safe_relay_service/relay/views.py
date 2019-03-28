@@ -14,7 +14,7 @@ from rest_framework.views import APIView, exception_handler
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import SafeServiceException
+from gnosis.safe.exceptions import SafeServiceException
 from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.version import __version__

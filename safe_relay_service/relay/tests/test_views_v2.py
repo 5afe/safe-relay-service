@@ -157,7 +157,7 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.send_ether(my_safe_address, safe_creation2.payment)
         response = self.client.put(reverse('v2:safe-signal', args=(my_safe_address,)))
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
-        self.assertTrue(self.ethereum_service.is_contract(my_safe_address))
+        self.assertTrue(self.ethereum_client.is_contract(my_safe_address))
         safe_creation2.refresh_from_db()
         self.assertIsNotNone(safe_creation2.tx_hash)
 

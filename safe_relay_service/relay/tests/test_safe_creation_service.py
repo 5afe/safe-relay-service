@@ -1,6 +1,5 @@
 import logging
 
-from django.conf import settings
 from django.test import TestCase
 
 from eth_account import Account
@@ -8,11 +7,9 @@ from eth_account import Account
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
-from safe_relay_service.gas_station.gas_station import GasStationMock
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.safe_creation_service import (InvalidPaymentToken,
-                                              SafeCreationService,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
 
@@ -23,10 +20,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.prepare_tests()
-        gas_station = GasStationMock()
-        gas_price = gas_station.get_gas_prices().fast
-        cls.safe_creation_service = SafeCreationService(cls.safe_service, gas_station, settings.SAFE_FUNDER_PRIVATE_KEY,
-                                                        settings.SAFE_FIXED_CREATION_COST)
+        cls.safe_creation_service = SafeCreationServiceProvider()
 
     def test_creation_service_provider_singleton(self):
         self.assertEqual(SafeCreationServiceProvider(), SafeCreationServiceProvider())

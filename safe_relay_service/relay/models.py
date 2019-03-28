@@ -3,7 +3,7 @@ from django.db import models
 
 from model_utils.models import TimeStampedModel
 
-from gnosis.eth import EthereumServiceProvider
+from gnosis.eth import EthereumClientProvider
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
@@ -20,7 +20,7 @@ class SafeContract(TimeStampedModel):
         return SafeServiceProvider().check_master_copy(self.address)
 
     def get_balance(self, block_identifier=None):
-        return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
+        return EthereumClientProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
         return self.address
