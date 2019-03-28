@@ -1,3 +1,4 @@
+from gnosis.safe.signatures import signatures_to_bytes
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Tuple, Union
 
@@ -163,7 +164,7 @@ class TransactionService:
 
         safe_version = self.safe_service.retrieve_version(safe_address)
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
+        signatures_packed = signatures_to_bytes(signature_pairs)
         safe_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address, to, value, data,
                                                               operation, safe_tx_gas, data_gas, gas_price,
                                                               gas_token, refund_receiver, nonce,
@@ -175,7 +176,7 @@ class TransactionService:
                                                      signature['s']) for signature in signatures]
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        if not SafeService.check_hash(safe_tx_hash, SafeService.signatures_to_bytes(signature_pairs), owners):
+        if not SafeService.check_hash(safe_tx_hash, signatures_to_bytes(signature_pairs), owners):
             raise SignaturesNotSorted('Signatures are not sorted by owner: %s' % owners)
 
         try:

@@ -1,4 +1,5 @@
 import logging
+from gnosis.safe.signatures import signatures_to_bytes
 
 from hexbytes import HexBytes
 
@@ -85,7 +86,7 @@ class TestTransactionService(TestSafeService):
 
         signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = self.safe_service.signatures_to_bytes(signature_pairs)
+        signatures_packed = signatures_to_bytes(signature_pairs)
 
         # {bytes32 r}{bytes32 s}{uint8 v} = 65 bytes
         self.assertEqual(len(signatures_packed), 65 * len(owners))

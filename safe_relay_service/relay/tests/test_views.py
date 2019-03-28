@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from ethereum.utils import check_checksum
 from faker import Faker
+from gnosis.safe.signatures import signatures_to_bytes
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -340,7 +341,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertEqual(safe_multisig_tx.gas_token, None)
         self.assertEqual(safe_multisig_tx.nonce, nonce)
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = SafeService.signatures_to_bytes(signature_pairs)
+        signatures_packed = signatures_to_bytes(signature_pairs)
         self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
 
         # Send the same tx again
