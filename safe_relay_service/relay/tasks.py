@@ -23,12 +23,10 @@ from .services.transaction_service import TransactionServiceProvider
 
 logger = get_task_logger(__name__)
 
+
+#TODO Remove this from here
 ethereum_client = EthereumClientProvider()
-funding_service = FundingServiceProvider()
-notification_service = NotificationServiceProvider()
 redis = RedisRepository().redis
-safe_creation_service = SafeCreationServiceProvider()
-transaction_service = TransactionServiceProvider()
 
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
@@ -103,10 +101,10 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                 else:
                     logger.info('Safe=%s. Transferring deployment-cost=%d to deployer=%s',
                                 safe_address, safe_creation.wei_deploy_cost(), deployer_address)
-                    tx_hash = funding_service.send_eth_to(deployer_address,
-                                                          safe_creation.wei_deploy_cost(),
-                                                          gas_price=safe_creation.gas_price,
-                                                          retry=True)
+                    tx_hash = FundingServiceProvider().send_eth_to(deployer_address,
+                                                                   safe_creation.wei_deploy_cost(),
+                                                                   gas_price=safe_creation.gas_price,
+                                                                   retry=True)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
@@ -271,7 +269,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
 
     with redis.lock('locks:deploy_create2_safe', timeout=LOCK_TIMEOUT):
         try:
-            safe_creation_service.deploy_create2_safe_tx(safe_address)
+            SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
         except NotEnoughFundingForCreation:
             if retry:
                 raise self.retry(countdown=30)
@@ -312,7 +310,7 @@ def send_create_notification(safe_address: str, owners: List[str]) -> None:
     :param owners: List of owners of the safe
     """
     logger.info('Safe=%s creation ended, sending notification to %s', safe_address, owners)
-    return notification_service.send_create_notification(safe_address, owners)
+    return NotificationServiceProvider().send_create_notification(safe_address, owners)
 
 
 @app.shared_task(soft_time_limit=300)
@@ -322,7 +320,7 @@ def check_balance_of_accounts_task() -> bool:
     :return: True if every account have enough ether, False otherwise
     """
     balance_warning_wei = settings.SAFE_ACCOUNTS_BALANCE_WARNING
-    addresses = funding_service.funder_account.address, transaction_service.tx_sender_account.address
+    addresses = FundingServiceProvider().funder_account.address, TransactionServiceProvider().tx_sender_account.address
 
     result = True
     for address in addresses:
