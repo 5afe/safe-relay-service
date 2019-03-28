@@ -7,7 +7,7 @@ from redis import Redis
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.exceptions import GasPriceTooLow, SafeServiceException
+from gnosis.safe.exceptions import SafeServiceException
 from gnosis.safe.safe_service import SafeService, SafeServiceProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
@@ -61,6 +61,14 @@ class InvalidProxyContract(TransactionServiceException):
 
 
 class InvalidRefundReceiver(TransactionServiceException):
+    pass
+
+
+class InvalidGasEstimation(TransactionServiceException):
+    pass
+
+
+class GasPriceTooLow(TransactionServiceException):
     pass
 
 
@@ -264,7 +272,7 @@ class TransactionService:
         to = to or NULL_ADDRESS
 
         if gas_price < 1:
-            raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less')
+            raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less, it was %d' % gas_price)
 
         # Make sure refund receiver is set to 0x0 so that the contract refunds the gas costs to tx.origin
         if not self._check_refund_receiver(refund_receiver):
@@ -288,6 +296,14 @@ class TransactionService:
         number_signatures = len(signatures) // 65  # One signature = 65 bytes
         if number_signatures < threshold:
             raise SignaturesNotFound('Need at least %d signatures' % threshold)
+
+        safe_tx_gas_estimation = self.safe_service.estimate_tx_gas(safe_address, to, value, data, operation)
+        safe_data_gas_estimation = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation,
+                                                                          gas_token, safe_tx_gas_estimation)
+        if safe_tx_gas < safe_tx_gas_estimation or data_gas < safe_data_gas_estimation:
+            raise InvalidGasEstimation("Gas should be at least equal to safe-tx-gas=%d and data-gas=%d. Current is "
+                                       "safe-tx-gas=%d and data-gas=%d" %
+                                       (safe_tx_gas_estimation, safe_data_gas_estimation, safe_tx_gas, data_gas))
 
         # If gas_token is specified, we see if the `gas_price` matches the current token value and use as the
         # external tx gas the fast gas price from the gas station.
