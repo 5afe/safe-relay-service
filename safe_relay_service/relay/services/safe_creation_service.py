@@ -6,7 +6,7 @@ from django.conf import settings
 from eth_account import Account
 from hexbytes import HexBytes
 
-from gnosis.eth import EthereumService, EthereumServiceProvider
+from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.safe_service import (SafeCreationEstimate, SafeService,
                                       SafeServiceProvider)
@@ -49,7 +49,7 @@ class SafeCreationServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = SafeCreationService(SafeServiceProvider(), GasStationProvider(),
-                                               EthereumServiceProvider(),
+                                               EthereumClientProvider(),
                                                settings.SAFE_FUNDER_PRIVATE_KEY,
                                                settings.SAFE_FIXED_CREATION_COST)
         return cls.instance
@@ -61,11 +61,11 @@ class SafeCreationServiceProvider:
 
 
 class SafeCreationService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_service: EthereumService,
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_client: EthereumClient,
                  safe_funder_private_key: str, safe_fixed_creation_cost: int):
         self.safe_service = safe_service
         self.gas_station = gas_station
-        self.ethereum_service = ethereum_service
+        self.ethereum_client = ethereum_client
         self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
@@ -179,9 +179,9 @@ class SafeCreationService:
             return safe_creation2.tx_hash
 
         if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
-            safe_balance = self.ethereum_service.erc20.get_balance(safe_address, safe_creation2.payment_token)
+            safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
         else:
-            safe_balance = self.ethereum_service.get_balance(safe_address)
+            safe_balance = self.ethereum_client.get_balance(safe_address)
 
         if safe_balance < safe_creation2.payment:
             message = 'Not found %d balance for Safe=%s with payment-token=%s. ' \

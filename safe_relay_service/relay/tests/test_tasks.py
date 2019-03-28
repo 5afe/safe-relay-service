@@ -33,11 +33,11 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         deployer_payment = 1
         self.send_ether(to=deployer, value=deployer_payment)
 
-        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
+        self.assertEqual(self.ethereum_client.get_balance(deployer), deployer_payment)
 
         fund_deployer_task.delay(safe, retry=False).get()
 
-        self.assertEqual(self.ethereum_service.get_balance(deployer), deployer_payment)
+        self.assertEqual(self.ethereum_client.get_balance(deployer), deployer_payment)
 
     def test_deploy_safe(self):
         safe_creation = self.create_test_safe_in_db()
@@ -91,15 +91,15 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
 
-        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+        self.assertEqual(self.ethereum_client.get_balance(deployer), 0)
         # No ether is sent to the deployer is safe is empty
         fund_deployer_task.delay(safe, retry=False).get()
-        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+        self.assertEqual(self.ethereum_client.get_balance(deployer), 0)
 
         # No ether is sent to the deployer is safe has less balance than needed
         self.send_ether(to=safe, value=payment - 1)
         fund_deployer_task.delay(safe, retry=False).get()
-        self.assertEqual(self.ethereum_service.get_balance(deployer), 0)
+        self.assertEqual(self.ethereum_client.get_balance(deployer), 0)
 
     def test_check_deployer_funded(self):
         safe_creation = self.create_test_safe_in_db()

@@ -4,7 +4,7 @@ from typing import Dict, List, NamedTuple, Tuple, Union
 from eth_account import Account
 from redis import Redis
 
-from gnosis.eth import EthereumService, EthereumServiceProvider
+from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.exceptions import GasPriceTooLow, SafeServiceException
 from gnosis.safe.safe_service import SafeService, SafeServiceProvider
@@ -77,7 +77,7 @@ class TransactionServiceProvider:
         if not hasattr(cls, 'instance'):
             from django.conf import settings
             cls.instance = TransactionService(SafeServiceProvider(), GasStationProvider(),
-                                              EthereumServiceProvider(),
+                                              EthereumClientProvider(),
                                               RedisRepository().redis,
                                               settings.SAFE_TX_SENDER_PRIVATE_KEY)
         return cls.instance
@@ -89,11 +89,11 @@ class TransactionServiceProvider:
 
 
 class TransactionService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_service: EthereumService,
+    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_client: EthereumClient,
                  redis: Redis, tx_sender_private_key: str):
         self.safe_service = safe_service
         self.gas_station = gas_station
-        self.ethereum_service = ethereum_service
+        self.ethereum_client = ethereum_client
         self.redis = redis
         self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
 
@@ -169,10 +169,10 @@ class TransactionService:
                                                               gas_token, refund_receiver, nonce,
                                                               safe_version=safe_version)
 
-        owners = [EthereumService.get_signing_address(safe_tx_hash,
-                                                      signature['v'],
-                                                      signature['r'],
-                                                      signature['s']) for signature in signatures]
+        owners = [EthereumClient.get_signing_address(safe_tx_hash,
+                                                     signature['v'],
+                                                     signature['r'],
+                                                     signature['s']) for signature in signatures]
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         if not SafeService.check_hash(safe_tx_hash, SafeService.signatures_to_bytes(signature_pairs), owners):
@@ -337,7 +337,7 @@ class TransactionService:
             nonce_key = '%s:nonce' % self.tx_sender_account.address
             tx_nonce = self.redis.incr(nonce_key)
             if tx_nonce == 1:
-                tx_nonce = self.ethereum_service.get_nonce_for_account(safe_address)
+                tx_nonce = self.ethereum_client.get_nonce_for_account(safe_address)
 
             try:
                 return safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price, tx_nonce=tx_nonce,
