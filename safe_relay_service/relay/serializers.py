@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Optional
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO Refactor
-def validate_gas_token(address: Union[str, None]) -> str:
+def validate_gas_token(address: Optional[str]) -> str:
     """
     Raises ValidationError if gas token is not valid
     :param address: Gas Token address

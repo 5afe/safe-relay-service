@@ -4,7 +4,6 @@ from django.urls import reverse
 
 from ethereum.utils import check_checksum
 from faker import Faker
-from gnosis.safe.signatures import signatures_to_bytes
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -12,6 +11,7 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
+from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.utils import generate_valid_s
 
 from safe_relay_service.tokens.tests.factories import TokenFactory

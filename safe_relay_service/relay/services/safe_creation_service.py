@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Iterable, List, NamedTuple, Union
+from typing import Iterable, List, NamedTuple, Optional
 
 from django.conf import settings
 
@@ -87,7 +87,7 @@ class SafeCreationService:
             raise InvalidPaymentToken(address)
 
     def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int,
-                       payment_token: Union[str, None]) -> SafeCreation:
+                       payment_token: Optional[str]) -> SafeCreation:
         """
         Create models for safe tx
         :param s: Random s value for ecdsa signature
@@ -131,7 +131,7 @@ class SafeCreationService:
         )
 
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
-                        payment_token: Union[str, None]) -> SafeCreation2:
+                        payment_token: Optional[str]) -> SafeCreation2:
         """
         Create models for safe tx
         :param salt_nonce: Random value for solidity `create2` salt
@@ -207,7 +207,7 @@ class SafeCreationService:
         logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
         return tx_hash
 
-    def estimate_safe_creation(self, number_owners: int, payment_token: Union[str, None]) -> SafeCreationEstimate:
+    def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str]) -> SafeCreationEstimate:
         """
         :param number_owners:
         :param payment_token:

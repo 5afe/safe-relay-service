@@ -1,6 +1,5 @@
-from gnosis.safe.signatures import signatures_to_bytes
 from logging import getLogger
-from typing import Dict, List, NamedTuple, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from eth_account import Account
 from redis import Redis
@@ -9,6 +8,7 @@ from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.exceptions import SafeServiceException
 from gnosis.safe.safe_service import SafeService, SafeServiceProvider
+from gnosis.safe.signatures import signatures_to_bytes
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
@@ -131,7 +131,7 @@ class TransactionService:
             logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % address)
             return False
 
-    def _estimate_tx_gas_price(self, gas_token: Union[str, None]=None):
+    def _estimate_tx_gas_price(self, gas_token: Optional[str] = None):
         gas_token = gas_token or NULL_ADDRESS
         gas_price_fast = self.gas_station.get_gas_prices().fast
 
@@ -226,7 +226,7 @@ class TransactionService:
         )
 
     def estimate_tx_cost(self, safe_address: str, to: str, value: int, data: str, operation: int,
-                         gas_token: Union[str, None]) -> TransactionEstimation:
+                         gas_token: Optional[str]) -> TransactionEstimation:
         """
         :return: TransactionEstimation with costs and last used nonce of safe
         :raises: InvalidGasToken: If Gas Token is not valid

@@ -1,6 +1,6 @@
 import math
 from logging import getLogger
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -157,7 +157,7 @@ class GasStation:
 
 
 class GasStationMock(GasStation):
-    def __init__(self, gas_price: Union[None, int] = None):
+    def __init__(self, gas_price: Optional[int] = None):
         if gas_price is None:
             self.lowest = 1
             self.safe_low = 5

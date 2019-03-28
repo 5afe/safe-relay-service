@@ -1,17 +1,18 @@
 import logging
-from gnosis.safe.signatures import signatures_to_bytes
 
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
+from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.test_safe_service import TestSafeService
 
-from ..services.transaction_service import (InvalidRefundReceiver,
+from ..services.transaction_service import (GasPriceTooLow,
+                                            InvalidRefundReceiver,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
-                                            TransactionServiceProvider, GasPriceTooLow)
+                                            TransactionServiceProvider)
 
 logger = logging.getLogger(__name__)
 
