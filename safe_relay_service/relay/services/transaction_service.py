@@ -345,6 +345,7 @@ class TransactionService:
             tx_nonce = self.redis.incr(nonce_key)
             if tx_nonce == 1:
                 tx_nonce = self.ethereum_client.get_nonce_for_account(self.tx_sender_account.address)
+                self.redis.set(nonce_key, tx_nonce)
             try:
                 tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                               tx_nonce=tx_nonce, block_identifier=block_identifier)
