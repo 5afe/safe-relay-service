@@ -1,18 +1,19 @@
 import logging
+from eth_account import Account
 
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.test_safe_service import TestSafeService
 
+from .factories import SafeContractFactory
 from ..services.transaction_service import (GasPriceTooLow,
                                             InvalidRefundReceiver,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
-                                            TransactionServiceProvider)
+                                            TransactionServiceProvider, SignaturesNotSorted)
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class TestTransactionService(TestSafeService):
         service2 = TransactionServiceProvider()
         self.assertEqual(service1, service2)
 
-    def test_send_multisig_tx(self):
+    def test_create_multisig_tx(self):
         w3 = self.w3
         transaction_service = TransactionServiceProvider()
         gas_station = transaction_service.gas_station
@@ -46,6 +47,7 @@ class TestTransactionService(TestSafeService):
         safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold)
         my_safe_address = safe_creation.safe_address
         my_safe_contract = get_safe_contract(w3, my_safe_address)
+        SafeContractFactory(address=my_safe_address)
 
         to = funder
         value = safe_balance // 2
@@ -53,7 +55,7 @@ class TestTransactionService(TestSafeService):
         operation = 0
         safe_tx_gas = 100000
         data_gas = 300000
-        gas_price = gas_station.get_gas_prices().standard
+        gas_price = gas_station.get_gas_prices().fast
         gas_token = NULL_ADDRESS
         refund_receiver = NULL_ADDRESS
         nonce = self.safe_service.retrieve_nonce(my_safe_address)
@@ -85,19 +87,6 @@ class TestTransactionService(TestSafeService):
         self.assertEqual(safe_multisig_tx_hash, contract_multisig_tx_hash)
 
         signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
-        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = signatures_to_bytes(signature_pairs)
-
-        # {bytes32 r}{bytes32 s}{uint8 v} = 65 bytes
-        self.assertEqual(len(signatures_packed), 65 * len(owners))
-
-        # Recover key is now a private function
-        # Make sure the contract retrieves the same owners
-        # for i, owner in enumerate(owners):
-        #    recovered_owner = my_safe_contract.functions.recoverKey(safe_multisig_tx_hash, signatures_packed, i).call()
-        #    self.assertEqual(owner, recovered_owner)
-
-        self.assertTrue(self.safe_service.check_hash(safe_multisig_tx_hash, signatures_packed, owners))
 
         # Check owners are the same
         contract_owners = my_safe_contract.functions.getOwners().call()
@@ -105,7 +94,7 @@ class TestTransactionService(TestSafeService):
         self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
 
         with self.assertRaises(NotEnoughFundsForMultisigTx):
-            transaction_service.send_multisig_tx(
+            transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -116,8 +105,8 @@ class TestTransactionService(TestSafeService):
                 gas_price,
                 gas_token,
                 refund_receiver,
-                signatures_packed,
-                tx_sender_private_key=accounts[0].privateKey
+                nonce,
+                signatures,
             )
 
         # Send something to the safe
@@ -128,7 +117,7 @@ class TestTransactionService(TestSafeService):
 
         bad_refund_receiver = get_eth_address_with_key()[0]
         with self.assertRaises(InvalidRefundReceiver):
-            transaction_service.send_multisig_tx(
+            transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -139,13 +128,13 @@ class TestTransactionService(TestSafeService):
                 gas_price,
                 gas_token,
                 bad_refund_receiver,
-                signatures_packed,
-                tx_sender_private_key=accounts[0].privateKey
+                nonce,
+                signatures,
             )
 
         invalid_gas_price = 0
         with self.assertRaises(RefundMustBeEnabled):
-            transaction_service.send_multisig_tx(
+            transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -156,12 +145,12 @@ class TestTransactionService(TestSafeService):
                 invalid_gas_price,
                 gas_token,
                 refund_receiver,
-                signatures_packed,
-                tx_sender_private_key=accounts[0].privateKey
+                nonce,
+                signatures,
             )
 
         with self.assertRaises(GasPriceTooLow):
-            transaction_service.send_multisig_tx(
+            transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -172,13 +161,31 @@ class TestTransactionService(TestSafeService):
                 gas_station.get_gas_prices().standard - 1,
                 gas_token,
                 refund_receiver,
-                signatures_packed,
-                tx_sender_private_key=accounts[0].privateKey
+                nonce,
+                signatures,
             )
 
-        owner0_balance = w3.eth.getBalance(owners[0])
+        with self.assertRaises(SignaturesNotSorted):
+            transaction_service.create_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                nonce,
+                reversed(signatures)
+            )
 
-        sent_tx_hash, tx = transaction_service.send_multisig_tx(
+        sender = transaction_service.tx_sender_account.address
+        sender_balance = w3.eth.getBalance(sender)
+        safe_balance = w3.eth.getBalance(my_safe_address)
+
+        safe_multisig_tx = transaction_service.create_multisig_tx(
             my_safe_address,
             to,
             value,
@@ -189,20 +196,21 @@ class TestTransactionService(TestSafeService):
             gas_price,
             gas_token,
             refund_receiver,
-            signatures_packed,
-            tx_sender_private_key=accounts[0].privateKey
+            nonce,
+            signatures,
         )
 
-        tx_receipt = w3.eth.waitForTransactionReceipt(sent_tx_hash)
+        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.tx_hash)
         self.assertTrue(tx_receipt['status'])
-        owner0_new_balance = w3.eth.getBalance(owners[0])
+        self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
+        self.assertEqual(w3.toChecksumAddress(tx_receipt['to']), my_safe_address)
+
+        sender_new_balance = w3.eth.getBalance(sender)
         gas_used = tx_receipt['gasUsed']
-        gas_cost = gas_used * gas_price
-        estimated_payment = (data_gas + gas_used) * gas_price
-        real_payment = owner0_new_balance - owner0_balance - gas_cost
-        # Estimated payment will be bigger, because it uses all the tx gas. Real payment only uses gas left
-        # in the point of calculation of the payment, so it will be slightly lower
-        self.assertGreater(estimated_payment, real_payment)
-        self.assertGreater(real_payment, 0)
-        self.assertTrue(owner0_new_balance > owner0_balance - tx['gas'] * self.gas_price)
+        tx_fees = gas_used * gas_price
+        estimated_refund = (safe_multisig_tx.data_gas + safe_multisig_tx.safe_tx_gas) * safe_multisig_tx.gas_price
+        real_refund = safe_balance - w3.eth.getBalance(my_safe_address) - value
+        # Real refund can be less if not all the `safe_tx_gas` is used
+        self.assertGreaterEqual(estimated_refund, real_refund)
+        self.assertEqual(sender_new_balance, sender_balance - tx_fees + real_refund)
         self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)

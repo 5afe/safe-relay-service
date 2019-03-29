@@ -32,8 +32,7 @@ from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeResponseSerializer)
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
-from .services.transaction_service import (SafeMultisigTxError,
-                                           SafeMultisigTxExists,
+from .services.transaction_service import (SafeMultisigTxExists,
                                            TransactionServiceException,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
@@ -258,9 +257,9 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         if serializer.is_valid():
             data = serializer.validated_data
 
-            transaction_estimation = TransactionServiceProvider().estimate_tx_cost(address, data['to'], data['value'],
-                                                                                   data['data'], data['operation'],
-                                                                                   data['gas_token'])
+            transaction_estimation = TransactionServiceProvider().estimate_tx(address, data['to'], data['value'],
+                                                                              data['data'], data['operation'],
+                                                                              data['gas_token'])
             response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
@@ -345,6 +344,6 @@ class SafeMultisigTxView(ListAPIView):
                 except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
-                except SafeMultisigTxError as exc:
+                except TransactionServiceException as exc:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Error procesing tx: ' + str(exc))
