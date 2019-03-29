@@ -289,12 +289,10 @@ class TransactionService:
         self._check_safe_gas_price(gas_token, gas_price)
 
         # Make sure proxy contract is ours
-        # TODO Test this
         if not self.safe_service.check_proxy_code(safe_address):
             raise InvalidProxyContract(safe_address)
 
         # Make sure master copy is valid
-        # TODO Test this
         if not self.safe_service.check_master_copy(safe_address):
             raise InvalidMasterCopyAddress
 
