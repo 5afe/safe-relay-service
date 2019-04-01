@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from web3 import Web3
 
-from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
+from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx, EthereumTx
 
 
 @admin.register(SafeContract)
@@ -29,3 +29,8 @@ class SafeFundingAdmin(admin.ModelAdmin):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     list_display = ('safe', 'to', 'value', 'nonce', 'data')
+
+
+@admin.register(EthereumTx)
+class EthereumTxAdmin(admin.ModelAdmin):
+    list_display = ('tx_hash', 'nonce', 'to', '_from')

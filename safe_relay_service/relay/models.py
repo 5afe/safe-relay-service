@@ -176,6 +176,9 @@ class EthereumTx(models.Model):
     to = EthereumAddressField(null=True)
     value = Uint256Field()
 
+    def __str__(self):
+        return '{} from={} to={}'.format(self.tx_hash, self._from, self.to)
+
 
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str):
