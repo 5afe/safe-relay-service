@@ -2,15 +2,14 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.models import F
 
 
 def populate_ethereum_tx_foreign_key(apps, schema_editor):
     # We can't import the Person model directly as it may be a newer
     # version than this migration expects. We use the historical version.
     SafeMultisigTx = apps.get_model('relay', 'SafeMultisigTx')
-    for safe_multisig_tx in SafeMultisigTx.objects.all():
-        safe_multisig_tx.ethereum_tx = safe_multisig_tx.tx_hash
-        safe_multisig_tx.save()
+    SafeMultisigTx.objects.update(ethereum_tx=F('tx_hash'))
 
 
 class Migration(migrations.Migration):
