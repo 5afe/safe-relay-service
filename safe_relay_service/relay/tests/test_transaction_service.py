@@ -42,13 +42,11 @@ class TestTransactionService(TestSafeService):
 
         # The balance we will send to the safe
         safe_balance = w3.toWei(0.02, 'ether')
-        # Send something to the owner[0], who will be sending the tx
-        owner0_balance = safe_balance
 
         # Create Safe
         funder_account = self.ethereum_test_account
         funder = funder_account.address
-        accounts = [self.create_account(initial_wei=owner0_balance), self.create_account(initial_wei=owner0_balance)]
+        accounts = [self.create_account(), self.create_account()]
         # Signatures must be sorted!
         accounts.sort(key=lambda account: account.address.lower())
         owners = [x.address for x in accounts]
@@ -60,7 +58,7 @@ class TestTransactionService(TestSafeService):
         SafeContractFactory(address=my_safe_address)
 
         to = funder
-        value = safe_balance // 2
+        value = safe_balance // 4
         data = HexBytes('')
         operation = 0
         safe_tx_gas = 100000
@@ -101,7 +99,6 @@ class TestTransactionService(TestSafeService):
         # Check owners are the same
         contract_owners = my_safe_contract.functions.getOwners().call()
         self.assertEqual(set(contract_owners), set(owners))
-        self.assertEqual(w3.eth.getBalance(owners[0]), owner0_balance)
 
         invalid_proxy = self.deploy_example_erc20(1, NULL_ADDRESS)
         with self.assertRaises(InvalidProxyContract):
@@ -146,7 +143,6 @@ class TestTransactionService(TestSafeService):
                 nonce,
                 signatures,
             )
-
 
         with self.assertRaises(NotEnoughFundsForMultisigTx):
             transaction_service.create_multisig_tx(
@@ -286,6 +282,40 @@ class TestTransactionService(TestSafeService):
         self.assertGreaterEqual(estimated_refund, real_refund)
         self.assertEqual(sender_new_balance, sender_balance - tx_fees + real_refund)
         self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)
+
+        # Send again the tx and check that works
+        nonce += 1
+        value = 0
+        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address=my_safe_address,
+                                                                       to=to,
+                                                                       value=value,
+                                                                       data=data,
+                                                                       operation=operation,
+                                                                       safe_tx_gas=safe_tx_gas,
+                                                                       data_gas=data_gas,
+                                                                       gas_price=gas_price,
+                                                                       gas_token=gas_token,
+                                                                       refund_receiver=refund_receiver,
+                                                                       nonce=nonce)
+
+        signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
+
+        safe_multisig_tx = transaction_service.create_multisig_tx(
+            my_safe_address,
+            to,
+            value,
+            data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            refund_receiver,
+            nonce,
+            signatures,
+        )
+        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.tx_hash)
+        self.assertTrue(tx_receipt['status'])
 
     def test_estimate_tx(self):
         transaction_service = self.transaction_service
