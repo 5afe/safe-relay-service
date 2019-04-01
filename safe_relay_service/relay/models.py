@@ -189,7 +189,7 @@ class SafeMultisigTxManager(models.Manager):
 class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
-    # ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
