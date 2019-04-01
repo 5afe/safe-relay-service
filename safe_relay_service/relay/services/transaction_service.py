@@ -14,7 +14,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 
-from ..models import SafeContract, SafeMultisigTx
+from ..models import EthereumTx, SafeContract, SafeMultisigTx
 from ..repositories.redis_repository import RedisRepository
 
 logger = getLogger(__name__)
@@ -236,8 +236,21 @@ class TransactionService:
         except SafeServiceException as exc:
             raise TransactionServiceException(str(exc)) from exc
 
+        ethereum_tx = EthereumTx.objects.create(
+            tx_hash=tx_hash,
+            block_number=None,
+            _from=None,
+            gas=0,
+            gas_price=0,
+            data=None,
+            nonce=0,
+            to=None,
+            value=0
+        )
+
         return SafeMultisigTx.objects.create(
             safe=safe_contract,
+            ethereum_tx=ethereum_tx,
             to=to,
             value=value,
             data=data,

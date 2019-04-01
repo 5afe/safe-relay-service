@@ -2,7 +2,8 @@ from django.contrib import admin
 
 from web3 import Web3
 
-from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx, EthereumTx
+from .models import (EthereumTx, SafeContract, SafeCreation, SafeFunding,
+                     SafeMultisigTx)
 
 
 @admin.register(SafeContract)
