@@ -165,6 +165,18 @@ class SafeFunding(TimeStampedModel):
         return s
 
 
+class EthereumTx(models.Model):
+    tx_hash = Sha3HashField(unique=True, primary_key=True)
+    block_number = models.IntegerField(null=True, default=None)  # If mined
+    _from = EthereumAddressField(null=True)
+    gas = Uint256Field()
+    gas_price = Uint256Field()
+    data = models.BinaryField(null=True)
+    nonce = Uint256Field()
+    to = EthereumAddressField(null=True)
+    value = Uint256Field()
+
+
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str):
         tx = self.filter(safe=safe_address).order_by('-nonce').first()
@@ -174,6 +186,7 @@ class SafeMultisigTxManager(models.Manager):
 class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
+    # ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
