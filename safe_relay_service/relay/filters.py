@@ -25,7 +25,7 @@ class SafeMultisigTxFilter(filters.FilterSet):
             'nonce': ['lt', 'gt', 'exact'],
             'gas_token': ['exact'],
             'safe_tx_hash': ['exact'],
-            'tx_hash': ['exact'],
+            'ethereum_tx__tx_hash': ['exact'],
         }
         filter_overrides = {
             Uint256Field: {

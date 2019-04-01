@@ -13,7 +13,7 @@ from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import SafeCreation2, SafeFunding
+from safe_relay_service.relay.models import SafeCreation2, SafeFunding, EthereumTx
 from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
@@ -149,8 +149,15 @@ class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
         fields = ('tx_hash', 'block_number')
 
 
+class EthereumTxSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EthereumTx
+        exclude = ()
+
+
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    ethereum_tx = EthereumTxSerializer()
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
     timestamp = serializers.DateTimeField(source='created')
@@ -160,11 +167,10 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
     gas_price = serializers.IntegerField(min_value=0)
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     refund_receiver = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    gas = serializers.IntegerField(min_value=0)
     nonce = serializers.IntegerField(min_value=0)
     safe_tx_hash = Sha3HashField()
-    tx_hash = Sha3HashField()
-    transaction_hash = Sha3HashField(source='tx_hash')  # Retro compatibility
+    tx_hash = serializers.SerializerMethodField()
+    transaction_hash = serializers.SerializerMethodField(method_name='get_tx_hash')  # Retro compatibility
 
     def get_operation(self, obj):
         """
@@ -173,6 +179,12 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
         :return: serialized queryset
         """
         return SafeOperation(obj.operation).name
+
+    def get_tx_hash(self, obj):
+        tx_hash = obj.ethereum_tx.tx_hash
+        if tx_hash and isinstance(tx_hash, bytes):
+            return tx_hash.hex()
+        return tx_hash
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):

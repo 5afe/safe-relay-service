@@ -1,3 +1,4 @@
+from hexbytes import HexBytes
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
@@ -239,13 +240,13 @@ class TransactionService:
         ethereum_tx = EthereumTx.objects.create(
             tx_hash=tx_hash,
             block_number=None,
-            _from=None,
-            gas=0,
-            gas_price=0,
-            data=None,
-            nonce=0,
-            to=None,
-            value=0
+            _from=tx['from'],
+            gas=tx['gas'],
+            gas_price=tx['gasPrice'],
+            data=HexBytes(tx['data']),
+            nonce=tx['nonce'],
+            to=tx.get('to'),
+            value=tx['value'],
         )
 
         return SafeMultisigTx.objects.create(
@@ -262,10 +263,7 @@ class TransactionService:
             refund_receiver=refund_receiver,
             nonce=nonce,
             signatures=signatures_packed,
-            gas=tx['gas'],
             safe_tx_hash=safe_tx_hash,
-            tx_hash=tx_hash,
-            tx_mined=False
         )
 
     def _send_multisig_tx(self,

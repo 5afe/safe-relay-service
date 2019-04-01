@@ -60,7 +60,7 @@ class EthereumTxFactory(factory.DjangoModelFactory):
     class Meta:
         model = EthereumTx
 
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='safe_tx_hash%d' % n))
+    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='ethereum_tx_hash%d' % n))
     block_number = 0
     _from = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
     gas = factory.fuzzy.FuzzyInteger(1000, 5000)
@@ -86,7 +86,5 @@ class SafeMultisigTxFactory(factory.DjangoModelFactory):
     gas_price = factory.fuzzy.FuzzyInteger(1, 100)
     gas_token = None
     refund_receiver = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
-    gas = factory.fuzzy.FuzzyInteger(25000, 100000)
     nonce = factory.Sequence(lambda n: n)
     safe_tx_hash = factory.Sequence(lambda n: Web3.sha3(text='safe_tx_hash%d' % n))
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='tx_hash%d' % n))

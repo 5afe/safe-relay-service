@@ -200,14 +200,12 @@ class SafeMultisigTx(TimeStampedModel):
     gas_token = EthereumAddressField(null=True)
     refund_receiver = EthereumAddressField(null=True)
     signatures = models.BinaryField()
-    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
     safe_tx_hash = Sha3HashField(unique=True, null=True)
-    tx_hash = Sha3HashField(unique=True)
-    tx_mined = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (('safe', 'nonce'),)
 
     def __str__(self):
-        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
+        return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
+                                          self.safe.address)

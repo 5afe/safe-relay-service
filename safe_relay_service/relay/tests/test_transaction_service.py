@@ -268,7 +268,7 @@ class TestTransactionService(TestSafeService):
             signatures,
         )
 
-        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.tx_hash)
+        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.ethereum_tx.tx_hash)
         self.assertTrue(tx_receipt['status'])
         self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
         self.assertEqual(w3.toChecksumAddress(tx_receipt['to']), my_safe_address)
@@ -314,7 +314,7 @@ class TestTransactionService(TestSafeService):
             nonce,
             signatures,
         )
-        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.tx_hash)
+        tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.ethereum_tx.tx_hash)
         self.assertTrue(tx_receipt['status'])
 
     def test_estimate_tx(self):
