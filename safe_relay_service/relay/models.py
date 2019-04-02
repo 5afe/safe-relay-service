@@ -168,6 +168,7 @@ class SafeFunding(TimeStampedModel):
 class EthereumTx(models.Model):
     tx_hash = Sha3HashField(unique=True, primary_key=True)
     block_number = models.IntegerField(null=True, default=None)  # If mined
+    #TODO Maybe add `gasUsed`
     _from = EthereumAddressField(null=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
