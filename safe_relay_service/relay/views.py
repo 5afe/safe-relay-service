@@ -14,13 +14,13 @@ from rest_framework.views import APIView, exception_handler
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import SafeServiceException
+from gnosis.safe.exceptions import SafeServiceException
 from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
+from .models import SafeContract, SafeFunding, SafeMultisigTx
 from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
@@ -32,8 +32,7 @@ from .serializers import (SafeCreationEstimateResponseSerializer,
                           SafeResponseSerializer)
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
-from .services.transaction_service import (SafeMultisigTxError,
-                                           SafeMultisigTxExists,
+from .services.transaction_service import (SafeMultisigTxExists,
                                            TransactionServiceException,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
@@ -81,19 +80,22 @@ class AboutView(APIView):
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
+                'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
-                'NOTIFICATION_SERVICE_URI': settings.NOTIFICATION_SERVICE_URI,
                 'NOTIFICATION_SERVICE_PASS': bool(settings.NOTIFICATION_SERVICE_PASS),
+                'NOTIFICATION_SERVICE_URI': settings.NOTIFICATION_SERVICE_URI,
+                'SAFE_ACCOUNTS_BALANCE_WARNING': settings.SAFE_ACCOUNTS_BALANCE_WARNING,
                 'SAFE_CHECK_DEPLOYER_FUNDED_DELAY': settings.SAFE_CHECK_DEPLOYER_FUNDED_DELAY,
                 'SAFE_CHECK_DEPLOYER_FUNDED_RETRIES': settings.SAFE_CHECK_DEPLOYER_FUNDED_RETRIES,
+                'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
                 'SAFE_FIXED_CREATION_COST': settings.SAFE_FIXED_CREATION_COST,
                 'SAFE_FUNDER_MAX_ETH': settings.SAFE_FUNDER_MAX_ETH,
                 'SAFE_FUNDER_PUBLIC_KEY': safe_funder_public_key,
                 'SAFE_FUNDING_CONFIRMATIONS': settings.SAFE_FUNDING_CONFIRMATIONS,
-                'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
-                'SAFE_CONTRACT_ADDRESS': settings.SAFE_CONTRACT_ADDRESS,
-                'SAFE_VALID_CONTRACT_ADDRESSES': settings.SAFE_VALID_CONTRACT_ADDRESSES,
+                'SAFE_OLD_CONTRACT_ADDRESS': settings.SAFE_OLD_CONTRACT_ADDRESS,
+                'SAFE_PROXY_FACTORY_ADDRESS': settings.SAFE_PROXY_FACTORY_ADDRESS,
                 'SAFE_TX_SENDER_PUBLIC_KEY': safe_sender_public_key,
+                'SAFE_VALID_CONTRACT_ADDRESSES': settings.SAFE_VALID_CONTRACT_ADDRESSES,
             }
         }
         return Response(content)
@@ -181,8 +183,8 @@ class SafeView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeFunding.objects.get(safe=address, safe_deployed=True)
-            except SafeFunding.DoesNotExist:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
@@ -221,8 +223,8 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeCreation.objects.get(safe=address)
-            except SafeCreation.DoesNotExist:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             fund_deployer_task.delay(address)
@@ -255,9 +257,9 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         if serializer.is_valid():
             data = serializer.validated_data
 
-            transaction_estimation = TransactionServiceProvider().estimate_tx_cost(address, data['to'], data['value'],
-                                                                                   data['data'], data['operation'],
-                                                                                   data['gas_token'])
+            transaction_estimation = TransactionServiceProvider().estimate_tx(address, data['to'], data['value'],
+                                                                              data['data'], data['operation'],
+                                                                              data['gas_token'])
             response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
@@ -342,6 +344,6 @@ class SafeMultisigTxView(ListAPIView):
                 except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
-                except SafeMultisigTxError as exc:
+                except TransactionServiceException as exc:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Error procesing tx: ' + str(exc))

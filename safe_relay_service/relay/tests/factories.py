@@ -10,7 +10,8 @@ from gnosis.eth.constants import (SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from gnosis.eth.utils import get_eth_address_with_key
 
-from ..models import SafeContract, SafeCreation, SafeFunding, SafeMultisigTx
+from ..models import (EthereumTx, SafeContract, SafeCreation, SafeFunding,
+                      SafeMultisigTx)
 
 logger = getLogger(__name__)
 
@@ -55,11 +56,27 @@ class SafeFundingFactory(factory.DjangoModelFactory):
     safe = factory.SubFactory(SafeContractFactory)
 
 
+class EthereumTxFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = EthereumTx
+
+    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='ethereum_tx_hash%d' % n))
+    block_number = 0
+    _from = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
+    gas = factory.fuzzy.FuzzyInteger(1000, 5000)
+    gas_price = factory.fuzzy.FuzzyInteger(1, 100)
+    data = factory.Sequence(lambda n: HexBytes('%x' % (n + 1000)))
+    nonce = factory.Sequence(lambda n: n)
+    to = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
+    value = factory.fuzzy.FuzzyInteger(0, 1000)
+
+
 class SafeMultisigTxFactory(factory.DjangoModelFactory):
     class Meta:
         model = SafeMultisigTx
 
     safe = factory.SubFactory(SafeContractFactory)
+    ethereum_tx = factory.SubFactory(EthereumTxFactory)
     to = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
     value = factory.fuzzy.FuzzyInteger(0, 1000)
     data = factory.Sequence(lambda n: HexBytes('%x' % (n + 1000)))
@@ -69,7 +86,5 @@ class SafeMultisigTxFactory(factory.DjangoModelFactory):
     gas_price = factory.fuzzy.FuzzyInteger(1, 100)
     gas_token = None
     refund_receiver = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
-    gas = factory.fuzzy.FuzzyInteger(25000, 100000)
     nonce = factory.Sequence(lambda n: n)
     safe_tx_hash = factory.Sequence(lambda n: Web3.sha3(text='safe_tx_hash%d' % n))
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='tx_hash%d' % n))

@@ -1,6 +1,6 @@
 import math
 from logging import getLogger
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -157,7 +157,7 @@ class GasStation:
 
 
 class GasStationMock(GasStation):
-    def __init__(self, gas_price: Union[None, int] = None):
+    def __init__(self, gas_price: Optional[int] = None):
         if gas_price is None:
             self.lowest = 1
             self.safe_low = 5
@@ -166,10 +166,10 @@ class GasStationMock(GasStation):
             self.fastest = 50
         else:
             self.lowest = gas_price
-            self.safe_low = gas_price
-            self.standard = gas_price
-            self.fast = gas_price
-            self.fastest = gas_price
+            self.safe_low = gas_price + 1
+            self.standard = gas_price + 2
+            self.fast = gas_price + 3
+            self.fastest = gas_price + 4
 
     def calculate_gas_prices(self) -> GasPrice:
         return GasPrice(lowest=self.lowest,

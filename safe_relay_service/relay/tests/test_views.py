@@ -11,6 +11,7 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeService
+from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.utils import generate_valid_s
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
@@ -329,7 +330,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         tx_hash = response.json()['transactionHash'][2:]  # Remove leading 0x
-        safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=tx_hash)
+        safe_multisig_tx = SafeMultisigTx.objects.get(ethereum_tx__tx_hash=tx_hash)
         self.assertEqual(safe_multisig_tx.to, to)
         self.assertEqual(safe_multisig_tx.value, value)
         self.assertEqual(safe_multisig_tx.data, tx_data)
@@ -340,7 +341,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertEqual(safe_multisig_tx.gas_token, None)
         self.assertEqual(safe_multisig_tx.nonce, nonce)
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        signatures_packed = SafeService.signatures_to_bytes(signature_pairs)
+        signatures_packed = signatures_to_bytes(signature_pairs)
         self.assertEqual(bytes(safe_multisig_tx.signatures), signatures_packed)
 
         # Send the same tx again
@@ -366,14 +367,15 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertIsNone(response_tx['gasToken'])
         self.assertEqual(response_tx['data'], safe_multisig_tx.data.hex())
         self.assertEqual(response_tx['dataGas'], safe_multisig_tx.data_gas)
-        self.assertEqual(response_tx['gas'], safe_multisig_tx.gas)
+        self.assertIsInstance(response_tx['ethereumTx']['gas'], str)
+        self.assertEqual(int(response_tx['ethereumTx']['gas']), safe_multisig_tx.ethereum_tx.gas)
         self.assertEqual(response_tx['nonce'], safe_multisig_tx.nonce)
         self.assertEqual(response_tx['operation'], SafeOperation(safe_multisig_tx.operation).name)
         self.assertEqual(response_tx['refundReceiver'], safe_multisig_tx.refund_receiver)
         self.assertEqual(response_tx['safeTxGas'], safe_multisig_tx.safe_tx_gas)
         self.assertEqual(response_tx['safeTxHash'], safe_multisig_tx.safe_tx_hash.hex())
         self.assertEqual(response_tx['to'], safe_multisig_tx.to)
-        self.assertEqual(response_tx['txHash'], safe_multisig_tx.tx_hash.hex())
+        self.assertEqual(response_tx['txHash'], safe_multisig_tx.ethereum_tx.tx_hash.hex())
         self.assertEqual(response_tx['value'], safe_multisig_tx.value)
 
         safe_multisig_tx2 = SafeMultisigTxFactory(safe=safe)
@@ -503,7 +505,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         tx_hash = response.json()['transactionHash'][2:]  # Remove leading 0x
-        safe_multisig_tx = SafeMultisigTx.objects.get(tx_hash=tx_hash)
+        safe_multisig_tx = SafeMultisigTx.objects.get(ethereum_tx__tx_hash=tx_hash)
         self.assertEqual(safe_multisig_tx.to, to)
         self.assertEqual(safe_multisig_tx.value, value)
         self.assertEqual(safe_multisig_tx.data, tx_data)

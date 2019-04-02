@@ -1,27 +1,26 @@
 import logging
-from typing import Union
+from typing import Optional
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from gnosis.eth import EthereumService
 from gnosis.eth.constants import (NULL_ADDRESS, SIGNATURE_S_MAX_VALUE,
                                   SIGNATURE_S_MIN_VALUE)
 from gnosis.eth.django.serializers import (EthereumAddressField,
                                            HexadecimalField, Sha3HashField,
                                            TransactionResponseSerializer)
-from gnosis.safe import SafeOperation, SafeService
+from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import SafeFunding
+from safe_relay_service.relay.models import SafeCreation2, SafeFunding, EthereumTx
 from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
 
 
 # TODO Refactor
-def validate_gas_token(address: Union[str, None]) -> str:
+def validate_gas_token(address: Optional[str]) -> str:
     """
     Raises ValidationError if gas token is not valid
     :param address: Gas Token address
@@ -55,6 +54,24 @@ class SafeCreationSerializer(serializers.Serializer):
         return data
 
 
+class SafeCreation2Serializer(serializers.Serializer):
+    salt_nonce = serializers.IntegerField(min_value=0,
+                                          max_value=2**256-1)
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+    threshold = serializers.IntegerField(min_value=1)
+    payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+
+    def validate(self, data):
+        super().validate(data)
+        owners = data['owners']
+        threshold = data['threshold']
+
+        if threshold > len(owners):
+            raise ValidationError("Threshold cannot be greater than number of owners")
+
+        return data
+
+
 class SafeCreationEstimateSerializer(serializers.Serializer):
     number_owners = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
@@ -64,31 +81,10 @@ class SafeCreationEstimateSerializer(serializers.Serializer):
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
-    def validate(self, data):
-        super().validate(data)
-
-        safe_address = data['safe']
-        signatures = data['signatures']
-        refund_receiver = data.get('refund_receiver')
+    def validate_refund_receiver(self, refund_receiver):
         if refund_receiver and refund_receiver != NULL_ADDRESS:
             raise ValidationError('Refund Receiver is not configurable')
-
-        tx_hash = SafeService.get_hash_for_safe_tx(safe_address, data['to'], data['value'], data['data'],
-                                                   data['operation'], data['safe_tx_gas'], data['data_gas'],
-                                                   data['gas_price'], data['gas_token'], data['refund_receiver'],
-                                                   data['nonce'])
-
-        owners = [EthereumService.get_signing_address(tx_hash,
-                                                      signature['v'],
-                                                      signature['r'],
-                                                      signature['s']) for signature in signatures]
-
-        signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
-        if not SafeService.check_hash(tx_hash, SafeService.signatures_to_bytes(signature_pairs), owners):
-            raise ValidationError('Signatures are not sorted by owner: %s' % owners)
-
-        data['owners'] = owners
-        return data
+        return refund_receiver
 
 
 # ================================================ #
@@ -129,14 +125,39 @@ class SafeCreationResponseSerializer(serializers.Serializer):
     funder = EthereumAddressField()
 
 
+class SafeCreation2ResponseSerializer(serializers.Serializer):
+    safe = EthereumAddressField()
+    master_copy = EthereumAddressField()
+    proxy_factory = EthereumAddressField()
+    payment_token = EthereumAddressField(allow_zero_address=True)
+    payment = serializers.IntegerField(min_value=0)
+    payment_receiver = EthereumAddressField(allow_zero_address=True)
+    setup_data = HexadecimalField()
+    gas_estimated = serializers.IntegerField(min_value=0)
+    gas_price_estimated = serializers.IntegerField(min_value=0)
+
+
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = SafeFunding
         fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
 
 
+class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafeCreation2
+        fields = ('tx_hash', 'block_number')
+
+
+class EthereumTxSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EthereumTx
+        exclude = ()
+
+
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    ethereum_tx = EthereumTxSerializer()
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
     timestamp = serializers.DateTimeField(source='created')
@@ -146,11 +167,10 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
     gas_price = serializers.IntegerField(min_value=0)
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     refund_receiver = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    gas = serializers.IntegerField(min_value=0)
     nonce = serializers.IntegerField(min_value=0)
     safe_tx_hash = Sha3HashField()
-    tx_hash = Sha3HashField()
-    transaction_hash = Sha3HashField(source='tx_hash')  # Retro compatibility
+    tx_hash = serializers.SerializerMethodField()
+    transaction_hash = serializers.SerializerMethodField(method_name='get_tx_hash')  # Retro compatibility
 
     def get_operation(self, obj):
         """
@@ -159,6 +179,12 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
         :return: serialized queryset
         """
         return SafeOperation(obj.operation).name
+
+    def get_tx_hash(self, obj):
+        tx_hash = obj.ethereum_tx.tx_hash
+        if tx_hash and isinstance(tx_hash, bytes):
+            return tx_hash.hex()
+        return tx_hash
 
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):

@@ -88,7 +88,7 @@ class TokenRepository:
         """
         return "https://raw.githubusercontent.com/TrustWallet/tokens/master/images/" + token_address.lower() + ".png"
 
-    def get_tokens(self, pages: int=1) -> List[any]:
+    def get_tokens(self, pages: int = 1) -> List[any]:
         all_tokens = []
         for page in range(1, pages + 1):
             all_tokens.extend(self.__pull_token_info(page))

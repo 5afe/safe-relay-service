@@ -3,7 +3,7 @@ from django.conf import settings
 from redis import Redis
 
 
-class RedisService:
+class RedisRepository:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super().__new__(cls)

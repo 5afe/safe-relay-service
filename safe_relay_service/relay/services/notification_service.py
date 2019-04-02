@@ -1,6 +1,6 @@
 import json
 from logging import getLogger
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import requests
@@ -28,7 +28,7 @@ class NotificationServiceProvider:
 
 
 class NotificationService:
-    def __init__(self, base_uri: str, password: str, headers: Union[Dict, None]=None):
+    def __init__(self, base_uri: str, password: str, headers: Optional[Dict] = None):
         self.base_uri = base_uri
         self.notification_endpoint_uri = urljoin(base_uri, '/api/v1/simple-notifications/')
         self.notification_pass = password

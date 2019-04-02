@@ -3,7 +3,7 @@ from django.db import models
 
 from model_utils.models import TimeStampedModel
 
-from gnosis.eth import EthereumServiceProvider
+from gnosis.eth import EthereumClientProvider
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
@@ -20,7 +20,7 @@ class SafeContract(TimeStampedModel):
         return SafeServiceProvider().check_master_copy(self.address)
 
     def get_balance(self, block_identifier=None):
-        return EthereumServiceProvider().get_balance(address=self.address, block_identifier=block_identifier)
+        return EthereumClientProvider().get_balance(address=self.address, block_identifier=block_identifier)
 
     def __str__(self):
         return self.address
@@ -53,6 +53,54 @@ class SafeCreation(TimeStampedModel):
         :return: int: Cost to deploy the contract in wei
         """
         return self.gas * self.gas_price
+
+
+class SafeCreation2Manager(models.Manager):
+    def pending_to_check(self):
+        return self.exclude(
+            tx_hash=None,
+        ).filter(
+            block_number=None,
+        ).select_related(
+            'safe'
+        )
+
+    def deployed_and_checked(self):
+        return self.exclude(
+            tx_hash=None,
+            block_number=None,
+        ).select_related(
+            'safe'
+        )
+
+
+class SafeCreation2(TimeStampedModel):
+    objects = SafeCreation2Manager()
+    safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
+    master_copy = EthereumAddressField()
+    proxy_factory = EthereumAddressField()
+    salt_nonce = Uint256Field()
+    owners = ArrayField(EthereumAddressField())
+    threshold = Uint256Field()
+    # to = EthereumAddressField(null=True)  # Contract address for optional delegate call
+    # data = models.BinaryField(null=True)  # Data payload for optional delegate call
+    payment_token = EthereumAddressField(null=True)
+    payment = Uint256Field()
+    payment_receiver = EthereumAddressField(null=True)  # If empty, `tx.origin` is used
+    setup_data = models.BinaryField(null=True)  # Binary data for safe `setup` call
+    gas_estimated = Uint256Field()
+    gas_price_estimated = Uint256Field()
+    tx_hash = Sha3HashField(unique=True, null=True, default=None)
+    block_number = models.IntegerField(null=True, default=None)  # If mined
+
+    def __str__(self):
+        return 'Safe {} - Deployer {}'.format(self.safe, self.deployer)
+
+    def wei_estimated_deploy_cost(self) -> int:
+        """
+        :return: int: Cost to deploy the contract in wei
+        """
+        return self.gas_estimated * self.gas_price_estimated
 
 
 class SafeFundingManager(models.Manager):
@@ -117,6 +165,22 @@ class SafeFunding(TimeStampedModel):
         return s
 
 
+class EthereumTx(models.Model):
+    tx_hash = Sha3HashField(unique=True, primary_key=True)
+    block_number = models.IntegerField(null=True, default=None)  # If mined
+    #TODO Maybe add `gasUsed`
+    _from = EthereumAddressField(null=True)
+    gas = Uint256Field()
+    gas_price = Uint256Field()
+    data = models.BinaryField(null=True)
+    nonce = Uint256Field()
+    to = EthereumAddressField(null=True)
+    value = Uint256Field()
+
+    def __str__(self):
+        return '{} from={} to={}'.format(self.tx_hash, self._from, self.to)
+
+
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str):
         tx = self.filter(safe=safe_address).order_by('-nonce').first()
@@ -126,6 +190,7 @@ class SafeMultisigTxManager(models.Manager):
 class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
@@ -136,14 +201,12 @@ class SafeMultisigTx(TimeStampedModel):
     gas_token = EthereumAddressField(null=True)
     refund_receiver = EthereumAddressField(null=True)
     signatures = models.BinaryField()
-    gas = Uint256Field()  # Gas for the tx that executes the multisig tx
     nonce = Uint256Field()
     safe_tx_hash = Sha3HashField(unique=True, null=True)
-    tx_hash = Sha3HashField(unique=True)
-    tx_mined = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (('safe', 'nonce'),)
 
     def __str__(self):
-        return '{} - {} - Safe {}'.format(self.tx_hash, SafeOperation(self.operation).name, self.safe.address)
+        return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
+                                          self.safe.address)

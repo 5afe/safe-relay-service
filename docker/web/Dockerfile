@@ -28,4 +28,5 @@ RUN set -ex \
 
 COPY . .
 
+EXPOSE 8888
 ENTRYPOINT ["/tini", "--"]
