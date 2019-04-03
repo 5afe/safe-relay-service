@@ -1,8 +1,8 @@
-from hexbytes import HexBytes
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from eth_account import Account
+from hexbytes import HexBytes
 from redis import Redis
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
