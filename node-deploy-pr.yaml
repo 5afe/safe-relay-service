@@ -37,7 +37,9 @@ spec:
         - docker/web/run_web.sh
         envFrom:
         - configMapRef:
-            name: groundhog-relay-dev
+            name: weatherman-config-stage
+        - secretRef:
+            name: weatherman-secrets-stage
         ports:
         - containerPort: 8000
         resources: {}
