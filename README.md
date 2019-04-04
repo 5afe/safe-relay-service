@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/gnosis/safe-relay-service.svg?branch=master)](https://travis-ci.org/gnosis/safe-relay-service)
 [![Coverage Status](https://coveralls.io/repos/github/gnosis/safe-relay-service/badge.svg?branch=master)](https://coveralls.io/github/gnosis/safe-relay-service?branch=master)
-![Python 3.6](https://img.shields.io/badge/Python-3.6-blue.svg)
+![Python 3.7](https://img.shields.io/badge/Python-3.7-blue.svg)
 ![Django 2](https://img.shields.io/badge/Django-2-blue.svg)
 
 # Gnosis Safe Relay Service
