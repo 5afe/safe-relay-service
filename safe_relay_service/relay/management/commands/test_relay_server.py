@@ -41,6 +41,7 @@ class Command(BaseCommand):
     base_url: str
     w3: Web3
     main_account: Account
+    main_account_nonce: int
 
     help = 'Do a basic testing of a deployed safe relay service ' \
            'You need to provide a valid account for the net you are testing'
@@ -76,6 +77,7 @@ class Command(BaseCommand):
 
         self.w3 = Web3(HTTPProvider(options['node_url']))
         self.main_account = Account.privateKeyToAccount(options['private_key'])
+        self.main_account_nonce = self.w3.eth.getTransactionCount(self.main_account.address, 'pending')
         main_account_balance = self.w3.eth.getBalance(self.main_account.address)
         self.stdout.write(self.style.SUCCESS('Using %s as main account with balance=%d' % (self.main_account.address,
                                                                                            main_account_balance)))
@@ -95,11 +97,36 @@ class Command(BaseCommand):
         accounts.sort(key=lambda acc: acc.address.lower())
         owners = [account.address for account in accounts]
 
-        safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, create2=create2)
-        self.fund_safe(safe_address, payment, payment_token)
-        safe_info = self.check_safe_deployed(safe_address, owners, master_copy_address)
-        safe_version = safe_info['version']
-        self.send_safe_tx(safe_address, safe_version, accounts, payment_token)
+        if multiple_txs:
+            safe_addresses = []
+            self.stdout.write(self.style.SUCCESS('Creating multiple safes'))
+            for _ in range(10):
+                safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token,
+                                                         create2=create2)
+                self.fund_safe(safe_address, payment, payment_token, wait_for_receipt=False)
+                safe_addresses.append(safe_address)
+
+            safe_versions = []
+            for safe_address in safe_addresses:
+                safe_info = self.check_safe_deployed(safe_address, owners, master_copy_address)
+                safe_versions.append(safe_info['version'])
+
+            self.stdout.write(self.style.SUCCESS('Every safe was deployed and checked. Sending txs'))
+            tx_hashes = []
+            for safe_address, safe_version in zip(safe_addresses, safe_versions):
+                tx_hashes.append(self.send_safe_tx(safe_address, safe_version, accounts, payment_token,
+                                                   wait_for_receipt=False))
+
+            for tx_hash in tx_hashes:
+                assert self.w3.eth.waitForTransactionReceipt(tx_hash,
+                                                             timeout=500).status == 1, 'Error on tx-hash=%s' % tx_hash
+            self.stdout.write(self.style.SUCCESS('Success with tx-hash=%s' % tx_hash))
+        else:
+            safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, create2=create2)
+            self.fund_safe(safe_address, payment, payment_token)
+            safe_info = self.check_safe_deployed(safe_address, owners, master_copy_address)
+            safe_version = safe_info['version']
+            self.send_safe_tx(safe_address, safe_version, accounts, payment_token)
 
     def create_safe(self, owners: List[Account], threshold: int = 2,
                     payment_token: Optional[None] = None, create2: bool = True):
@@ -127,18 +154,22 @@ class Command(BaseCommand):
         safe_address, payment = r.json()['safe'], int(r.json()['payment'])
         return safe_address, payment
 
-    def fund_safe(self, safe_address, payment, payment_token: Optional[None] = None):
+    def fund_safe(self, safe_address, payment, payment_token: Optional[None] = None, wait_for_receipt: bool = True):
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         if payment_token:
-            tx_hash = send_token(self.w3, self.main_account, safe_address, payment, payment_token)
+            tx_hash = send_token(self.w3, self.main_account, safe_address, payment, payment_token,
+                                 nonce=self.main_account_nonce)
+            self.main_account_nonce += 1
             self.stdout.write(self.style.SUCCESS('Sent payment of payment-token=%s, waiting for '
                                                  'receipt with tx-hash=%s' % (payment_token, tx_hash.hex())))
             self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
 
-        tx_hash = send_eth(self.w3, self.main_account, safe_address, payment * 2)
+        tx_hash = send_eth(self.w3, self.main_account, safe_address, payment * 2, nonce=self.main_account_nonce)
+        self.main_account_nonce += 1
         self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
-        self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
-        self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
+        if wait_for_receipt:
+            self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
         signal_url = self.get_signal_url(safe_address)
         r = requests.put(signal_url)
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
@@ -150,7 +181,7 @@ class Command(BaseCommand):
                 break
             time.sleep(10)
         # Check safe was created successfully
-        self.stdout.write(self.style.SUCCESS('Safe was deployed'))
+        self.stdout.write(self.style.SUCCESS('Safe=%s was deployed' % safe_address))
         r = requests.get(self.get_safe_url(safe_address))
         assert r.ok, "Safe deployed is not working"
         safe_info = r.json()
@@ -162,7 +193,7 @@ class Command(BaseCommand):
         return safe_info
 
     def send_safe_tx(self, safe_address: str, safe_version: str, accounts: List[Account],
-                     payment_token: Optional[str] = None) -> bytes:
+                     payment_token: Optional[str] = None, wait_for_receipt: bool = True) -> bytes:
         safe_balance = self.w3.eth.getBalance(safe_address)
         tx = {
             'to': self.main_account.address,
@@ -213,12 +244,16 @@ class Command(BaseCommand):
 
         multisig_tx_hash = r.json()['txHash']
         self.stdout.write(self.style.SUCCESS('Tx with tx-hash=%s was successful' % multisig_tx_hash))
-        self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
+        if wait_for_receipt:
+            self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
         return multisig_tx_hash
 
     def send_multiple_txs(self, safe_address: str, safe_version: str, accounts: List[Account],
                           payment_token: Optional[str] = None, number_txs: int = 100) -> List[bytes]:
-        tx_hash = send_eth(self.w3, self.main_account, safe_address, self.w3.toWei(1, 'ether'))
+        tx_hash = send_eth(self.w3, self.main_account, safe_address, self.w3.toWei(1, 'ether'),
+                           nonce=self.main_account_nonce)
+        self.main_account_nonce += 1
+
         self.stdout.write(self.style.SUCCESS('Sent 1 ether for testing sending multiple txs, '
                                              'waiting for receipt with tx-hash=%s' % tx_hash.hex()))
         self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
