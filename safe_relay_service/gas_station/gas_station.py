@@ -46,7 +46,7 @@ class GasStation:
         self.cache_timeout = cache_timeout_seconds
         self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
-            if self.w3.net.chainId != 1:
+            if self.w3.net.version != 1:
                 self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
             # For tests using dummy connections (like IPC)
         except (ConnectionError, FileNotFoundError):
