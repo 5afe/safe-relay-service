@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 from django.core.management.base import BaseCommand
@@ -12,6 +12,29 @@ from web3 import HTTPProvider, Web3
 from gnosis.eth.contracts import get_erc20_contract
 from gnosis.safe import SafeService
 from gnosis.safe.tests.utils import generate_valid_s
+
+
+def send_eth(w3, account, to, value, nonce=None):
+    tx = {
+        'to': to,
+        'value': value,
+        'gas': 23000,
+        'gasPrice': w3.eth.gasPrice,
+        'nonce': nonce if nonce is not None else w3.eth.getTransactionCount(account.address,
+                                                                            'pending'),
+    }
+
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
+    return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+
+
+def send_token(w3, account, to, amount_to_send, token_address, nonce=None):
+    erc20_contract = get_erc20_contract(w3, token_address)
+    nonce = nonce if nonce is not None else w3.eth.getTransactionCount(account.address, 'pending')
+    tx = erc20_contract.functions.transfer(to, amount_to_send).buildTransaction({'from': account.address,
+                                                                                 'nonce': nonce})
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
+    return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
 
 
 class Command(BaseCommand):
@@ -30,27 +53,8 @@ class Command(BaseCommand):
                             help='Ethereum node in the same net that the relay')
         parser.add_argument('--payment-token', help='Use payment token for creating/testing')
         parser.add_argument('--create2', help='Use CREATE2 for safe creation', action='store_true', default=False)
-
-    def send_eth(self, w3, account, to, value, nonce=None):
-        tx = {
-            'to': to,
-            'value': value,
-            'gas': 23000,
-            'gasPrice': w3.eth.gasPrice,
-            'nonce': nonce if nonce is not None else w3.eth.getTransactionCount(account.address,
-                                                                                'pending'),
-        }
-
-        signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
-        return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-
-    def send_token(self, w3, account, to, amount_to_send, token_address, nonce=None):
-        erc20_contract = get_erc20_contract(w3, token_address)
-        nonce = nonce if nonce is not None else w3.eth.getTransactionCount(account.address, 'pending')
-        tx = erc20_contract.functions.transfer(to, amount_to_send).buildTransaction({'from': account.address,
-                                                                                     'nonce': nonce})
-        signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
-        return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        parser.add_argument('--multiple-txs', help='Test sending multiple txs at the same time',
+                            action='store_true', default=False)
 
     def get_safe_url(self, address):
         return urljoin(self.base_url, reverse('v1:safe', kwargs={'address': address}))
@@ -67,8 +71,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.base_url = options['base_url']
         create2 = options['create2']
-        every_test = options['all']
         payment_token = options['payment_token']
+        multiple_txs = options['multiple_txs']
 
         self.w3 = Web3(HTTPProvider(options['node_url']))
         self.main_account = Account.privateKeyToAccount(options['private_key'])
@@ -88,12 +92,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Created account=%s with key=%s' % (account.address,
                                                                                      account.privateKey.hex())))
         accounts.append(self.main_account)
-        accounts.sort(key=lambda account: account.address.lower())
+        accounts.sort(key=lambda acc: acc.address.lower())
         owners = [account.address for account in accounts]
 
         safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, create2=create2)
         self.fund_safe(safe_address, payment, payment_token)
-        safe_version = self.check_safe_deployed(safe_address, owners, master_copy_address)
+        safe_info = self.check_safe_deployed(safe_address, owners, master_copy_address)
+        safe_version = safe_info['version']
         self.send_safe_tx(safe_address, safe_version, accounts, payment_token)
 
     def create_safe(self, owners: List[Account], threshold: int = 2,
@@ -125,12 +130,12 @@ class Command(BaseCommand):
     def fund_safe(self, safe_address, payment, payment_token: Optional[None] = None):
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         if payment_token:
-            tx_hash = self.send_token(self.w3, self.main_account, safe_address, payment, payment_token)
+            tx_hash = send_token(self.w3, self.main_account, safe_address, payment, payment_token)
             self.stdout.write(self.style.SUCCESS('Sent payment of payment-token=%s, waiting for '
                                                  'receipt with tx-hash=%s' % (payment_token, tx_hash.hex())))
             self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
 
-        tx_hash = self.send_eth(self.w3, self.main_account, safe_address, payment * 2)
+        tx_hash = send_eth(self.w3, self.main_account, safe_address, payment * 2)
         self.stdout.write(self.style.SUCCESS('Sent payment * 2, waiting for receipt with tx-hash=%s' % tx_hash.hex()))
         self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
         self.stdout.write(self.style.SUCCESS('Payment sent and mined. Waiting for safe to be deployed'))
@@ -139,7 +144,7 @@ class Command(BaseCommand):
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
         return safe_address
 
-    def check_safe_deployed(self, safe_address, owners, master_copy_address):
+    def check_safe_deployed(self, safe_address, owners, master_copy_address) -> Dict[str, any]:
         while True:
             if self.w3.eth.getCode(safe_address):
                 break
@@ -154,9 +159,10 @@ class Command(BaseCommand):
         assert safe_info['nonce'] == 0
         assert safe_info['masterCopy'] == master_copy_address
 
-        return safe_info['version']
+        return safe_info
 
-    def send_safe_tx(self, safe_address, safe_version, accounts, payment_token):
+    def send_safe_tx(self, safe_address: str, safe_version: str, accounts: List[Account],
+                     payment_token: Optional[str] = None) -> bytes:
         safe_balance = self.w3.eth.getBalance(safe_address)
         tx = {
             'to': self.main_account.address,
@@ -180,14 +186,14 @@ class Command(BaseCommand):
             # We can transfer the full amount as we are paying fees with a token
             tx['value'] = safe_balance
         else:
-            estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas'] + 1000
+            estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
             fees = r.json()['gasPrice'] * estimate_gas
             tx['value'] = safe_balance - fees
 
         tx['dataGas'] = r.json()['dataGas']
         tx['gasPrice'] = r.json()['gasPrice']
         tx['safeTxGas'] = r.json()['safeTxGas']
-        tx['nonce'] = r.json()['lastUsedNonce'] or 0
+        tx['nonce'] = 0 if r.json()['lastUsedNonce'] is None else r.json()['lastUsedNonce'] + 1
         tx['refundReceiver'] = None
 
         # Sign the tx
@@ -209,3 +215,69 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Tx with tx-hash=%s was successful' % multisig_tx_hash))
         self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
         return multisig_tx_hash
+
+    def send_multiple_txs(self, safe_address: str, safe_version: str, accounts: List[Account],
+                          payment_token: Optional[str] = None, number_txs: int = 100) -> List[bytes]:
+        tx_hash = send_eth(self.w3, self.main_account, safe_address, self.w3.toWei(1, 'ether'))
+        self.stdout.write(self.style.SUCCESS('Sent 1 ether for testing sending multiple txs, '
+                                             'waiting for receipt with tx-hash=%s' % tx_hash.hex()))
+        self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+
+        self.stdout.write(self.style.SUCCESS('Sending %d txs of 1 wei' % number_txs))
+        safe_nonce = None
+        tx_hashes = []
+        for _ in range(number_txs):
+            tx = {
+                'to': self.main_account.address,
+                'value': 1,  # Send 1 wei
+                'data': None,
+                'operation': 0,  # CALL
+                'gasToken': payment_token,
+            }
+
+            if payment_token:
+                tx['gasToken'] = payment_token
+
+            # We used payment * 2 to fund the safe, now we return ether to the main account
+            r = requests.post(self.get_estimate_url(safe_address), json=tx)
+            assert r.ok, "Estimate not working %s" % r.content
+            self.stdout.write(self.style.SUCCESS('Estimation=%s for tx=%s' % (r.json(), tx)))
+            # estimate_gas = r.json()['safeTxGas'] + r.json()['dataGas'] + r.json()['operationalGas']
+            # fees = r.json()['gasPrice'] * estimate_gas
+
+            tx['dataGas'] = r.json()['dataGas']
+            tx['gasPrice'] = r.json()['gasPrice']
+            tx['safeTxGas'] = r.json()['safeTxGas']
+            if safe_nonce is not None:
+                safe_nonce += 1
+            else:
+                safe_nonce = 0 if r.json()['lastUsedNonce'] is None else r.json()['lastUsedNonce'] + 1
+            tx['nonce'] = safe_nonce
+            tx['refundReceiver'] = None
+
+            # Sign the tx
+            safe_tx_hash = SafeService.get_hash_for_safe_tx(safe_address, tx['to'], tx['value'], tx['data'],
+                                                            tx['operation'], tx['safeTxGas'], tx['dataGas'],
+                                                            tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
+                                                            tx['nonce'], safe_version=safe_version)
+
+            signatures = [account.signHash(safe_tx_hash) for account in accounts[:2]]
+            curated_signatures = [{'r': signature['r'], 's': signature['s'], 'v': signature['v']}
+                                  for signature in signatures]
+            tx['signatures'] = curated_signatures
+
+            self.stdout.write(self.style.SUCCESS('Sending tx to stress test the server %s' % tx))
+            r = requests.post(self.get_tx_url(safe_address), json=tx)
+            assert r.ok, "Error sending tx %s" % r.content
+
+            tx_hash = r.json()['txHash']
+            tx_hashes.append(tx_hash)
+
+            tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            assert tx_receipt.status == 1, 'Error with tx %s' % tx_hash.hex()
+
+        for tx_hash in tx_hashes:
+            tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            assert tx_receipt.status == 1, 'Error with tx %s' % tx_hash.hex()
+            self.stdout.write(self.style.SUCCESS('Tx with tx-hash=%s was successful' % tx_hash))
+        return tx_hashes
