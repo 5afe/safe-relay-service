@@ -22,7 +22,7 @@ hexbytes==0.1.0
 jsonschema==2.6.0
 lxml==4.2.5
 numpy==1.16.2
-psycopg2-binary==2.8
+psycopg2-binary==2.8.1
 redis==3.2.1
 requests==2.21.0
 web3==4.9.1
