@@ -344,6 +344,3 @@ class SafeMultisigTxView(ListAPIView):
                 except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
-                except TransactionServiceException as exc:
-                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                    data='Error procesing tx: ' + str(exc))

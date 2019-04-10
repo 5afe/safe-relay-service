@@ -94,7 +94,13 @@ class SafeCreation2(TimeStampedModel):
     block_number = models.IntegerField(null=True, default=None)  # If mined
 
     def __str__(self):
-        return 'Safe {} - Deployer {}'.format(self.safe, self.deployer)
+        if self.block_number:
+            return 'Safe {} - Deployed on block number {}'.format(self.safe, self.block_number)
+        else:
+            return 'Safe {}'.format(self.safe)
+
+    def deployed(self) -> bool:
+        return self.block_number is not None
 
     def wei_estimated_deploy_cost(self) -> int:
         """

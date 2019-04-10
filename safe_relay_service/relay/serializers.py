@@ -13,7 +13,8 @@ from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import SafeCreation2, SafeFunding, EthereumTx
+from safe_relay_service.relay.models import (EthereumTx, SafeCreation2,
+                                             SafeFunding)
 from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
