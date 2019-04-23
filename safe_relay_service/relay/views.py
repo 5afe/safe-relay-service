@@ -1,6 +1,7 @@
 from logging import getLogger
 
 from django.conf import settings
+from django.db.models import Q
 
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
@@ -20,8 +21,9 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import SafeContract, SafeFunding, SafeMultisigTx
-from .serializers import (SafeCreationEstimateResponseSerializer,
+from .models import EthereumTx, SafeContract, SafeFunding, SafeMultisigTx
+from .serializers import (EthereumTxSerializer,
+                          SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
                           SafeCreationSerializer,
@@ -79,6 +81,7 @@ class AboutView(APIView):
             'https_detected': self.request.is_secure(),
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
+                'ETHEREUM_TRACING_NODE_URL': settings.ETHEREUM_TRACING_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
@@ -344,3 +347,36 @@ class SafeMultisigTxView(ListAPIView):
                 except SafeMultisigTxExists:
                     return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                     data='Safe Multisig Tx with that nonce already exists')
+
+
+class EthereumTxView(ListAPIView):
+    permission_classes = (AllowAny,)
+    pagination_class = DefaultPagination
+    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
+    ordering_fields = '__all__'
+    ordering = ('-block_number',)
+    serializer_class = EthereumTxSerializer
+
+    def get_queryset(self):
+        return EthereumTx.objects.filter(Q(to=self.kwargs['address']) |
+                                         Q(_from=self.kwargs['address']) |
+                                         Q(internaltx__to=self.kwargs['address']) |
+                                         Q(internaltx___from=self.kwargs['address']) |
+                                         Q(internaltx__contract_address=self.kwargs['address']))
+
+    @swagger_auto_schema(responses={400: 'Data not valid',
+                                    404: 'Safe not found/No txs for that Safe',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def get(self, request, address):
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+        response = super().get(request, address)
+        if response.data['count'] == 0:
+            response.status_code = status.HTTP_404_NOT_FOUND
+        return response

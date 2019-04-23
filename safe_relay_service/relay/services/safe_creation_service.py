@@ -15,7 +15,8 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 
-from ..models import SafeContract, SafeCreation, SafeCreation2
+from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
+                      SafeTxStatus)
 
 logger = getLogger(__name__)
 
@@ -145,6 +146,7 @@ class SafeCreationService:
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         fast_gas_price: int = self.gas_station.get_gas_prices().fast
+        current_block_number = self.ethereum_client.current_block_number
         logger.debug('Building safe create2 tx with gas price %d' % fast_gas_price)
         safe_creation_tx = self.safe_service.build_safe_create2_tx(salt_nonce, owners, threshold,
                                                                    fast_gas_price, payment_token,
@@ -153,6 +155,10 @@ class SafeCreationService:
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy_address)
+
+        SafeTxStatus.objects.create(safe=safe_contract,
+                                    initial_block_number=current_block_number,
+                                    tx_block_number=current_block_number)
 
         return SafeCreation2.objects.create(
             safe=safe_contract,
@@ -171,6 +177,7 @@ class SafeCreationService:
             gas_price_estimated=safe_creation_tx.gas_price,
         )
 
+    #Fixme Test this!
     def deploy_create2_safe_tx(self, safe_address: str):
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
 
@@ -196,12 +203,14 @@ class SafeCreationService:
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
-        tx_hash, _ = self.safe_service.deploy_proxy_contract_with_nonce(safe_creation2.salt_nonce,
-                                                                        setup_data,
-                                                                        safe_creation2.gas_estimated,
-                                                                        safe_creation2.gas_price_estimated,
-                                                                        deployer_private_key=
-                                                                        self.safe_funder_account.privateKey)
+        tx_hash, tx, _ = self.safe_service.deploy_proxy_contract_with_nonce(safe_creation2.salt_nonce,
+                                                                            setup_data,
+                                                                            safe_creation2.gas_estimated,
+                                                                            safe_creation2.gas_price_estimated,
+                                                                            deployer_private_key=
+                                                                            self.safe_funder_account.privateKey)
+
+        EthereumTx.objects.create_from_tx(tx, tx_hash)
         safe_creation2.tx_hash = tx_hash
         safe_creation2.save()
         logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())

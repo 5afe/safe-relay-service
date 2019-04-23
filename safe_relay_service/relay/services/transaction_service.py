@@ -237,17 +237,7 @@ class TransactionService:
         except SafeServiceException as exc:
             raise TransactionServiceException(str(exc)) from exc
 
-        ethereum_tx = EthereumTx.objects.create(
-            tx_hash=tx_hash,
-            block_number=None,
-            _from=tx['from'],
-            gas=tx['gas'],
-            gas_price=tx['gasPrice'],
-            data=HexBytes(tx['data']),
-            nonce=tx['nonce'],
-            to=tx.get('to'),
-            value=tx['value'],
-        )
+        ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
 
         return SafeMultisigTx.objects.create(
             safe=safe_contract,

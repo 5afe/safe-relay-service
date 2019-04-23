@@ -157,7 +157,7 @@ class Command(BaseCommand):
     def fund_safe(self, safe_address, payment, payment_token: Optional[None] = None, wait_for_receipt: bool = True):
         self.stdout.write(self.style.SUCCESS('Created safe=%s, need payment=%d' % (safe_address, payment)))
         if payment_token:
-            tx_hash = send_token(self.w3, self.main_account, safe_address, payment, payment_token,
+            tx_hash = send_token(self.w3, self.main_account, safe_address, int(payment * 1.4), payment_token,
                                  nonce=self.main_account_nonce)
             self.main_account_nonce += 1
             self.stdout.write(self.style.SUCCESS('Sent payment of payment-token=%s, waiting for '
