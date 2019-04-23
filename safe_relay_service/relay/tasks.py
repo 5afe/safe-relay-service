@@ -7,6 +7,7 @@ from django.utils import timezone
 from celery import app
 from celery.utils.log import get_task_logger
 from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
+from redis.exceptions import LockError
 
 from gnosis.eth import EthereumClientProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
@@ -15,11 +16,10 @@ from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
 
 from .repositories.redis_repository import RedisRepository
-from .services.funding_service import FundingServiceProvider
-from .services.notification_service import NotificationServiceProvider
-from .services.safe_creation_service import (NotEnoughFundingForCreation,
-                                             SafeCreationServiceProvider)
-from .services.transaction_service import TransactionServiceProvider
+from .services import (FundingServiceProvider, InternalTxServiceProvider,
+                       NotificationServiceProvider,
+                       SafeCreationServiceProvider, TransactionServiceProvider)
+from .services.safe_creation_service import NotEnoughFundingForCreation
 
 logger = get_task_logger(__name__)
 
@@ -326,7 +326,22 @@ def check_balance_of_accounts_task() -> bool:
     for address in addresses:
         balance_wei = ethereum_client.get_balance(address)
         if balance_wei <= balance_warning_wei:
-            logger.error('Relayer account=%s current balance=%d . Balance must be greater than %d' %
-                         (address, balance_wei, balance_warning_wei))
+            logger.error('Relayer account=%s current balance=%d . Balance must be greater than %d',
+                         address, balance_wei, balance_warning_wei)
             result = False
     return result
+
+
+@app.shared_task(soft_time_limit=60 * 10)
+def find_internal_txs_task() -> int:
+    """
+    Find and process internal txs for existing safes
+    :return: Number of safes processed
+    """
+    number_safes = 0
+    try:
+        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
+            number_safes = InternalTxServiceProvider().process_all_internal_txs()
+    except LockError:
+        pass
+    return number_safes

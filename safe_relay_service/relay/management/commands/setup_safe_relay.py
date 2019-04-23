@@ -42,3 +42,15 @@ class Command(BaseCommand):
                 interval=interval
             )
             self.stdout.write(self.style.SUCCESS('Created Periodic Task %s' % task_name))
+
+        task_name = 'safe_relay_service.relay.tasks.find_internal_txs_task'
+        if PeriodicTask.objects.filter(task=task_name).count():
+            self.stdout.write(self.style.SUCCESS('Task %s was already created' % task_name))
+        else:
+            interval, _ = IntervalSchedule.objects.get_or_create(every=2, period='minutes')
+            PeriodicTask.objects.create(
+                name='Process Internal txs',
+                task=task_name,
+                interval=interval
+            )
+            self.stdout.write(self.style.SUCCESS('Created Periodic Task %s' % task_name))

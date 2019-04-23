@@ -13,7 +13,8 @@ from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import (EthereumTx, SafeCreation2,
+from safe_relay_service.relay.models import (EthereumTx, EthereumTxCallType,
+                                             InternalTx, SafeCreation2,
                                              SafeFunding)
 from safe_relay_service.tokens.models import Token
 
@@ -150,10 +151,50 @@ class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
         fields = ('tx_hash', 'block_number')
 
 
+class InternalTxSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternalTx
+        exclude = ('id', 'ethereum_tx')
+
+    _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
+    to = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    contract_address = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    data = HexadecimalField()
+    code = HexadecimalField()
+    output = HexadecimalField()
+    call_type = serializers.SerializerMethodField()
+
+    def get_fields(self):
+        result = super().get_fields()
+        # Rename `_from` to `from`
+        _from = result.pop('_from')
+        result['from'] = _from
+        return result
+
+    def get_call_type(self, obj) -> str:
+        if obj.call_type is None:
+            return None
+        else:
+            return EthereumTxCallType(obj.call_type).name
+
+
 class EthereumTxSerializer(serializers.ModelSerializer):
     class Meta:
         model = EthereumTx
         exclude = ()
+
+    _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
+    to = EthereumAddressField(allow_null=True, allow_zero_address=True)
+    data = HexadecimalField()
+    tx_hash = HexadecimalField()
+    internal_txs = InternalTxSerializer(many=True, source='internaltx_set')
+
+    def get_fields(self):
+        result = super().get_fields()
+        # Rename `_from` to `from`
+        _from = result.pop('_from')
+        result['from'] = _from
+        return result
 
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):

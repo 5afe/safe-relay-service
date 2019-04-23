@@ -1,6 +1,11 @@
+from enum import Enum
+from typing import Dict, Optional
+
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models import Q
 
+from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
 from gnosis.eth import EthereumClientProvider
@@ -9,7 +14,31 @@ from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
 
 
+class EthereumTxCallType(Enum):
+    CALL = 0
+    DELEGATE_CALL = 1
+
+    @staticmethod
+    def parse_call_type(call_type: str):
+        if not call_type:
+            return None
+        elif call_type.lower() == 'call':
+            return EthereumTxCallType.CALL
+        elif call_type.lower() == 'delegatecall':
+            return EthereumTxCallType.DELEGATE_CALL
+        else:
+            return None
+
+
+class SafeContractManager(models.Manager):
+    def deployed(self):
+        return self.filter(
+            ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
+        )
+
+
 class SafeContract(TimeStampedModel):
+    objects = SafeContractManager()
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
@@ -171,10 +200,26 @@ class SafeFunding(TimeStampedModel):
         return s
 
 
+class EthereumTxManager(models.Manager):
+    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, block_number: Optional[int] = None):
+        return super().create(
+            tx_hash=tx_hash,
+            block_number=block_number,
+            _from=tx['from'],
+            gas=tx['gas'],
+            gas_price=tx['gasPrice'],
+            data=HexBytes(tx['data']),
+            nonce=tx['nonce'],
+            to=tx.get('to'),
+            value=tx['value'],
+        )
+
+
 class EthereumTx(models.Model):
+    objects = EthereumTxManager()
     tx_hash = Sha3HashField(unique=True, primary_key=True)
     block_number = models.IntegerField(null=True, default=None)  # If mined
-    #TODO Maybe add `gasUsed`
+    gas_used = Uint256Field(null=True, default=None)  # If mined
     _from = EthereumAddressField(null=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
@@ -216,3 +261,51 @@ class SafeMultisigTx(TimeStampedModel):
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
                                           self.safe.address)
+
+
+class InternalTx(models.Model):
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
+    _from = EthereumAddressField()
+    gas = Uint256Field()
+    data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
+    to = EthereumAddressField(null=True)
+    value = Uint256Field()
+    gas_used = Uint256Field()
+    contract_address = EthereumAddressField(null=True)  # Create
+    code = models.BinaryField(null=True)                # Create
+    output = models.BinaryField(null=True)              # Call
+    call_type = models.PositiveSmallIntegerField(null=True,
+                                                 choices=[(tag.value, tag.name) for tag in EthereumTxCallType])  # Call
+    transaction_index = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = (('ethereum_tx', 'transaction_index'),)
+
+    def __str__(self):
+        if self.to:
+            return 'Internal tx hash={} from={} to={}'.format(self.ethereum_tx.tx_hash, self._from, self.to)
+        else:
+            return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
+
+
+class SafeTxStatusManager(models.Manager):
+    def deployed(self):
+        return self.filter(safe__in=SafeContract.objects.deployed())
+
+
+class SafeTxStatus(models.Model):
+    """
+    Have information about the last scan for internal txs
+    """
+    objects = SafeTxStatusManager()
+    safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
+    initial_block_number = models.IntegerField(default=0)  # Block number when Safe creation process was started
+    tx_block_number = models.IntegerField(default=0)  # Block number when last internal tx scan ended
+    erc_20_block_number = models.IntegerField(default=0)  # Block number when last erc20 events scan ended
+
+    def __str__(self):
+        return 'Safe {} - Initial-block-number={} - ' \
+               'Tx-block-number={} - Erc20-block-number={}'.format(self.safe.address,
+                                                                   self.initial_block_number,
+                                                                   self.tx_block_number,
+                                                                   self.erc_20_block_number)

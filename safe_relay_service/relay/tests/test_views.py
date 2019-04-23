@@ -2,6 +2,7 @@ import logging
 
 from django.urls import reverse
 
+from eth_account import Account
 from ethereum.utils import check_checksum
 from faker import Faker
 from rest_framework import status
@@ -19,7 +20,8 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
-from .factories import (SafeContractFactory, SafeFundingFactory,
+from .factories import (EthereumTxFactory, InternalTxFactory,
+                        SafeContractFactory, SafeFundingFactory,
                         SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
@@ -584,7 +586,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_safe_signal(self):
+    def test_get_safe_signal(self):
         safe_address, _ = get_eth_address_with_key()
 
         response = self.client.get(reverse('v1:safe-signal', args=(safe_address,)))
@@ -600,3 +602,47 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     data={},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_all_txs(self):
+        safe_address = Account().create().address
+        SafeContractFactory(address=safe_address)
+
+        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        db_ethereum_tx = EthereumTxFactory(to=safe_address)
+        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()['results']), 1)
+        ethereum_tx = response.json()['results'][0]
+        self.assertEqual(ethereum_tx['from'], db_ethereum_tx._from)
+        self.assertEqual(ethereum_tx['to'], safe_address)
+        self.assertEqual(ethereum_tx['data'], db_ethereum_tx.data.hex())
+        self.assertEqual(ethereum_tx['gas'], str(db_ethereum_tx.gas))
+        self.assertEqual(ethereum_tx['gasPrice'], str(db_ethereum_tx.gas_price))
+        self.assertEqual(ethereum_tx['txHash'], db_ethereum_tx.tx_hash.hex())
+        self.assertEqual(ethereum_tx['value'], str(db_ethereum_tx.value))
+
+        EthereumTxFactory(_from=safe_address)
+        EthereumTxFactory()
+        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()['results']), 2)
+
+        db_internal_tx = InternalTxFactory(to=safe_address)
+        InternalTxFactory(_from=safe_address)
+        InternalTxFactory()
+        InternalTxFactory(contract_address=safe_address)
+        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()['results']), 5)
+
+        at_least_one = False
+        for ethereum_tx in response.json()['results']:
+            if db_internal_tx.ethereum_tx.tx_hash.hex() == ethereum_tx['txHash']:
+                print(ethereum_tx)
+                self.assertEqual(len(ethereum_tx['internalTxs']), 1)
+                self.assertEqual(ethereum_tx['internalTxs'][0]['from'], db_internal_tx._from)
+                self.assertEqual(ethereum_tx['internalTxs'][0]['to'], safe_address)
+                at_least_one = True
+        self.assertTrue(at_least_one)
