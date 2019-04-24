@@ -191,9 +191,10 @@ class InternalTxService:
         for trace in traces:
             ethereum_tx = self.get_or_create_ethereum_tx(trace['transactionHash'])
             call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
+            trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
             internal_tx, _ = InternalTx.objects.get_or_create(
                 ethereum_tx=ethereum_tx,
-                transaction_index=trace['transactionPosition'],
+                trace_address=trace_address_str,
                 defaults={
                     '_from': trace['action']['from'],
                     'gas': trace['action']['gas'],

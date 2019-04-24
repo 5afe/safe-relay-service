@@ -47,9 +47,9 @@ class ParityMock:
                            'code': HexBytes('0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680634555d5c91461008b5780635c60da1b146100b6575b73ffffffffffffffffffffffffffffffffffffffff600054163660008037600080366000845af43d6000803e6000811415610086573d6000fd5b3d6000f35b34801561009757600080fd5b506100a061010d565b6040518082815260200191505060405180910390f35b3480156100c257600080fd5b506100cb610116565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b60006002905090565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff169050905600a165627a7a7230582007fffd557dfc8c4d2fdf56ba6381a6ce5b65b6260e1492d87f26c6d4f1d041080029'),
                            'address': '0x61A7cc907c47C133d5ff5b685407201951fcBD08'},
                 'subtraces': 2,
-                'traceAddress': [],
+                'traceAddress': [0],
                 'transactionHash': '0x6c7e8f8778d33d81b29c4bd7526ee50a4cea340d69eed6c89ada4e6fab731789',
-                'transactionPosition': 1,
+                'transactionPosition': 3,
                 'type': 'create'
             },
             {
@@ -63,9 +63,9 @@ class ParityMock:
                            'code': HexBytes('0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680634555d5c91461008b5780635c60da1b146100b6575b73ffffffffffffffffffffffffffffffffffffffff600054163660008037600080366000845af43d6000803e6000811415610086573d6000fd5b3d6000f35b34801561009757600080fd5b506100a061010d565b6040518082815260200191505060405180910390f35b3480156100c257600080fd5b506100cb610116565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b60006002905090565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff169050905600a165627a7a7230582007fffd557dfc8c4d2fdf56ba6381a6ce5b65b6260e1492d87f26c6d4f1d041080029'),
                            'address': '0x61A7cc907c47C133d5ff5b685407201951fcBD08'},
                 'subtraces': 2,
-                'traceAddress': [],
+                'traceAddress': [0, 0],
                 'transactionHash': '0x6c7e8f8778d33d81b29c4bd7526ee50a4cea340d69eed6c89ada4e6fab731789',
-                'transactionPosition': 2,
+                'transactionPosition': 3,
                 'type': 'create'
             },
             {
