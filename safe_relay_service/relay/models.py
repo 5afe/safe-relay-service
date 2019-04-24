@@ -14,6 +14,11 @@ from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
 
 
+class EthereumTxType(Enum):
+    CALL = 0
+    CREATE = 1
+
+
 class EthereumTxCallType(Enum):
     CALL = 0
     DELEGATE_CALL = 1
@@ -287,6 +292,12 @@ class InternalTx(models.Model):
             return 'Internal tx hash={} from={} to={}'.format(self.ethereum_tx.tx_hash, self._from, self.to)
         else:
             return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
+
+    def tx_type(self) -> EthereumTxType:
+        if self.contract_address:
+            return EthereumTxType.CREATE
+        else:
+            return EthereumTxType.CALL
 
 
 class SafeTxStatusManager(models.Manager):
