@@ -203,7 +203,7 @@ REST_FRAMEWORK = {
         'djangorestframework_camel_case.parser.CamelCaseJSONParser',
     ),
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.NamespaceVersioning',
-    'EXCEPTION_HANDLER': 'safe_relay_service.relay.views.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'safe_relay_service.relay.views.custom_exception_handler',
 }
 
 # LOGGING

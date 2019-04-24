@@ -200,11 +200,12 @@ class InternalTxService:
                     'data': trace['action'].get('input') or trace['action'].get('init'),
                     'to': trace['action'].get('to'),
                     'value': trace['action'].get('value'),
-                    'gas_used': trace['result']['gasUsed'],
-                    'contract_address': trace['result'].get('address'),
-                    'output': trace['result'].get('output'),
-                    'code': trace['result'].get('code'),
+                    'gas_used': trace.get('result', {}).get('gasUsed', 0),
+                    'contract_address': trace.get('result', {}).get('address'),
+                    'output': trace.get('result', {}).get('output'),
+                    'code': trace.get('result', {}).get('code'),
                     'call_type': call_type.value if call_type else None,
+                    'error': trace.get('error'),
                 }
             )
             internal_txs.append(internal_tx)
