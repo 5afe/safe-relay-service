@@ -640,7 +640,6 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         at_least_one = False
         for ethereum_tx in response.json()['results']:
             if db_internal_tx.ethereum_tx.tx_hash.hex() == ethereum_tx['txHash']:
-                print(ethereum_tx)
                 self.assertEqual(len(ethereum_tx['internalTxs']), 1)
                 self.assertEqual(ethereum_tx['internalTxs'][0]['from'], db_internal_tx._from)
                 self.assertEqual(ethereum_tx['internalTxs'][0]['to'], safe_address)

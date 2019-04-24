@@ -277,6 +277,7 @@ class InternalTx(models.Model):
     call_type = models.PositiveSmallIntegerField(null=True,
                                                  choices=[(tag.value, tag.name) for tag in EthereumTxCallType])  # Call
     transaction_index = models.PositiveIntegerField()
+    error = models.CharField(max_length=100, null=True)
 
     class Meta:
         unique_together = (('ethereum_tx', 'transaction_index'),)
