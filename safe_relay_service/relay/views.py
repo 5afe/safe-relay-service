@@ -362,9 +362,10 @@ class EthereumTxView(ListAPIView):
         address = self.kwargs['address']
         return EthereumTx.objects.filter(Q(to=address) |
                                          Q(_from=address) |
-                                         Q(internaltx__to=address) |
-                                         Q(internaltx___from=address) |
-                                         Q(internaltx__contract_address=address)).distinct()
+                                         Q(internal_txs__to=address) |
+                                         Q(internal_txs___from=address) |
+                                         Q(internal_txs__contract_address=address)
+                                         ).distinct().prefetch_related('internal_txs')
 
     @swagger_auto_schema(responses={400: 'Data not valid',
                                     404: 'Safe not found/No txs for that Safe',

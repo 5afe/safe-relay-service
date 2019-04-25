@@ -4,8 +4,8 @@ from django.test import TestCase
 
 import pytest
 
-from ..exchanges import (Binance, DutchX, ExchangeApiException, Huobi, Kraken,
-                         get_price_oracle, PriceOracle, InvalidTicker)
+from ..exchanges import (Binance, DutchX, ExchangeApiException, Huobi,
+                         InvalidTicker, Kraken, PriceOracle, get_price_oracle)
 
 
 class TestExchanges(TestCase):

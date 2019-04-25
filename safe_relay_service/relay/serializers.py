@@ -191,7 +191,7 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     data = HexadecimalField()
     tx_hash = HexadecimalField()
-    internal_txs = InternalTxSerializer(many=True, source='internaltx_set')
+    internal_txs = InternalTxSerializer(many=True)
 
     def get_fields(self):
         result = super().get_fields()

@@ -176,21 +176,26 @@ class InternalTxService:
         logger.info('Searching for internal txs from block-number=%d to block-number=%d - Safes=%s',
                     from_block_number, to_block_number, safe_addresses)
 
-        to_txs = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
-                                                                               to_block=to_block_number,
-                                                                               to_address=safe_addresses))
+        to_traces = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
+                                                                                  to_block=to_block_number,
+                                                                                  to_address=safe_addresses))
 
-        from_txs = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
-                                                                                 to_block=to_block_number,
-                                                                                 from_address=safe_addresses))
+        from_traces = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
+                                                                                    to_block=to_block_number,
+                                                                                    from_address=safe_addresses))
 
-        to_and_from_txs = to_txs + from_txs
+        tx_hashes = set([trace.ethereum_tx_id for trace in (to_traces + from_traces)])
+        tx_traces = []
+        for tx_hash in tx_hashes:
+            tx_traces.extend(self._process_traces(self.ethereum_client.parity.trace_transaction(tx_hash)))
+
+        all_traces = to_traces + from_traces + tx_traces
         updated = to_block_number == (current_block_number - confirmations)
         logger.info('Found %d txs between block-number=%d and block-number%d. Updated=%s - Safes=%s',
-                    len(to_and_from_txs), from_block_number, to_block_number, updated, safe_addresses)
+                    len(all_traces), from_block_number, to_block_number, updated, safe_addresses)
 
         safe_tx_status_queryset.update(tx_block_number=to_block_number)
-        return to_and_from_txs, updated
+        return all_traces, updated
 
     def _process_traces(self, traces: Dict[str, any]) -> List[InternalTx]:
         internal_txs = []
