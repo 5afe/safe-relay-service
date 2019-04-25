@@ -49,9 +49,15 @@ class InternalTxService:
         self.query_chunk_size = query_chunk_size
         self.safe_creation_threshold = safe_creation_threshold
 
-    def get_or_create_ethereum_tx(self, tx_hash: str) -> EthereumTx:
+    def get_create_or_update_ethereum_tx(self, tx_hash: str) -> EthereumTx:
         try:
-            return EthereumTx.objects.get(tx_hash=tx_hash)
+            ethereum_tx = EthereumTx.objects.get(tx_hash=tx_hash)
+            if ethereum_tx.block_number is None:
+                tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
+                ethereum_tx.block_number = tx_receipt.blockNumber
+                ethereum_tx.gas_used = tx_receipt.gasUsed
+                ethereum_tx.save()
+            return ethereum_tx
         except EthereumTx.DoesNotExist:
             tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
             tx = self.ethereum_client.get_transaction(tx_hash)
@@ -189,7 +195,7 @@ class InternalTxService:
     def _process_traces(self, traces: Dict[str, any]) -> List[InternalTx]:
         internal_txs = []
         for trace in traces:
-            ethereum_tx = self.get_or_create_ethereum_tx(trace['transactionHash'])
+            ethereum_tx = self.get_create_or_update_ethereum_tx(trace['transactionHash'])
             call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
             trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
             internal_tx, _ = InternalTx.objects.get_or_create(
