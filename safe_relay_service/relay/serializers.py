@@ -163,6 +163,7 @@ class InternalTxSerializer(serializers.ModelSerializer):
     code = HexadecimalField()
     output = HexadecimalField()
     call_type = serializers.SerializerMethodField()
+    tx_type = serializers.SerializerMethodField()
 
     def get_fields(self):
         result = super().get_fields()
@@ -177,6 +178,9 @@ class InternalTxSerializer(serializers.ModelSerializer):
         else:
             return EthereumTxCallType(obj.call_type).name
 
+    def get_tx_type(self, obj) -> str:
+        return obj.tx_type().name
+
 
 class EthereumTxSerializer(serializers.ModelSerializer):
     class Meta:
@@ -187,7 +191,7 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     data = HexadecimalField()
     tx_hash = HexadecimalField()
-    internal_txs = InternalTxSerializer(many=True, source='internaltx_set')
+    internal_txs = InternalTxSerializer(many=True)
 
     def get_fields(self):
         result = super().get_fields()

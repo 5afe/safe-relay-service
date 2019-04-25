@@ -48,7 +48,11 @@ class Token(models.Model):
 
     # TODO Cache
     def get_eth_value(self) -> float:
-        if not self.fixed_eth_conversion:  # None or 0 ignored
+        if self.fixed_eth_conversion:  # `None` or `0` are ignored
+            # Ether has 18 decimals, but maybe the token has a different number
+            multiplier = 1e18 / 10**self.decimals
+            return round(multiplier * float(self.fixed_eth_conversion), 10)
+        else:
             prices = []
             # Get the average price of the price oracles
             for price_oracle_ticker in self.price_oracle_tickers.all():
@@ -61,16 +65,11 @@ class Token(models.Model):
                     prices.append(price)
                 except ExchangeApiException:
                     logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
-                    pass
             number_prices = len(prices)
             if number_prices == 0:
                 raise CannotGetTokenPriceFromApi('There is no working provider')
             else:
                 return sum(prices) / number_prices
-        else:
-            # Ether has 18 decimals, but maybe the token has a different number
-            multiplier = 1e18 / 10**self.decimals
-            return round(multiplier * float(self.fixed_eth_conversion), 10)
 
     def calculate_gas_price(self, gas_price: int, price_margin: float=1.0) -> int:
         """

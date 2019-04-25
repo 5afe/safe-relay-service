@@ -131,7 +131,7 @@ class InternalTxFactory(factory.DjangoModelFactory):
     code = None
     output = None
     call_type = EthereumTxCallType.CALL.value
-    transaction_index = factory.Sequence(lambda n: n)
+    trace_address = factory.Sequence(lambda n: n)
 
 
 class SafeTxStatusFactory(factory.DjangoModelFactory):

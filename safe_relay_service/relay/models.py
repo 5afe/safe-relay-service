@@ -14,6 +14,11 @@ from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
 from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
 
 
+class EthereumTxType(Enum):
+    CALL = 0
+    CREATE = 1
+
+
 class EthereumTxCallType(Enum):
     CALL = 0
     DELEGATE_CALL = 1
@@ -240,8 +245,8 @@ class SafeMultisigTxManager(models.Manager):
 
 class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
-    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE)
-    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
+    safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
     to = EthereumAddressField(null=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
@@ -264,7 +269,7 @@ class SafeMultisigTx(TimeStampedModel):
 
 
 class InternalTx(models.Model):
-    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE)
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
     _from = EthereumAddressField()
     gas = Uint256Field()
     data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
@@ -276,17 +281,23 @@ class InternalTx(models.Model):
     output = models.BinaryField(null=True)              # Call
     call_type = models.PositiveSmallIntegerField(null=True,
                                                  choices=[(tag.value, tag.name) for tag in EthereumTxCallType])  # Call
-    transaction_index = models.PositiveIntegerField()
+    trace_address = models.CharField(max_length=100)  # Stringified traceAddress
     error = models.CharField(max_length=100, null=True)
 
     class Meta:
-        unique_together = (('ethereum_tx', 'transaction_index'),)
+        unique_together = (('ethereum_tx', 'trace_address'),)
 
     def __str__(self):
         if self.to:
             return 'Internal tx hash={} from={} to={}'.format(self.ethereum_tx.tx_hash, self._from, self.to)
         else:
             return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
+
+    def tx_type(self) -> EthereumTxType:
+        if self.contract_address:
+            return EthereumTxType.CREATE
+        else:
+            return EthereumTxType.CALL
 
 
 class SafeTxStatusManager(models.Manager):

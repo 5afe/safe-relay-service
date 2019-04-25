@@ -21,7 +21,8 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import EthereumTx, SafeContract, SafeFunding, SafeMultisigTx
+from .models import (EthereumTx, InternalTx, SafeContract, SafeFunding,
+                     SafeMultisigTx)
 from .serializers import (EthereumTxSerializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
@@ -358,11 +359,13 @@ class EthereumTxView(ListAPIView):
     serializer_class = EthereumTxSerializer
 
     def get_queryset(self):
-        return EthereumTx.objects.filter(Q(to=self.kwargs['address']) |
-                                         Q(_from=self.kwargs['address']) |
-                                         Q(internaltx__to=self.kwargs['address']) |
-                                         Q(internaltx___from=self.kwargs['address']) |
-                                         Q(internaltx__contract_address=self.kwargs['address']))
+        address = self.kwargs['address']
+        return EthereumTx.objects.filter(Q(to=address) |
+                                         Q(_from=address) |
+                                         Q(internal_txs__to=address) |
+                                         Q(internal_txs___from=address) |
+                                         Q(internal_txs__contract_address=address)
+                                         ).distinct().prefetch_related('internal_txs')
 
     @swagger_auto_schema(responses={400: 'Data not valid',
                                     404: 'Safe not found/No txs for that Safe',
