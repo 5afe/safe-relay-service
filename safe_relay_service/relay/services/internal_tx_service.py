@@ -133,8 +133,8 @@ class InternalTxService:
             self.process_internal_txs(safe_addresses_chunk)
 
         # For safes not updated (> `updated_blocks_behind` blocks) we process them one by one (node hangs)
-        for safe_contract in SafeTxStatus.objects.deployed().filter(tx_block_number__lt=current_block_number -
-                                                                                        self.confirmations):
+        for safe_contract in SafeTxStatus.objects.deployed().filter(
+                tx_block_number__lt=current_block_number - self.confirmations):
             number_safes += 1
             updated = False
             while not updated:
@@ -176,20 +176,19 @@ class InternalTxService:
         logger.info('Searching for internal txs from block-number=%d to block-number=%d - Safes=%s',
                     from_block_number, to_block_number, safe_addresses)
 
-        to_traces = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
-                                                                                  to_block=to_block_number,
-                                                                                  to_address=safe_addresses))
+        to_traces = self.ethereum_client.parity.trace_filter(from_block=from_block_number,
+                                                             to_block=to_block_number,
+                                                             to_address=safe_addresses)
 
-        from_traces = self._process_traces(self.ethereum_client.parity.trace_filter(from_block=from_block_number,
-                                                                                    to_block=to_block_number,
-                                                                                    from_address=safe_addresses))
+        from_traces = self.ethereum_client.parity.trace_filter(from_block=from_block_number,
+                                                               to_block=to_block_number,
+                                                               from_address=safe_addresses)
 
-        tx_hashes = set([trace.ethereum_tx_id for trace in (to_traces + from_traces)])
-        tx_traces = []
+        tx_hashes = set([trace['transactionHash'] for trace in (to_traces + from_traces)])
+        all_traces = []
         for tx_hash in tx_hashes:
-            tx_traces.extend(self._process_traces(self.ethereum_client.parity.trace_transaction(tx_hash)))
+            all_traces.extend(self._process_traces(self.ethereum_client.parity.trace_transaction(tx_hash)))
 
-        all_traces = to_traces + from_traces + tx_traces
         updated = to_block_number == (current_block_number - confirmations)
         logger.info('Found %d txs between block-number=%d and block-number%d. Updated=%s - Safes=%s',
                     len(all_traces), from_block_number, to_block_number, updated, safe_addresses)
@@ -197,28 +196,28 @@ class InternalTxService:
         safe_tx_status_queryset.update(tx_block_number=to_block_number)
         return all_traces, updated
 
-    def _process_traces(self, traces: Dict[str, any]) -> List[InternalTx]:
-        internal_txs = []
-        for trace in traces:
-            ethereum_tx = self.get_create_or_update_ethereum_tx(trace['transactionHash'])
-            call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
-            trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
-            internal_tx, _ = InternalTx.objects.get_or_create(
-                ethereum_tx=ethereum_tx,
-                trace_address=trace_address_str,
-                defaults={
-                    '_from': trace['action']['from'],
-                    'gas': trace['action']['gas'],
-                    'data': trace['action'].get('input') or trace['action'].get('init'),
-                    'to': trace['action'].get('to'),
-                    'value': trace['action'].get('value'),
-                    'gas_used': trace.get('result', {}).get('gasUsed', 0),
-                    'contract_address': trace.get('result', {}).get('address'),
-                    'output': trace.get('result', {}).get('output'),
-                    'code': trace.get('result', {}).get('code'),
-                    'call_type': call_type.value if call_type else None,
-                    'error': trace.get('error'),
-                }
-            )
-            internal_txs.append(internal_tx)
-        return internal_txs
+    def _process_trace(self, trace: Dict[str, any]) -> InternalTx:
+        ethereum_tx = self.get_create_or_update_ethereum_tx(trace['transactionHash'])
+        call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
+        trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
+        internal_tx, _ = InternalTx.objects.get_or_create(
+            ethereum_tx=ethereum_tx,
+            trace_address=trace_address_str,
+            defaults={
+                '_from': trace['action']['from'],
+                'gas': trace['action']['gas'],
+                'data': trace['action'].get('input') or trace['action'].get('init'),
+                'to': trace['action'].get('to'),
+                'value': trace['action'].get('value'),
+                'gas_used': trace.get('result', {}).get('gasUsed', 0),
+                'contract_address': trace.get('result', {}).get('address'),
+                'output': trace.get('result', {}).get('output'),
+                'code': trace.get('result', {}).get('code'),
+                'call_type': call_type.value if call_type else None,
+                'error': trace.get('error'),
+            }
+        )
+        return internal_tx
+
+    def _process_traces(self, traces: List[Dict[str, any]]) -> List[InternalTx]:
+        return [self._process_trace(trace) for trace in traces]
