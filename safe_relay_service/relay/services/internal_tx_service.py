@@ -19,7 +19,8 @@ class InternalTxServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             from django.conf import settings
-            cls.instance = InternalTxService(EthereumClient(settings.ETHEREUM_TRACING_NODE_URL))
+            cls.instance = InternalTxService(EthereumClient(settings.ETHEREUM_TRACING_NODE_URL),
+                                             block_process_limit=settings.INTERNAL_TXS_BLOCK_PROCESS_LIMIT)
         return cls.instance
 
     @classmethod
@@ -30,11 +31,12 @@ class InternalTxServiceProvider:
 
 class InternalTxService:
     def __init__(self, ethereum_client: EthereumClient, confirmations: int = 10,
-                 updated_blocks_behind: int = 100, query_chunk_size: int = 100,
-                 safe_creation_threshold: int = 150000):
+                 block_process_limit: int = 100000, updated_blocks_behind: int = 100,
+                 query_chunk_size: int = 100, safe_creation_threshold: int = 150000):
         """
         :param ethereum_client:
         :param confirmations: Margin of blocks to scan to prevent reorgs
+        :param block_process_limit: Number of blocks to search at a time for internal txs. `0` == `No limit`
         :param updated_blocks_behind: Number of blocks scanned that a safe can be behind and still be considered
         as almost updated. For example, if `updated_blocks_behind` is 100, `current block number` is 200, and last
         scan for a safe was stopped on block 150, safe is almost updated (200 - 100 < 150)
@@ -45,6 +47,7 @@ class InternalTxService:
         """
         self.ethereum_client = ethereum_client
         self.confirmations = confirmations
+        self.block_process_limit = block_process_limit
         self.updated_blocks_behind = updated_blocks_behind
         self.query_chunk_size = query_chunk_size
         self.safe_creation_threshold = safe_creation_threshold
@@ -141,18 +144,17 @@ class InternalTxService:
                 _, updated = self.process_internal_txs([safe_contract.safe_id])
         return number_safes
 
-    def process_internal_txs(self, safe_addresses: List[str],
-                             blocks_process_limit: int = 200000) -> Optional[Tuple[List[InternalTx], bool]]:
+    def process_internal_txs(self, safe_addresses: List[str]) -> Optional[Tuple[List[InternalTx], bool]]:
         """
         Process internal txs (in and out) of a `safe_address` and store them
         :param safe_addresses: Addresses to process
-        :param blocks_process_limit: Number of blocks to process. 0 = All
         :return: List of internal txs processed and a boolean (`True` if no more blocks to scan, `False` otherwise)
         """
         assert safe_addresses, 'Safe addresses cannot be empty!'
         assert all([Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]), \
             'A safe address has invalid checksum: %s' % safe_addresses
 
+        block_process_limit = self.block_process_limit
         confirmations = self.confirmations
         current_block_number = self.ethereum_client.current_block_number
 
@@ -167,8 +169,8 @@ class InternalTxService:
         if (current_block_number - common_minimum_block_number) < confirmations:
             return  # We don't want problems with reorgs
 
-        if blocks_process_limit:
-            to_block_number = min(common_minimum_block_number + blocks_process_limit,
+        if block_process_limit:
+            to_block_number = min(common_minimum_block_number + block_process_limit,
                                   current_block_number - confirmations)
         else:
             to_block_number = current_block_number - confirmations

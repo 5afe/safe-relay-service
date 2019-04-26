@@ -324,12 +324,9 @@ class EthereumClientMock:
 
 
 class TestInternalTxService(TestSafeService):
-
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        cls.ethereum_client_mock = EthereumClientMock()
-        cls.internal_tx_service = InternalTxService(cls.ethereum_client_mock)
+    def setUp(self):
+        self.ethereum_client_mock = EthereumClientMock()
+        self.internal_tx_service = InternalTxService(self.ethereum_client_mock)
 
     def test_get_safe_creation_block_number(self):
         mock_tx_hash = '0x638b956dbbb3d40d06219f571a3bb8c0ab6e7af758d21a4d33af01655a194bbb'
@@ -361,19 +358,20 @@ class TestInternalTxService(TestSafeService):
         address = '0xd714EE2aEE29c404491AA18FE0442228C2d955f0'
         safe_contract = SafeContractFactory(address=address)
 
-        blocks_process_limit = 20
-        self.assertIsNone(self.internal_tx_service.process_internal_txs([address],
-                                                                        blocks_process_limit=blocks_process_limit))
+        block_process_limit = self.internal_tx_service.block_process_limit
+        self.assertIsNone(self.internal_tx_service.process_internal_txs([address]))
         self.assertEqual(SafeTxStatus.objects.filter(safe=safe_contract).count(), 0)
         self.assertEqual(InternalTx.objects.filter(Q(_from=address) | Q(to=address)).count(), 0)
         SafeTxStatusFactory(safe=safe_contract)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address], blocks_process_limit=blocks_process_limit)
+        _, updated = self.internal_tx_service.process_internal_txs([address])
         self.assertFalse(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
-        self.assertEqual(safe_tx_status.tx_block_number, blocks_process_limit)
+        self.assertEqual(safe_tx_status.tx_block_number, block_process_limit)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address], blocks_process_limit=0)
+        # We scan for every tx
+        self.internal_tx_service.block_process_limit = 0
+        _, updated = self.internal_tx_service.process_internal_txs([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations
@@ -381,7 +379,7 @@ class TestInternalTxService(TestSafeService):
                          self.internal_tx_service.ethereum_client.current_block_number - confirmations)
         self.assertEqual(InternalTx.objects.count(), 11)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address], blocks_process_limit=0)
+        _, updated = self.internal_tx_service.process_internal_txs([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations
@@ -392,3 +390,5 @@ class TestInternalTxService(TestSafeService):
         self.assertEqual(InternalTx.objects.filter(error=None).count(), 10)
         self.assertEqual(InternalTx.objects.exclude(error=None).first().error, 'Out of gas')
         self.assertEqual(InternalTx.objects.filter(trace_address='1,0,0').count(), 1)
+
+        self.internal_tx_service.block_process_limit = block_process_limit
