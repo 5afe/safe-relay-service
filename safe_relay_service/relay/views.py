@@ -160,7 +160,7 @@ class SafeCreationEstimateView(CreateAPIView):
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
         """
-        Begins creation of a Safe
+        Estimates creation of a Safe
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
