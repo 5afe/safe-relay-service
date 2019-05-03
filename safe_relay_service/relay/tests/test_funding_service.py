@@ -1,18 +1,19 @@
 import logging
 
+from django.test import TestCase
 from eth_account import Account
-
-from gnosis.safe.tests.test_safe_service import TestSafeService
+from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
 from ..services.funding_service import FundingServiceProvider
 
 logger = logging.getLogger(__name__)
 
 
-class TestFundingService(TestSafeService):
+class TestFundingService(TestCase, SafeTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
+        cls.prepare_tests()
         cls.funding_service = FundingServiceProvider()
 
     def test_send_eth_to(self):

@@ -1,13 +1,13 @@
 from typing import List, Optional
 
 from django.db.models import Q
+from django.test import TestCase
 
 from eth_account import Account
 from gnosis.eth import EthereumClient
+from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 from hexbytes import HexBytes
 from web3.datastructures import AttributeDict
-
-from gnosis.safe.tests.test_safe_service import TestSafeService
 
 from ..models import InternalTx, SafeContract, SafeTxStatus
 from ..services import InternalTxService
@@ -323,7 +323,7 @@ class EthereumClientMock:
             return tx[0]
 
 
-class TestInternalTxService(TestSafeService):
+class TestInternalTxService(TestCase, SafeTestCaseMixin):
     def setUp(self):
         self.ethereum_client_mock = EthereumClientMock()
         self.internal_tx_service = InternalTxService(self.ethereum_client_mock)

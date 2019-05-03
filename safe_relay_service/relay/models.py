@@ -8,10 +8,9 @@ from django.db.models import Q
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
-from gnosis.eth import EthereumClientProvider
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
-from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
+from gnosis.safe import SafeOperation
 
 
 class EthereumTxType(Enum):
@@ -47,17 +46,8 @@ class SafeContract(TimeStampedModel):
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
-    def has_valid_code(self) -> bool:
-        return SafeServiceProvider().check_proxy_code(self.address)
-
-    def has_valid_master_copy(self) -> bool:
-        return SafeServiceProvider().check_master_copy(self.address)
-
-    def get_balance(self, block_identifier=None):
-        return EthereumClientProvider().get_balance(address=self.address, block_identifier=block_identifier)
-
     def __str__(self):
-        return self.address
+        return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
 
 
 class SafeCreation(TimeStampedModel):

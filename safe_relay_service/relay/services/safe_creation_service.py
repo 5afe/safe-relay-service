@@ -4,12 +4,12 @@ from typing import Iterable, List, NamedTuple, Optional
 from django.conf import settings
 
 from eth_account import Account
+from gnosis.safe import Safe, ProxyFactory
+from gnosis.safe.safe import SafeCreationEstimate
 from hexbytes import HexBytes
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.safe_service import (SafeCreationEstimate, SafeService,
-                                      SafeServiceProvider)
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
@@ -49,8 +49,11 @@ class SafeInfo(NamedTuple):
 class SafeCreationServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = SafeCreationService(SafeServiceProvider(), GasStationProvider(),
+            cls.instance = SafeCreationService(GasStationProvider(),
                                                EthereumClientProvider(),
+                                               settings.SAFE_CONTRACT_ADDRESS,
+                                               settings.SAFE_OLD_CONTRACT_ADDRESS,
+                                               settings.SAFE_PROXY_FACTORY_ADDRESS,
                                                settings.SAFE_FUNDER_PRIVATE_KEY,
                                                settings.SAFE_FIXED_CREATION_COST)
         return cls.instance
@@ -62,11 +65,14 @@ class SafeCreationServiceProvider:
 
 
 class SafeCreationService:
-    def __init__(self, safe_service: SafeService, gas_station: GasStation, ethereum_client: EthereumClient,
+    def __init__(self, gas_station: GasStation, ethereum_client: EthereumClient,
+                 safe_contract_address: str, safe_old_contract_address: str, proxy_factory_address: str,
                  safe_funder_private_key: str, safe_fixed_creation_cost: int):
-        self.safe_service = safe_service
         self.gas_station = gas_station
         self.ethereum_client = ethereum_client
+        self.safe_contract_address = safe_contract_address
+        self.safe_old_contract_address = safe_old_contract_address
+        self.proxy_factory = ProxyFactory(proxy_factory_address)
         self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
@@ -87,10 +93,11 @@ class SafeCreationService:
             logger.warning('Cannot get value of token in eth: Gas token %s not valid' % address)
             raise InvalidPaymentToken(address)
 
-    def create_safe_tx(self, s: int, owners: Iterable[str], threshold: int,
+    def create_safe_tx(self, s: int, owners: List[str], threshold: int,
                        payment_token: Optional[str]) -> SafeCreation:
         """
-        Create models for safe tx
+        Prepare creation tx for a new safe using classic CREATE method. Deprecated, it's recommended
+        to use `create2_safe_tx`
         :param s: Random s value for ecdsa signature
         :param owners: Owners of the new Safe
         :param threshold: Minimum number of users required to operate the Safe
@@ -103,10 +110,11 @@ class SafeCreationService:
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         fast_gas_price: int = self.gas_station.get_gas_prices().fast
         logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
-        safe_creation_tx = self.safe_service.build_safe_creation_tx(s, owners, threshold, fast_gas_price, payment_token,
-                                                                    self.safe_funder_account.address,
-                                                                    payment_token_eth_value=payment_token_eth_value,
-                                                                    fixed_creation_cost=self.safe_fixed_creation_cost)
+        safe_creation_tx = Safe.build_safe_creation_tx(self.ethereum_client, self.safe_old_contract_address,
+                                                       s, owners, threshold, fast_gas_price, payment_token,
+                                                       self.safe_funder_account.address,
+                                                       payment_token_eth_value=payment_token_eth_value,
+                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
@@ -134,7 +142,7 @@ class SafeCreationService:
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
                         payment_token: Optional[str]) -> SafeCreation2:
         """
-        Create models for safe tx
+        Prepare creation tx for a new safe using CREATE2 method
         :param salt_nonce: Random value for solidity `create2` salt
         :param owners: Owners of the new Safe
         :param threshold: Minimum number of users required to operate the Safe
@@ -148,10 +156,11 @@ class SafeCreationService:
         fast_gas_price: int = self.gas_station.get_gas_prices().fast
         current_block_number = self.ethereum_client.current_block_number
         logger.debug('Building safe create2 tx with gas price %d' % fast_gas_price)
-        safe_creation_tx = self.safe_service.build_safe_create2_tx(salt_nonce, owners, threshold,
-                                                                   fast_gas_price, payment_token,
-                                                                   payment_token_eth_value=payment_token_eth_value,
-                                                                   fixed_creation_cost=self.safe_fixed_creation_cost)
+        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
+                                                      self.proxy_factory.address, salt_nonce, owners, threshold,
+                                                      fast_gas_price, payment_token,
+                                                      payment_token_eth_value=payment_token_eth_value,
+                                                      fixed_creation_cost=self.safe_fixed_creation_cost)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy_address)
@@ -178,7 +187,12 @@ class SafeCreationService:
         )
 
     #Fixme Test this!
-    def deploy_create2_safe_tx(self, safe_address: str):
+    def deploy_create2_safe_tx(self, safe_address: str) -> SafeCreation2:
+        """
+        Deploys safe if SafeCreation2 exists.
+        :param safe_address:
+        :return: tx_hash
+        """
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if safe_creation2.tx_hash:
@@ -203,18 +217,19 @@ class SafeCreationService:
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
-        tx_hash, tx, _ = self.safe_service.deploy_proxy_contract_with_nonce(safe_creation2.salt_nonce,
-                                                                            setup_data,
-                                                                            safe_creation2.gas_estimated,
-                                                                            safe_creation2.gas_price_estimated,
-                                                                            deployer_private_key=
-                                                                            self.safe_funder_account.privateKey)
+        deployer_account = Account.privateKeyToAccount(self.safe_funder_account.privateKey)
+        ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(deployer_account,
+                                                                               self.safe_contract_address,
+                                                                               setup_data,
+                                                                               safe_creation2.salt_nonce,
+                                                                               safe_creation2.gas_estimated,
+                                                                               safe_creation2.gas_price_estimated)
 
-        EthereumTx.objects.create_from_tx(tx, tx_hash)
-        safe_creation2.tx_hash = tx_hash
+        EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+        safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
         safe_creation2.save()
-        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
-        return tx_hash
+        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
+        return safe_creation2
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str]) -> SafeCreationEstimate:
         """
@@ -227,16 +242,18 @@ class SafeCreationService:
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price = self.gas_station.get_gas_prices().fast
         fixed_creation_cost = self.safe_fixed_creation_cost
-        return self.safe_service.estimate_safe_creation(number_owners, gas_price, payment_token,
-                                                        payment_token_eth_value=payment_token_eth_value,
-                                                        fixed_creation_cost=fixed_creation_cost)
+        return Safe.estimate_safe_creation(self.ethereum_client,
+                                           self.safe_old_contract_address, number_owners, gas_price, payment_token,
+                                           payment_token_eth_value=payment_token_eth_value,
+                                           fixed_creation_cost=fixed_creation_cost)
 
     def retrieve_safe_info(self, address: str) -> SafeInfo:
-        if not self.safe_service.is_safe_deployed(address):
+        safe = Safe(address, self.ethereum_client)
+        if not self.ethereum_client.is_contract(address):
             raise SafeNotDeployed('Safe with address=%s not deployed' % address)
-        nonce = self.safe_service.retrieve_nonce(address)
-        threshold = self.safe_service.retrieve_threshold(address)
-        owners = self.safe_service.retrieve_owners(address)
-        master_copy = self.safe_service.retrieve_master_copy_address(address)
-        version = self.safe_service.retrieve_version(address)
+        nonce = safe.retrieve_nonce()
+        threshold = safe.retrieve_threshold()
+        owners = safe.retrieve_owners()
+        master_copy = safe.retrieve_master_copy_address()
+        version = safe.retrieve_version()
         return SafeInfo(address, nonce, threshold, owners, master_copy, version)

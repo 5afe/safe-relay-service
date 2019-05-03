@@ -235,6 +235,7 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     safe_tx_gas = serializers.IntegerField(min_value=0)
+    base_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)
     operational_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)

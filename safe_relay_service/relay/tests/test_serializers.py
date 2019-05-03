@@ -1,18 +1,18 @@
 from django.test import TestCase
+from eth_account import Account
 
 from ethereum.transactions import secpk1n
 from faker import Faker
+from gnosis.safe.safe_tx import SafeTx
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe import SafeService
 
 from ..models import SafeContract, SafeFunding
 from ..serializers import (SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)
-from ..services.safe_creation_service import SafeCreationServiceProvider
 
 faker = Faker()
 
@@ -56,9 +56,6 @@ class TestSerializers(TestCase):
         self.assertTrue(s.data)
 
     def test_safe_multisig_tx_serializer(self):
-        relay_service = SafeCreationServiceProvider()
-        w3 = relay_service.safe_service.w3
-
         safe = get_eth_address_with_key()[0]
         to = None
         value = int(10e18)
@@ -96,11 +93,9 @@ class TestSerializers(TestCase):
         serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())  # Less signatures than threshold
 
-        owners_with_keys = [get_eth_address_with_key(), get_eth_address_with_key()]
         # Signatures must be sorted!
-        owners_with_keys.sort(key=lambda x: x[0].lower())
-        owners = [x[0] for x in owners_with_keys]
-        keys = [x[1] for x in owners_with_keys]
+        accounts = [Account.create() for _ in range(2)]
+        accounts.sort(key=lambda x: x.address.lower())
 
         safe = get_eth_address_with_key()[0]
         data['safe'] = safe
@@ -114,9 +109,10 @@ class TestSerializers(TestCase):
         self.assertFalse(serializer.is_valid())  # Operation is not create, but no to provided
 
         # Now we fix the signatures
-        to = owners[-1]
+        to = accounts[-1].address
         data['to'] = to
-        multisig_tx_hash = SafeService.get_hash_for_safe_tx(
+        multisig_tx_hash = SafeTx(
+            None,
             safe,
             to,
             value,
@@ -127,9 +123,10 @@ class TestSerializers(TestCase):
             gas_price,
             gas_token,
             refund_receiver,
-            nonce
-        )
-        signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key) for private_key in keys]
+            safe_nonce=nonce
+        ).safe_tx_hash
+
+        signatures = [account.signHash(multisig_tx_hash) for account in accounts]
         data['signatures'] = signatures
         serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertTrue(serializer.is_valid())
@@ -145,7 +142,7 @@ class TestSerializers(TestCase):
             "gas_price": gas_price,
             "gas_token": gas_token,
             "nonce": nonce,
-            "refund_receiver": owners[0],  # Refund must be empty or NULL_ADDRESS
+            "refund_receiver": accounts[0].address,  # Refund must be empty or NULL_ADDRESS
             "signatures": [
                 {
                     'r': 5,

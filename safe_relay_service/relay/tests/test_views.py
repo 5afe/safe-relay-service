@@ -5,13 +5,14 @@ from django.urls import reverse
 from eth_account import Account
 from ethereum.utils import check_checksum
 from faker import Faker
+from gnosis.safe import SafeTx
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
-from gnosis.safe import SafeOperation, SafeService
+from gnosis.safe import SafeOperation
 from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.utils import generate_valid_s
 
@@ -236,7 +237,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         safe_json = response.json()
         self.assertEqual(safe_json['address'], my_safe_address)
-        self.assertEqual(safe_json['masterCopy'], self.safe_service.master_copy_address)
+        self.assertEqual(safe_json['masterCopy'], self.safe_contract_address)
         self.assertEqual(safe_json['nonce'], 0)
         self.assertEqual(safe_json['threshold'], threshold)
         self.assertEqual(safe_json['owners'], owners)
@@ -257,8 +258,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
 
     def test_safe_multisig_tx_post(self):
         # Create Safe ------------------------------------------------
-        relay_service = SafeCreationServiceProvider()
-        w3 = relay_service.safe_service.w3
+        w3 = self.ethereum_client.w3
         safe_balance = w3.toWei(0.01, 'ether')
         owner0_balance = safe_balance
         accounts = [self.create_account(initial_wei=owner0_balance), self.create_account(initial_wei=owner0_balance)]
@@ -298,7 +298,8 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         gas_price = estimation_json['gasPrice']
         gas_token = estimation_json['gasToken']
 
-        multisig_tx_hash = SafeService.get_hash_for_safe_tx(
+        multisig_tx_hash = SafeTx(
+            None,
             my_safe_address,
             to,
             value,
@@ -309,8 +310,9 @@ class TestViews(APITestCase, RelayTestCaseMixin):
             gas_price,
             gas_token,
             refund_receiver,
-            nonce
-        )
+            safe_nonce=nonce
+        ).safe_tx_hash
+
         signatures = [account.signHash(multisig_tx_hash) for account in accounts]
         signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
 
@@ -417,8 +419,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
 
     def test_safe_multisig_tx_post_gas_token(self):
         # Create Safe ------------------------------------------------
-        relay_service = SafeCreationServiceProvider()
-        w3 = relay_service.safe_service.w3
+        w3 = self.ethereum_client.w3
         safe_balance = w3.toWei(0.01, 'ether')
         owner0_balance = safe_balance
         owner_account = self.create_account(initial_wei=owner0_balance)
@@ -471,7 +472,8 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         gas_price = estimation_json['gasPrice']
         gas_token = estimation_json['gasToken']
 
-        multisig_tx_hash = SafeService.get_hash_for_safe_tx(
+        multisig_tx_hash = SafeTx(
+            None,
             my_safe_address,
             to,
             value,
@@ -482,8 +484,8 @@ class TestViews(APITestCase, RelayTestCaseMixin):
             gas_price,
             gas_token,
             refund_receiver,
-            nonce
-        )
+            safe_nonce=nonce
+        ).safe_tx_hash
 
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key)
                       for private_key in [owner_account.privateKey]]

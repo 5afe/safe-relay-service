@@ -245,7 +245,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                     422: 'Safe address checksum not valid/Tx not valid'})
     def post(self, request, address):
         """
-        Estimates a Safe Multisig Transaction
+        Estimates a Safe Multisig Transaction. `operational_gas` and `data_gas` are deprecated, use `base_gas` instead
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -336,7 +336,7 @@ class SafeMultisigTxView(ListAPIView):
                         data=data['data'],
                         operation=data['operation'],
                         safe_tx_gas=data['safe_tx_gas'],
-                        data_gas=data['data_gas'],
+                        base_gas=data['data_gas'],
                         gas_price=data['gas_price'],
                         gas_token=data['gas_token'],
                         nonce=data['nonce'],
