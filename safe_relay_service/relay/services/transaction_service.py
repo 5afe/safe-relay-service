@@ -103,7 +103,7 @@ class TransactionService:
         self.ethereum_client = ethereum_client
         self.redis = redis
         self.safe_valid_contract_addresses = safe_valid_contract_addresses
-        self.proxy_factory = ProxyFactory(proxy_factory_address)
+        self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
 
     @staticmethod

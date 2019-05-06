@@ -72,7 +72,7 @@ class SafeCreationService:
         self.ethereum_client = ethereum_client
         self.safe_contract_address = safe_contract_address
         self.safe_old_contract_address = safe_old_contract_address
-        self.proxy_factory = ProxyFactory(proxy_factory_address)
+        self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
