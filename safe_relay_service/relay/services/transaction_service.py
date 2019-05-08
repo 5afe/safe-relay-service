@@ -1,12 +1,12 @@
 from logging import getLogger
-from typing import Dict, List, NamedTuple, Optional, Tuple, Set
+from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
 from eth_account import Account
-from gnosis.safe import Safe, ProxyFactory
 from redis import Redis
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.safe import ProxyFactory, Safe
 from gnosis.safe.exceptions import SafeServiceException
 from gnosis.safe.signatures import signatures_to_bytes
 

@@ -1,13 +1,14 @@
 from enum import Enum
 from typing import Dict, Optional
 
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.db.models import Q
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
+from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation
@@ -311,3 +312,75 @@ class SafeTxStatus(models.Model):
                                                                    self.initial_block_number,
                                                                    self.tx_block_number,
                                                                    self.erc_20_block_number)
+
+
+class EthereumEventManager(models.Manager):
+    def erc20_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        queryset = self.filter(topic=ERC20_721_TRANSFER_TOPIC)
+        if token_address:
+            queryset = queryset.filter(token_address=token_address)
+        if address:
+            queryset = queryset.filter(Q(arguments__to=address) | Q(arguments__from=address))
+        return queryset
+
+    def erc20_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        return self.erc20_721_events(token_address=token_address,
+                                     address=address).filter(arguments__has_key='value')
+
+    def erc721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        return self.erc20_721_events(token_address=token_address,
+                                     address=address).filter(arguments__has_key='tokenId')
+
+    def get_or_create_erc20_or_721_event(self, decoded_event: Dict[str, any]):
+        if 'value' in decoded_event['args']:
+            return self.get_or_create_erc20_event(decoded_event)
+        elif 'tokenId' in decoded_event['args']:
+            return self.get_or_create_erc20_event(decoded_event)
+        raise ValueError('Invalid ERC20 or ERC721 event %s' % decoded_event)
+
+    def get_or_create_erc20_event(self, decoded_event: Dict[str, any]):
+        return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
+                                  log_index=decoded_event['logIndex'],
+                                  defaults={
+                                      'token_address': decoded_event['address'],
+                                      'topic': decoded_event['topics'][0],
+                                      'arguments': {
+                                          'from': decoded_event['args']['from'],
+                                          'to': decoded_event['args']['to'],
+                                          'value': decoded_event['args']['value'],
+                                      }
+                                  })
+
+    def get_or_create_erc721_event(self, decoded_event: Dict[str, any]):
+        return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
+                                  log_index=decoded_event['logIndex'],
+                                  defaults={
+                                      'token_address': decoded_event.address,
+                                      'topic': decoded_event['topics'][0],
+                                      'arguments': {
+                                          'from': decoded_event['args']['from'],
+                                          'to': decoded_event['args']['to'],
+                                          'tokenId': decoded_event['args']['tokenId'],
+                                      }
+                                  })
+
+
+class EthereumEvent(models.Model):
+    objects = EthereumEventManager()
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='events')
+    log_index = models.PositiveIntegerField()
+    token_address = EthereumAddressField(db_index=True)
+    topic = Sha3HashField(db_index=True)
+    arguments = JSONField()
+
+    class Meta:
+        unique_together = (('ethereum_tx', 'log_index'),)
+
+    def __str__(self):
+        return 'Tx-hash={} Log-index={} Arguments={}'.format(self.ethereum_tx_id, self.log_index, self.arguments)
+
+    def is_erc20(self) -> bool:
+        return 'value' in self.arguments
+
+    def is_erc721(self) -> bool:
+        return 'tokenId' in self.arguments

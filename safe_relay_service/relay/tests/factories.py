@@ -6,15 +6,15 @@ from ethereum.utils import checksum_encode, mk_contract_address
 from hexbytes import HexBytes
 from web3 import Web3
 
-from gnosis.eth.constants import (NULL_ADDRESS, SIGNATURE_R_MAX_VALUE,
-                                  SIGNATURE_R_MIN_VALUE, SIGNATURE_S_MAX_VALUE,
-                                  SIGNATURE_S_MIN_VALUE, SIGNATURE_V_MAX_VALUE,
-                                  SIGNATURE_V_MIN_VALUE)
+from gnosis.eth.constants import (ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS,
+                                  SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
+                                  SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
+                                  SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from gnosis.eth.utils import get_eth_address_with_key
 
-from ..models import (EthereumTx, EthereumTxCallType, InternalTx, SafeContract,
-                      SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
-                      SafeTxStatus)
+from ..models import (EthereumEvent, EthereumTx, EthereumTxCallType,
+                      InternalTx, SafeContract, SafeCreation, SafeCreation2,
+                      SafeFunding, SafeMultisigTx, SafeTxStatus)
 
 logger = getLogger(__name__)
 
@@ -139,3 +139,22 @@ class SafeTxStatusFactory(factory.DjangoModelFactory):
         model = SafeTxStatus
 
     safe = factory.SubFactory(SafeContractFactory)
+
+
+class EthereumEventFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = EthereumEvent
+
+    class Params:
+        to = None
+        from_ = None
+        erc721 = False
+
+    ethereum_tx = factory.SubFactory(EthereumTxFactory)
+    log_index = factory.Sequence(lambda n: n)
+    token_address = factory.LazyFunction(lambda: Account.create().address)
+    topic = ERC20_721_TRANSFER_TOPIC
+    arguments = factory.LazyAttribute(lambda o: {'to': o.to if o.to else Account.create().address,
+                                                 'from': o.from_ if o.from_ else Account.create().address,
+                                                 'tokenId' if o.erc721 else 'value': 1200}
+                                      )

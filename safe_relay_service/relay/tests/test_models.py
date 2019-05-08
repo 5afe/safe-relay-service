@@ -3,8 +3,11 @@ from django.test import TestCase
 from eth_account import Account
 from hexbytes import HexBytes
 
-from ..models import SafeContract, SafeFunding
-from .factories import SafeCreation2Factory, SafeFundingFactory
+from gnosis.eth.constants import NULL_ADDRESS
+
+from ..models import EthereumEvent, SafeContract, SafeFunding
+from .factories import (EthereumEventFactory, SafeCreation2Factory,
+                        SafeFundingFactory)
 
 
 class TestModels(TestCase):
@@ -52,3 +55,19 @@ class TestModels(TestCase):
         safe_creation_2 = SafeCreation2Factory(block_number=2)
         self.assertEqual(SafeContract.objects.deployed().count(), 2)
         self.assertIn(safe_creation_2.safe.address, [s.address for s in SafeContract.objects.deployed()])
+
+    def test_ethereum_event_model(self):
+        self.assertEqual(EthereumEvent.objects.count(), 0)
+
+        # Create ERC20 Event
+        EthereumEventFactory()
+        self.assertEqual(EthereumEvent.objects.count(), 1)
+        self.assertEqual(EthereumEvent.objects.erc20_events().count(), 1)
+        self.assertEqual(EthereumEvent.objects.erc721_events().count(), 0)
+
+        # Create ERC721 Event
+        EthereumEventFactory(arguments={'to': NULL_ADDRESS,
+                                        'from': NULL_ADDRESS,
+                                        'tokenId': 2})
+        self.assertTrue(EthereumEvent.objects.erc20_events().get().is_erc20())
+        self.assertTrue(EthereumEvent.objects.erc721_events().get().is_erc721())

@@ -21,9 +21,11 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumTx, SafeContract, SafeFunding,
-                     SafeMultisigTx)
-from .serializers import (EthereumTxSerializer,
+from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
+                     SafeFunding, SafeMultisigTx)
+from .serializers import (ERC20Serializer, ERC721Serializer,
+                          EthereumTxWithInternalTxsSerializer,
+                          InternalTxWithEthereumTxSerializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
@@ -39,7 +41,6 @@ from .services.transaction_service import (SafeMultisigTxExists,
                                            TransactionServiceException,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
-
 
 logger = logging.getLogger(__name__)
 
@@ -271,26 +272,15 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
-class SafeMultisigTxView(ListAPIView):
-    permission_classes = (AllowAny,)
-    pagination_class = DefaultPagination
+class SafeListApiView(ListAPIView):
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
-    filterset_class = SafeMultisigTxFilter
     ordering_fields = '__all__'
-    ordering = ('-created',)
-
-    def get_serializer_class(self):
-        if self.request.method == 'GET':
-            return SafeMultisigTxResponseSerializer
-        elif self.request.method == 'POST':
-            return SafeRelayMultisigTxSerializer
-
-    def get_queryset(self):
-        return SafeMultisigTx.objects.filter(safe=self.kwargs['address'])
+    pagination_class = DefaultPagination
+    permission_classes = (AllowAny,)
 
     @swagger_auto_schema(responses={400: 'Data not valid',
-                                    404: 'Safe not found/No txs for that Safe',
-                                    422: 'Safe address checksum not valid/Tx not valid'})
+                                    404: 'Safe not found/No data for that Safe',
+                                    422: 'Safe address checksum not valid'})
     def get(self, request, address):
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -304,6 +294,20 @@ class SafeMultisigTxView(ListAPIView):
         if response.data['count'] == 0:
             response.status_code = status.HTTP_404_NOT_FOUND
         return response
+
+
+class SafeMultisigTxView(SafeListApiView):
+    filterset_class = SafeMultisigTxFilter
+    ordering = ('-created',)
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return SafeMultisigTxResponseSerializer
+        elif self.request.method == 'POST':
+            return SafeRelayMultisigTxSerializer
+
+    def get_queryset(self):
+        return SafeMultisigTx.objects.filter(safe=self.kwargs['address'])
 
     @swagger_auto_schema(responses={201: SafeMultisigTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -351,13 +355,9 @@ class SafeMultisigTxView(ListAPIView):
                                     data='Safe Multisig Tx with that nonce already exists')
 
 
-class EthereumTxView(ListAPIView):
-    permission_classes = (AllowAny,)
-    pagination_class = DefaultPagination
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
-    ordering_fields = '__all__'
+class EthereumTxView(SafeListApiView):
     ordering = ('-block_number',)
-    serializer_class = EthereumTxSerializer
+    serializer_class = EthereumTxWithInternalTxsSerializer
 
     def get_queryset(self):
         address = self.kwargs['address']
@@ -368,19 +368,32 @@ class EthereumTxView(ListAPIView):
                                          Q(internal_txs__contract_address=address)
                                          ).distinct().prefetch_related('internal_txs')
 
-    @swagger_auto_schema(responses={400: 'Data not valid',
-                                    404: 'Safe not found/No txs for that Safe',
-                                    422: 'Safe address checksum not valid/Tx not valid'})
-    def get(self, request, address):
-        if not Web3.isChecksumAddress(address):
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
-        response = super().get(request, address)
-        if response.data['count'] == 0:
-            response.status_code = status.HTTP_404_NOT_FOUND
-        return response
+class ERC20View(SafeListApiView):
+    ordering = ('-ethereum_tx__block_number',)
+    serializer_class = ERC20Serializer
+
+    def get_queryset(self):
+        address = self.kwargs['address']
+        return EthereumEvent.objects.erc20_events(address=address).select_related('ethereum_tx')
+
+
+class ERC721View(SafeListApiView):
+    ordering = ('-ethereum_tx__block_number',)
+    serializer_class = ERC721Serializer
+
+    def get_queryset(self):
+        address = self.kwargs['address']
+        return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx')
+
+
+class InternalTxsView(SafeListApiView):
+    ordering = ('-ethereum_tx__block_number',)
+    serializer_class = InternalTxWithEthereumTxSerializer
+
+    def get_queryset(self):
+        address = self.kwargs['address']
+        return InternalTx.objects.filter(Q(to=address) |
+                                         Q(_from=address) |
+                                         Q(contract_address=address)
+                                         ).select_related('ethereum_tx')

@@ -4,10 +4,11 @@ from django.db.models import Q
 from django.test import TestCase
 
 from eth_account import Account
-from gnosis.eth import EthereumClient
-from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 from hexbytes import HexBytes
 from web3.datastructures import AttributeDict
+
+from gnosis.eth import EthereumClient
+from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
 from ..models import InternalTx, SafeContract, SafeTxStatus
 from ..services import InternalTxService
@@ -354,24 +355,27 @@ class TestInternalTxService(TestCase, SafeTestCaseMixin):
         self.assertEqual(safe_tx_status.tx_block_number, 0)
         self.assertEqual(safe_tx_status.tx_block_number, safe_tx_status.initial_block_number)
 
-    def test_process_internal_txs(self):
+    def test_process_addresses(self):
         address = '0xd714EE2aEE29c404491AA18FE0442228C2d955f0'
         safe_contract = SafeContractFactory(address=address)
 
+        with self.assertRaisesMessage(AssertionError, 'Safe addresses cannot be empty'):
+            self.internal_tx_service.process_addresses([])
+
         block_process_limit = self.internal_tx_service.block_process_limit
-        self.assertIsNone(self.internal_tx_service.process_internal_txs([address]))
+        self.assertIsNone(self.internal_tx_service.process_addresses([address]))
         self.assertEqual(SafeTxStatus.objects.filter(safe=safe_contract).count(), 0)
         self.assertEqual(InternalTx.objects.filter(Q(_from=address) | Q(to=address)).count(), 0)
         SafeTxStatusFactory(safe=safe_contract)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertFalse(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         self.assertEqual(safe_tx_status.tx_block_number, block_process_limit)
 
         # We scan for every tx
         self.internal_tx_service.block_process_limit = 0
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations
@@ -379,7 +383,7 @@ class TestInternalTxService(TestCase, SafeTestCaseMixin):
                          self.internal_tx_service.ethereum_client.current_block_number - confirmations)
         self.assertEqual(InternalTx.objects.count(), 11)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations

@@ -4,12 +4,12 @@ from typing import Iterable, List, NamedTuple, Optional
 from django.conf import settings
 
 from eth_account import Account
-from gnosis.safe import Safe, ProxyFactory
-from gnosis.safe.safe import SafeCreationEstimate
 from hexbytes import HexBytes
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.safe import ProxyFactory, Safe
+from gnosis.safe.safe import SafeCreationEstimate
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)

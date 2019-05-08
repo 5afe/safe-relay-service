@@ -7,10 +7,10 @@ from django.urls import reverse
 
 import requests
 from eth_account import Account
-from gnosis.safe import SafeTx
 from web3 import HTTPProvider, Web3
 
 from gnosis.eth.contracts import get_erc20_contract
+from gnosis.safe import SafeTx
 from gnosis.safe.tests.utils import generate_valid_s
 
 
