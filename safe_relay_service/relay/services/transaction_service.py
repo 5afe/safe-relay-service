@@ -185,7 +185,15 @@ class TransactionService:
         safe = Safe(safe_address, self.ethereum_client)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
-        safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
+
+        # For Safe contracts v1.0.0 operational gas is not used (`base_gas` has all the related costs already)
+        safe_version = safe.retrieve_version()
+        if safe_version != '0.1.0':
+            safe_tx_operational_gas = 0
+        else:
+            safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
+            safe_tx_base_gas -= safe_tx_operational_gas
+
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
         return TransactionEstimation(safe_tx_gas, safe_tx_base_gas, safe_tx_base_gas, safe_tx_operational_gas,

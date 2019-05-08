@@ -221,7 +221,7 @@ class Command(BaseCommand):
             fees = r.json()['gasPrice'] * estimate_gas
             tx['value'] = safe_balance - fees
 
-        tx['dataGas'] = r.json()['dataGas']
+        tx['dataGas'] = r.json()['dataGas'] + r.json()['operationalGas']
         tx['gasPrice'] = r.json()['gasPrice']
         tx['safeTxGas'] = r.json()['safeTxGas']
         tx['nonce'] = 0 if r.json()['lastUsedNonce'] is None else r.json()['lastUsedNonce'] + 1
