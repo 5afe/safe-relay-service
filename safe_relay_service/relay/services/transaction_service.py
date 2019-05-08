@@ -184,8 +184,15 @@ class TransactionService:
         safe_tx_gas = self.safe_service.estimate_tx_gas(safe_address, to, value, data, operation)
         safe_data_tx_gas = self.safe_service.estimate_tx_data_gas(safe_address, to, value, data, operation, gas_token,
                                                                   safe_tx_gas)
-        safe_operational_tx_gas = self.safe_service.estimate_tx_operational_gas(safe_address,
-                                                                                len(data) if data else 0)
+        # For Safe contracts v1.0.0 operational gas is not used (`base_gas` has all the related costs already)
+        safe_version = self.safe_service.retrieve_version(safe_address)
+        if safe_version == '1.0.0':
+            safe_operational_tx_gas = 0
+        else:
+            safe_operational_tx_gas = self.safe_service.estimate_tx_operational_gas(safe_address,
+                                                                                    len(data) if data else 0)
+            safe_data_tx_gas -= safe_operational_tx_gas
+
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
         return TransactionEstimation(safe_tx_gas, safe_data_tx_gas, safe_operational_tx_gas, gas_price,

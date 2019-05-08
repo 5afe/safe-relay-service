@@ -41,5 +41,10 @@ deploy:
     on:
       tags: true
       branch: master
+  - provider: script
+    script: bash scripts/deploy_docker.sh $TRAVIS_TAG
+    on:
+      tags: true
+      branch: hotfix
 after_success:
   - coveralls
