@@ -261,7 +261,7 @@ LOGGING = {
             'handlers': ['console', 'mail_admins'],
             'propagate': True
         },
-        'django.server': {
+        'django.server': {  # Gunicorn uses `gunicorn.access`
             'level': 'INFO',
             'handlers': ['console'],
             'propagate': True,
