@@ -1,4 +1,10 @@
+import logging
 from typing import List
+
+
+class IgnoreCheckUrl(logging.Filter):
+    def filter(self, record):
+        return not (record.status_code == 200 and record.args and record.args[0].startswith('GET /check/'))
 
 
 def chunks(l: List[any], n: int):

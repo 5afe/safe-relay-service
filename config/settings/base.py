@@ -220,6 +220,9 @@ LOGGING = {
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
+        },
+        'ignore_check_url': {
+            '()': 'safe_relay_service.relay.utils.IgnoreCheckUrl'
         }
     },
     'formatters': {
@@ -257,7 +260,13 @@ LOGGING = {
             'level': 'ERROR',
             'handlers': ['console', 'mail_admins'],
             'propagate': True
-        }
+        },
+        'django.server': {
+            'level': 'INFO',
+            'handlers': ['console'],
+            'propagate': True,
+            'filters': ['ignore_check_url'],
+        },
     }
 }
 

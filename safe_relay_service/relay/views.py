@@ -1,4 +1,4 @@
-from logging import getLogger
+import logging
 
 from django.conf import settings
 from django.db.models import Q
@@ -21,7 +21,7 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumTx, InternalTx, SafeContract, SafeFunding,
+from .models import (EthereumTx, SafeContract, SafeFunding,
                      SafeMultisigTx)
 from .serializers import (EthereumTxSerializer,
                           SafeCreationEstimateResponseSerializer,
@@ -40,7 +40,8 @@ from .services.transaction_service import (SafeMultisigTxExists,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
 
-logger = getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 def custom_exception_handler(exc, context):
