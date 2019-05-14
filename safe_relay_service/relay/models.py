@@ -216,12 +216,12 @@ class EthereumTx(models.Model):
     tx_hash = Sha3HashField(unique=True, primary_key=True)
     block_number = models.IntegerField(null=True, default=None)  # If mined
     gas_used = Uint256Field(null=True, default=None)  # If mined
-    _from = EthereumAddressField(null=True)
+    _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
     data = models.BinaryField(null=True)
     nonce = Uint256Field()
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
 
     def __str__(self):
@@ -238,7 +238,7 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
     operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
@@ -261,13 +261,13 @@ class SafeMultisigTx(TimeStampedModel):
 
 class InternalTx(models.Model):
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
-    _from = EthereumAddressField()
+    _from = EthereumAddressField(db_index=True)
     gas = Uint256Field()
     data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
     gas_used = Uint256Field()
-    contract_address = EthereumAddressField(null=True)  # Create
+    contract_address = EthereumAddressField(null=True, db_index=True)  # Create
     code = models.BinaryField(null=True)                # Create
     output = models.BinaryField(null=True)              # Call
     call_type = models.PositiveSmallIntegerField(null=True,
