@@ -13,9 +13,9 @@ from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import (EthereumTx, EthereumTxCallType,
-                                             InternalTx, SafeCreation2,
-                                             SafeFunding)
+from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
+                                             EthereumTxCallType, InternalTx,
+                                             SafeCreation2, SafeFunding)
 from safe_relay_service.tokens.models import Token
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
 class InternalTxSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternalTx
-        exclude = ('id', 'ethereum_tx')
+        exclude = ('id',)
 
     _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
@@ -164,6 +164,7 @@ class InternalTxSerializer(serializers.ModelSerializer):
     output = HexadecimalField()
     call_type = serializers.SerializerMethodField()
     tx_type = serializers.SerializerMethodField()
+    ethereum_tx = None
 
     def get_fields(self):
         result = super().get_fields()
@@ -191,7 +192,6 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     data = HexadecimalField()
     tx_hash = HexadecimalField()
-    internal_txs = InternalTxSerializer(many=True)
 
     def get_fields(self):
         result = super().get_fields()
@@ -201,9 +201,47 @@ class EthereumTxSerializer(serializers.ModelSerializer):
         return result
 
 
+class InternalTxWithEthereumTxSerializer(InternalTxSerializer):
+    ethereum_tx = EthereumTxSerializer()
+
+
+class EthereumTxWithInternalTxsSerializer(EthereumTxSerializer):
+    internal_txs = InternalTxSerializer(many=True)
+
+
+class ERCTransfer(serializers.ModelSerializer):
+    """
+    Base class for ERC20 and ERC721 serializer
+    """
+    class Meta:
+        model = EthereumEvent
+        exclude = ('arguments', 'topic')
+
+    ethereum_tx = EthereumTxSerializer()
+    log_index = serializers.IntegerField(min_value=0)
+    token_address = EthereumAddressField()
+    _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='arguments.from')
+    to = EthereumAddressField(allow_null=False, allow_zero_address=True, source='arguments.to')
+
+    def get_fields(self):
+        result = super().get_fields()
+        # Rename `_from` to `from`
+        _from = result.pop('_from')
+        result['from'] = _from
+        return result
+
+
+class ERC20Serializer(ERCTransfer):
+    value = serializers.CharField(source='arguments.value')
+
+
+class ERC721Serializer(ERCTransfer):
+    token_id = serializers.CharField(source='arguments.tokenId')
+
+
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    ethereum_tx = EthereumTxSerializer()
+    ethereum_tx = EthereumTxWithInternalTxsSerializer()
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
     timestamp = serializers.DateTimeField(source='created')

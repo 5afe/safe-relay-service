@@ -5,14 +5,13 @@ from django.urls import reverse
 from eth_account import Account
 from ethereum.utils import check_checksum
 from faker import Faker
-from gnosis.safe import SafeTx
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
-from gnosis.safe import SafeOperation
+from gnosis.safe import SafeOperation, SafeTx
 from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.utils import generate_valid_s
 
@@ -21,9 +20,9 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
 from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
-from .factories import (EthereumTxFactory, InternalTxFactory,
-                        SafeContractFactory, SafeFundingFactory,
-                        SafeMultisigTxFactory)
+from .factories import (EthereumEventFactory, EthereumTxFactory,
+                        InternalTxFactory, SafeContractFactory,
+                        SafeFundingFactory, SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -647,3 +646,72 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                 self.assertEqual(ethereum_tx['internalTxs'][0]['to'], safe_address)
                 at_least_one = True
         self.assertTrue(at_least_one)
+
+    def test_erc20_view(self):
+        safe_address = Account().create().address
+        SafeContractFactory(address=safe_address)
+
+        response = self.client.get(reverse('v1:erc20-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        ethereum_erc20_event = EthereumEventFactory(to=safe_address)
+        response = self.client.get(reverse('v1:erc20-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_ethereum_erc20_event = response.json()['results'][0]
+        self.assertEqual(ethereum_erc20_event.token_address, response_ethereum_erc20_event['tokenAddress'])
+        self.assertEqual(ethereum_erc20_event.arguments['to'], response_ethereum_erc20_event['to'])
+        self.assertEqual(ethereum_erc20_event.arguments['from'], response_ethereum_erc20_event['from'])
+        self.assertEqual(ethereum_erc20_event.arguments['value'], int(response_ethereum_erc20_event['value']))
+        self.assertEqual(ethereum_erc20_event.ethereum_tx.to, response_ethereum_erc20_event['ethereumTx']['to'])
+
+        EthereumEventFactory(from_=safe_address)
+        EthereumEventFactory()
+        response = self.client.get(reverse('v1:erc20-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 2)
+
+    def test_erc721_view(self):
+        safe_address = Account().create().address
+        SafeContractFactory(address=safe_address)
+
+        response = self.client.get(reverse('v1:erc721-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        ethereum_erc721_event = EthereumEventFactory(to=safe_address, erc721=True)
+        response = self.client.get(reverse('v1:erc721-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_ethereum_erc721_event = response.json()['results'][0]
+        self.assertEqual(ethereum_erc721_event.token_address, response_ethereum_erc721_event['tokenAddress'])
+        self.assertEqual(ethereum_erc721_event.arguments['to'], response_ethereum_erc721_event['to'])
+        self.assertEqual(ethereum_erc721_event.arguments['from'], response_ethereum_erc721_event['from'])
+        self.assertEqual(ethereum_erc721_event.arguments['tokenId'], int(response_ethereum_erc721_event['tokenId']))
+        self.assertEqual(ethereum_erc721_event.ethereum_tx.to, response_ethereum_erc721_event['ethereumTx']['to'])
+
+        EthereumEventFactory(from_=safe_address, erc721=True)
+        EthereumEventFactory(erc721=True)
+        response = self.client.get(reverse('v1:erc721-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 2)
+
+    def test_internal_tx_view(self):
+        safe_address = Account().create().address
+        SafeContractFactory(address=safe_address)
+
+        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        internal_tx = InternalTxFactory(to=safe_address)
+        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_internal_tx = response.json()['results'][0]
+        self.assertEqual(internal_tx._from, response_internal_tx['from'])
+        self.assertEqual(internal_tx.to, response_internal_tx['to'])
+        self.assertEqual(internal_tx.data.hex(), response_internal_tx['data'])
+        self.assertEqual(internal_tx.value, int(response_internal_tx['value']))
+        self.assertEqual(internal_tx.ethereum_tx.to, response_internal_tx['ethereumTx']['to'])
+
+        InternalTxFactory(_from=safe_address)
+        InternalTxFactory()
+        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 2)

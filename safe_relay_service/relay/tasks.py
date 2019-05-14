@@ -341,7 +341,7 @@ def find_internal_txs_task() -> int:
     number_safes = 0
     try:
         with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
-            number_safes = InternalTxServiceProvider().process_all_internal_txs()
+            number_safes = InternalTxServiceProvider().process_all()
     except LockError:
         pass
     return number_safes

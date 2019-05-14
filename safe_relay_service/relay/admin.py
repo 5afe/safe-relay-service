@@ -2,8 +2,9 @@ from django.contrib import admin
 
 from web3 import Web3
 
-from .models import (EthereumTx, InternalTx, SafeContract, SafeCreation,
-                     SafeCreation2, SafeFunding, SafeMultisigTx, SafeTxStatus)
+from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
+                     SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
+                     SafeTxStatus)
 
 
 @admin.register(SafeContract)
@@ -48,6 +49,11 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
 @admin.register(InternalTx)
 class InternalTxAdmin(admin.ModelAdmin):
     list_display = ('ethereum_tx', '_from', 'to', 'value', 'call_type')
+
+
+@admin.register(EthereumEvent)
+class EthereumEventAdmin(admin.ModelAdmin):
+    list_display = ('ethereum_tx', 'log_index', 'arguments')
 
 
 @admin.register(SafeTxStatus)

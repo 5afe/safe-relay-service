@@ -1,13 +1,13 @@
 from django.test import TestCase
-from eth_account import Account
 
+from eth_account import Account
 from ethereum.transactions import secpk1n
 from faker import Faker
-from gnosis.safe.safe_tx import SafeTx
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_key
+from gnosis.safe.safe_tx import SafeTx
 
 from ..models import SafeContract, SafeFunding
 from ..serializers import (SafeCreationSerializer,
