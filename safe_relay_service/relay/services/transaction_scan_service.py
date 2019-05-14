@@ -216,9 +216,9 @@ class TransactionScanService:
         number_safes = 0
 
         # We need to cast the `iterable` to `list`, if not chunks will not work well when models are updated
-        almost_updated_addresses = list(self.get_almost_updated_safes(current_block_number))
-        almost_updated_addresses_chunks = chunks(almost_updated_addresses, self.query_chunk_size)
-        for almost_updated_addresses_chunk in almost_updated_addresses_chunks:
+        almost_updated_safe_tx_statuses = list(self.get_almost_updated_safes(current_block_number))
+        almost_updated_safe_tx_statuses_chunks = chunks(almost_updated_safe_tx_statuses, self.query_chunk_size)
+        for almost_updated_addresses_chunk in almost_updated_safe_tx_statuses_chunks:
             almost_updated_addresses = [safe_tx_status.safe_id for safe_tx_status in almost_updated_addresses_chunk]
             self.process_addresses(almost_updated_addresses)
             number_safes += len(almost_updated_addresses)

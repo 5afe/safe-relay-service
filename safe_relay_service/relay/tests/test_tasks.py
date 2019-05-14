@@ -5,15 +5,15 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from safe_relay_service.relay.services import InternalTxServiceProvider
+from ..services import Erc20EventsServiceProvider, InternalTxServiceProvider
 
 from ..models import SafeContract, SafeFunding
 from ..tasks import (check_balance_of_accounts_task,
                      check_deployer_funded_task, deploy_create2_safe_task,
                      deploy_safes_task, find_internal_txs_task,
-                     fund_deployer_task)
+                     fund_deployer_task, find_erc_20_721_transfers_task)
 from .factories import (SafeCreation2Factory, SafeCreationFactory,
-                        SafeFundingFactory, SafeTxStatusFactory)
+                        SafeFundingFactory, SafeTxStatusFactory, SafeContractFactory)
 from .relay_test_case import RelayTestCaseMixin
 from .test_internal_tx_service import EthereumClientMock
 
@@ -252,3 +252,22 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         self.assertEqual(find_internal_txs_task.delay().get(), 2)
         self.assertEqual(find_internal_txs_task.delay().get(), 0)
         InternalTxServiceProvider.del_singleton()
+
+    def test_find_erc_20_721_transfers_task(self):
+        erc20_events_service = Erc20EventsServiceProvider()
+        erc20_events_service.confirmations = 0
+        self.assertEqual(find_erc_20_721_transfers_task.delay().get(), 0)
+
+        safe_creation_2 = SafeCreation2Factory(block_number=10)
+        safe = safe_creation_2.safe
+        safe_address = safe.address
+        amount = 10
+        owner_account = self.ethereum_test_account
+        erc20_contract = self.deploy_example_erc20(amount, self.ethereum_test_account.address)
+        self.send_tx(erc20_contract.functions.transfer(
+            safe_address, amount // 2).buildTransaction({'from': owner_account.address}), owner_account)
+
+        self.assertEqual(find_erc_20_721_transfers_task.delay().get(), 0)
+        SafeTxStatusFactory(safe=safe)
+        self.assertEqual(find_erc_20_721_transfers_task.delay().get(), 1)
+        Erc20EventsServiceProvider.del_singleton()
