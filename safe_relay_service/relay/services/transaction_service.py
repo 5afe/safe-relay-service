@@ -2,6 +2,7 @@ from logging import getLogger
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
 from eth_account import Account
+from packaging.version import Version
 from redis import Redis
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
@@ -188,11 +189,10 @@ class TransactionService:
 
         # For Safe contracts v1.0.0 operational gas is not used (`base_gas` has all the related costs already)
         safe_version = safe.retrieve_version()
-        if safe_version != '0.1.0':
+        if Version(safe_version) >= Version('1.0.0'):
             safe_tx_operational_gas = 0
         else:
             safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
-            safe_tx_base_gas -= safe_tx_operational_gas
 
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
