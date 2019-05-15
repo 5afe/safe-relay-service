@@ -191,7 +191,6 @@ class TransactionService:
         else:
             safe_operational_tx_gas = self.safe_service.estimate_tx_operational_gas(safe_address,
                                                                                     len(data) if data else 0)
-            safe_data_tx_gas -= safe_operational_tx_gas
 
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
