@@ -314,7 +314,7 @@ class SafeTxStatus(models.Model):
                                                                    self.erc_20_block_number)
 
 
-class EthereumEventManager(models.Manager):
+class EthereumEventQuerySet(models.QuerySet):
     def erc20_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
         queryset = self.filter(topic=ERC20_721_TRANSFER_TOPIC)
         if token_address:
@@ -366,7 +366,7 @@ class EthereumEventManager(models.Manager):
 
 
 class EthereumEvent(models.Model):
-    objects = EthereumEventManager()
+    objects = EthereumEventQuerySet.as_manager()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='events')
     log_index = models.PositiveIntegerField()
     token_address = EthereumAddressField(db_index=True)
