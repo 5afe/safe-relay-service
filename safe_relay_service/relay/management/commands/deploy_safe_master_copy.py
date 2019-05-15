@@ -32,4 +32,4 @@ class Command(BaseCommand):
                                                  'master copy %s not found' % master_copy_address))
             master_copy_address = Safe.deploy_master_contract(ethereum_client,
                                                               deployer_account=deployer_account).contract_address
-            self.stdout.write(self.style.SUCCESS('Master copy deployed on %s' % master_copy_address))
+            self.stdout.write(self.style.SUCCESS('Master copy has been deployed on %s' % master_copy_address))

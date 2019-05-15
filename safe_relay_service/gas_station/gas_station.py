@@ -28,7 +28,7 @@ class GasStationProvider:
                 cls.instance = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
                 w3 = cls.instance.w3
                 if w3.isConnected() and int(w3.net.version) > 314158:  # Ganache
-                    logger.warning('Using mock Gas Station because no chainId was detected')
+                    logger.warning('Using mock Gas Station because no `w3.net.version` was detected')
                     cls.instance = GasStationMock()
         return cls.instance
 
