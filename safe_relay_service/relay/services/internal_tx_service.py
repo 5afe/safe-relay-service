@@ -37,8 +37,8 @@ class InternalTxService(TransactionScanService):
         :param to_block_number: Ending block number
         :return: Tx hashes of txs with internal txs relevant for the `safe_addresses`
         """
-        logger.info('Searching for internal txs from block-number=%d to block-number=%d - Safes=%s',
-                    from_block_number, to_block_number, safe_addresses)
+        logger.debug('Searching for internal txs from block-number=%d to block-number=%d - Safes=%s',
+                     from_block_number, to_block_number, safe_addresses)
 
         to_traces = self.ethereum_client.parity.trace_filter(from_block=from_block_number,
                                                              to_block=to_block_number,
@@ -48,8 +48,10 @@ class InternalTxService(TransactionScanService):
                                                                to_block=to_block_number,
                                                                from_address=safe_addresses)
 
-        logger.info('Found %d relevant txs between block-number=%d and block-number%d. Safes=%s',
-                    len(to_traces + from_traces), from_block_number, to_block_number, safe_addresses)
+        # Log INFO if traces found, DEBUG if not
+        log_fn = logger.info if to_traces + from_traces else logger.debug
+        log_fn('Found %d relevant txs between block-number=%d and block-number%d. Safes=%s',
+               len(to_traces + from_traces), from_block_number, to_block_number, safe_addresses)
 
         return set([trace['transactionHash'] for trace in (to_traces + from_traces)])
 

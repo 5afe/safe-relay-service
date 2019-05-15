@@ -41,4 +41,3 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS('Created Periodic Task %s' % task.name))
             else:
                 self.stdout.write(self.style.SUCCESS('Task %s was already created' % task.name))
-

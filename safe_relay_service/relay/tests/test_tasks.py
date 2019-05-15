@@ -5,15 +5,15 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from ..services import Erc20EventsServiceProvider, InternalTxServiceProvider
-
 from ..models import SafeContract, SafeFunding
+from ..services import Erc20EventsServiceProvider, InternalTxServiceProvider
 from ..tasks import (check_balance_of_accounts_task,
                      check_deployer_funded_task, deploy_create2_safe_task,
-                     deploy_safes_task, find_internal_txs_task,
-                     fund_deployer_task, find_erc_20_721_transfers_task)
-from .factories import (SafeCreation2Factory, SafeCreationFactory,
-                        SafeFundingFactory, SafeTxStatusFactory, SafeContractFactory)
+                     deploy_safes_task, find_erc_20_721_transfers_task,
+                     find_internal_txs_task, fund_deployer_task)
+from .factories import (SafeContractFactory, SafeCreation2Factory,
+                        SafeCreationFactory, SafeFundingFactory,
+                        SafeTxStatusFactory)
 from .relay_test_case import RelayTestCaseMixin
 from .test_internal_tx_service import EthereumClientMock
 

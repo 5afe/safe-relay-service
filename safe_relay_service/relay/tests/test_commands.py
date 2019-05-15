@@ -2,10 +2,11 @@ from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase
+
 from django_celery_beat.models import PeriodicTask
 
-
-from .factories import SafeFundingFactory, SafeCreation2Factory, SafeContractFactory
+from .factories import (SafeContractFactory, SafeCreation2Factory,
+                        SafeFundingFactory)
 
 
 class TestCommands(TestCase):

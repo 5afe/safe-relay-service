@@ -39,16 +39,17 @@ class Erc20EventsService(TransactionScanService):
         :param to_block_number: Ending block number
         :return: Tx hashes of txs with relevant erc20 transfer events for the `safe_addresses`
         """
-        logger.info('Searching for erc20 txs from block-number=%d to block-number=%d - Safes=%s',
-                    from_block_number, to_block_number, safe_addresses)
+        logger.debug('Searching for erc20 txs from block-number=%d to block-number=%d - Safes=%s',
+                     from_block_number, to_block_number, safe_addresses)
 
         # It will get erc721 events, as `topic` is the same
         erc20_transfer_events = self.ethereum_client.erc20.get_total_transfer_history(safe_addresses,
                                                                                       from_block=from_block_number,
                                                                                       to_block=to_block_number)
-
-        logger.info('Found %d relevant erc20 txs between block-number=%d and block-number%d. Safes=%s',
-                    len(erc20_transfer_events), from_block_number, to_block_number, safe_addresses)
+        # Log INFO if erc events found, DEBUG otherwise
+        logger_fn = logger.info if erc20_transfer_events else logger.debug
+        logger_fn('Found %d relevant erc20 txs between block-number=%d and block-number%d. Safes=%s',
+                  len(erc20_transfer_events), from_block_number, to_block_number, safe_addresses)
 
         return set([event['transactionHash'] for event in erc20_transfer_events])
 

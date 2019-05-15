@@ -344,6 +344,7 @@ def find_internal_txs_task() -> int:
             number_safes = InternalTxServiceProvider().process_all()
     except LockError:
         pass
+    logger.info('Find internal txs task processed %d safes', number_safes)
     return number_safes
 
 
@@ -359,4 +360,5 @@ def find_erc_20_721_transfers_task() -> int:
             number_safes = Erc20EventsServiceProvider().process_all()
     except LockError:
         pass
+    logger.info('Find ERC20/721 task processed %d safes', number_safes)
     return number_safes
