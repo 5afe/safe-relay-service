@@ -53,7 +53,13 @@ class InternalTxAdmin(admin.ModelAdmin):
 
 @admin.register(EthereumEvent)
 class EthereumEventAdmin(admin.ModelAdmin):
-    list_display = ('ethereum_tx', 'log_index', 'erc20', 'erc721', 'arguments')
+    list_display = ('ethereum_tx_id', 'log_index', 'erc20', 'erc721', 'from_', 'to', 'arguments')
+
+    def from_(self, obj: EthereumEvent):
+        return obj.arguments.get['from']
+
+    def to(self, obj: EthereumEvent):
+        return obj.arguments.get['to']
 
     def erc20(self, obj: EthereumEvent):
         return obj.is_erc20()
