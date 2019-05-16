@@ -118,6 +118,9 @@ class SafeCreation2(TimeStampedModel):
     tx_hash = Sha3HashField(unique=True, null=True, default=None)
     block_number = models.IntegerField(null=True, default=None)  # If mined
 
+    class Meta:
+        verbose_name_plural = "Safe creation2s"
+
     def __str__(self):
         if self.block_number:
             return 'Safe {} - Deployed on block number {}'.format(self.safe, self.block_number)
@@ -306,6 +309,9 @@ class SafeTxStatus(models.Model):
     tx_block_number = models.IntegerField(default=0)  # Block number when last internal tx scan ended
     erc_20_block_number = models.IntegerField(default=0)  # Block number when last erc20 events scan ended
 
+    class Meta:
+        verbose_name_plural = "Safe tx status"
+
     def __str__(self):
         return 'Safe {} - Initial-block-number={} - ' \
                'Tx-block-number={} - Erc20-block-number={}'.format(self.safe.address,
@@ -315,6 +321,9 @@ class SafeTxStatus(models.Model):
 
 
 class EthereumEventQuerySet(models.QuerySet):
+    def not_erc_20_721_events(self):
+        return self.exclude(topic=ERC20_721_TRANSFER_TOPIC)
+
     def erc20_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
         queryset = self.filter(topic=ERC20_721_TRANSFER_TOPIC)
         if token_address:
