@@ -18,9 +18,9 @@ services:
   - postgresql
   - redis-server
 install:
+  - npm install -g ganache-cli@6.4.3 &
   - travis_retry pip install -r requirements-test.txt
   - travis_retry pip install coveralls
-  - npm install -g ganache-cli@6.4.3
 before_script:
   - psql -c 'create database travisci;' -U postgres
 script:
