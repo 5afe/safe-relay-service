@@ -25,4 +25,5 @@ urlpatterns = [
     path('safes/<str:address>/all-transactions/', views.EthereumTxView.as_view(), name='safe-all-txs'),
     path('safes/<str:address>/transactions/estimate/', views.SafeMultisigTxEstimateView.as_view(),
          name='safe-multisig-tx-estimate'),
+    path('private/safes/', views.PrivateSafesView.as_view(), name='private-safes'),
 ]

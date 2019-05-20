@@ -1,6 +1,8 @@
 import logging
 
+from django.contrib.auth.models import User
 from django.urls import reverse
+from django.utils import dateparse
 
 from eth_account import Account
 from ethereum.utils import check_checksum
@@ -22,7 +24,8 @@ from ..serializers import SafeCreationSerializer
 from ..services.safe_creation_service import SafeCreationServiceProvider
 from .factories import (EthereumEventFactory, EthereumTxFactory,
                         InternalTxFactory, SafeContractFactory,
-                        SafeFundingFactory, SafeMultisigTxFactory)
+                        SafeCreation2Factory, SafeFundingFactory,
+                        SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -715,3 +718,80 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['count'], 2)
+
+    def test_private_safes_view(self):
+        url = reverse('v1:private-safes')
+        username, password = 'admin', 'mypass'
+        user = User.objects.create_superuser(username, 'admin@admin.com', password)
+        self.client.force_authenticate(user=user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 0)
+
+        safe_contract = SafeContractFactory()
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 0)
+
+        # Safe must be deployed
+        SafeCreation2Factory(safe=safe_contract, block_number=2)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 1)
+        results = response.json()['results']
+        safe_response = results[0]
+        self.assertEqual(safe_response['address'], safe_contract.address)
+        self.assertEqual(dateparse.parse_datetime(safe_response['created']), safe_contract.created)
+
+        # Add balance
+        InternalTxFactory(to=safe_contract.address, value=10)
+        InternalTxFactory(to=safe_contract.address, value=5)
+        InternalTxFactory(_from=safe_contract.address, value=8)
+        # Balance of safe_contract must be 15 - 8 = 7 now
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 1)
+        results = response.json()['results']
+        safe_response = results[0]
+        self.assertEqual(safe_response['address'], safe_contract.address)
+        self.assertEqual(safe_response['balance'], 7)
+
+        # Add token transfers
+        ethereum_event = EthereumEventFactory(to=safe_contract.address, value=19)
+        EthereumEventFactory(from_=safe_contract.address, token_address=ethereum_event.token_address, value=5)
+        ethereum_event_2 = EthereumEventFactory(to=safe_contract.address, value=4)
+        EthereumEventFactory(from_=safe_contract.address, token_address=ethereum_event_2.token_address, value=5)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['count'], 1)
+        results = response.json()['results']
+        safe_response = results[0]
+        self.assertEqual(safe_response['address'], safe_contract.address)
+        self.assertEqual(safe_response['balance'], 7)
+        self.assertEqual(safe_response['tokensWithBalance'][0]['tokenAddress'], ethereum_event.token_address)
+        self.assertEqual(safe_response['tokensWithBalance'][0]['balance'], 14)
+        self.assertEqual(safe_response['tokensWithBalance'][1]['tokenAddress'], ethereum_event_2.token_address)
+        self.assertEqual(safe_response['tokensWithBalance'][1]['balance'], -1)
+        self.client.force_authenticate(user=None)
+
+    def test_api_token_auth(self):
+        username, password = 'admin', 'mypass'
+
+        # No user created
+        response = self.client.post(reverse('api-token-auth'), format='json', data={'username': username,
+                                                                                    'password': password})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Create user
+        User.objects.create_superuser(username, 'admin@admin.com', password)
+        response = self.client.post(reverse('api-token-auth'), format='json', data={'username': username,
+                                                                                    'password': password})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        token = response.json()['token']
+
+        # Test protected endpoint
+        response = self.client.get(reverse('v1:private-safes'))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        response = self.client.get(reverse('v1:private-safes'), HTTP_AUTHORIZATION='Token ' + token)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -149,6 +149,7 @@ class EthereumEventFactory(factory.DjangoModelFactory):
         to = None
         from_ = None
         erc721 = False
+        value = 1200
 
     ethereum_tx = factory.SubFactory(EthereumTxFactory)
     log_index = factory.Sequence(lambda n: n)
@@ -156,5 +157,5 @@ class EthereumEventFactory(factory.DjangoModelFactory):
     topic = ERC20_721_TRANSFER_TOPIC
     arguments = factory.LazyAttribute(lambda o: {'to': o.to if o.to else Account.create().address,
                                                  'from': o.from_ if o.from_ else Account.create().address,
-                                                 'tokenId' if o.erc721 else 'value': 1200}
+                                                 'tokenId' if o.erc721 else 'value': o.value}
                                       )

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
@@ -66,12 +67,8 @@ class EthereumEventFromToListFilter(admin.SimpleListFilter):
             return
 
         # Django doesn't support `->>` for auto conversion to text
-        query = """SELECT * FROM "relay_ethereumevent" WHERE (arguments ->> '%s') IN (SELECT U0.address 
-                   FROM "relay_safecontract" U0)""" % param
-        raw_queryset = queryset.raw(query)
-        return raw_queryset
-        ids = [e.id for e in raw_queryset]
-        return queryset.filter(id__in=ids)
+        return queryset.annotate(address=RawSQL("arguments->>%s", (param,))
+                                 ).filter(address__in=SafeContract.objects.values('address'))
 
 
 @admin.register(EthereumEvent)

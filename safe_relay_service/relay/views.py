@@ -7,8 +7,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from rest_framework import filters, status
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.generics import CreateAPIView, ListAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView, exception_handler
@@ -26,6 +27,7 @@ from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
 from .serializers import (ERC20Serializer, ERC721Serializer,
                           EthereumTxWithInternalTxsSerializer,
                           InternalTxWithEthereumTxSerializer,
+                          SafeContractSerializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateSerializer,
                           SafeCreationResponseSerializer,
@@ -397,3 +399,10 @@ class InternalTxsView(SafeListApiView):
                                          Q(_from=address) |
                                          Q(contract_address=address)
                                          ).select_related('ethereum_tx')
+
+
+class PrivateSafesView(ListAPIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    serializer_class = SafeContractSerializer
+    queryset = SafeContract.objects.deployed()

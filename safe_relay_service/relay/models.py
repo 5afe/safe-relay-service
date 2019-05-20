@@ -1,9 +1,10 @@
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Set
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.db.models import Case, F, Q, Sum, When
+from django.db.models.expressions import RawSQL
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -56,19 +57,24 @@ class SafeContract(TimeStampedModel):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
 
     def _balance(self) -> Optional[int]:
-        safe_address = self.address
-        # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
-        # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)
-        # return balances_to - balances_from
-
-        # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
-        return InternalTx.objects.filter(Q(_from=safe_address) | Q(to=safe_address)).annotate(
-            balance=Case(
-                When(_from=safe_address, then=-F('value')),
-                default='value',
-            )
-        ).aggregate(Sum('balance')).get('balance__sum', 0)
+        return InternalTx.objects.calculate_balance(self.address)
     balance = property(_balance)
+
+    def _tokens_with_balance(self) -> List[Dict[str, any]]:
+        """
+        :return: List of dictionaries {'token_address': str, 'balance': int}
+        """
+        address = self.address
+        arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
+        return EthereumEvent.objects.erc20_events(
+            address=address
+        ).values('token_address').annotate(
+            balance=Sum(Case(
+                When(arguments__from=address, then=-arguments_value_field),
+                default=arguments_value_field,
+            ))
+        ).order_by('-balance').values('token_address', 'balance')
+    tokens_with_balance = property(_tokens_with_balance)
 
 
 class SafeCreation(TimeStampedModel):
@@ -282,7 +288,23 @@ class SafeMultisigTx(TimeStampedModel):
                                           self.safe.address)
 
 
+class InternalTxManager(models.Manager):
+    def calculate_balance(self, address: str) -> int:
+        # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # return balances_to - balances_from
+
+        # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
+        return InternalTx.objects.filter(Q(_from=address) | Q(to=address)).annotate(
+            balance=Case(
+                When(_from=address, then=-F('value')),
+                default='value',
+            )
+        ).aggregate(Sum('balance')).get('balance__sum', 0)
+
+
 class InternalTx(models.Model):
+    objects = InternalTxManager()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
     _from = EthereumAddressField(db_index=True)
     gas = Uint256Field()
