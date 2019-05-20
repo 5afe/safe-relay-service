@@ -117,11 +117,28 @@ class InternalTxAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
     search_fields = ['=ethereum_tx__block_number', '=_from', '=to']
 
 
+class SafeContractDeployedListFilter(admin.SimpleListFilter):
+    title = 'Deployed'
+    parameter_name = 'deployed'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('NOT_DEPLOYED', 'Not deployed Safes'),
+            ('DEPLOYED', 'Deployed Safes'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'NOT_DEPLOYED':
+            return queryset.not_deployed()
+        elif self.value() == 'DEPLOYED':
+            return queryset.deployed()
+
+
 @admin.register(SafeContract)
 class SafeContractAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'address', 'master_copy')
-    list_filter = ('master_copy',)
+    list_display = ('created', 'address', 'master_copy', 'balance')
+    list_filter = ('master_copy', SafeContractDeployedListFilter)
     search_fields = ['address']
 
 

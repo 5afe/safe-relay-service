@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Sum, When, Case, F
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -35,20 +35,40 @@ class EthereumTxCallType(Enum):
             return None
 
 
-class SafeContractManager(models.Manager):
+class SafeContractQuerySet(models.QuerySet):
     def deployed(self):
         return self.filter(
             ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
         )
 
+    def not_deployed(self):
+        return self.filter(
+            Q(safecreation2__block_number=None) & ~Q(safefunding__safe_deployed=True)
+        )
+
 
 class SafeContract(TimeStampedModel):
-    objects = SafeContractManager()
+    objects = SafeContractQuerySet.as_manager()
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
     def __str__(self):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
+
+    def _balance(self) -> Optional[int]:
+        safe_address = self.address
+        # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # return balances_to - balances_from
+
+        # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
+        return InternalTx.objects.filter(Q(_from=safe_address) | Q(to=safe_address)).annotate(
+            balance=Case(
+                When(_from=safe_address, then=-F('value')),
+                default='value',
+            )
+        ).aggregate(Sum('balance')).get('balance__sum', 0)
+    balance = property(_balance)
 
 
 class SafeCreation(TimeStampedModel):
