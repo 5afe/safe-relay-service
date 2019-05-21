@@ -175,7 +175,7 @@ class SafeCreationService:
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if safe_creation2.tx_hash:
-            logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash.hex())
+            logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
             return safe_creation2.tx_hash
 
         if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
@@ -202,9 +202,9 @@ class SafeCreationService:
                                                                         safe_creation2.gas_price_estimated,
                                                                         deployer_private_key=
                                                                         self.safe_funder_account.privateKey)
-        safe_creation2.tx_hash = tx_hash
+        safe_creation2.tx_hash = tx_hash.hex()
         safe_creation2.save()
-        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash.hex())
+        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, tx_hash)
         return tx_hash
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str]) -> SafeCreationEstimate:
