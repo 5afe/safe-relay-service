@@ -196,7 +196,7 @@ class SafeCreationService:
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if safe_creation2.tx_hash:
-            logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash.hex())
+            logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
             return safe_creation2.tx_hash
 
         if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
