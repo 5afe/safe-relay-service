@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Q, Sum, When, Case, F
+from django.db.models import Case, F, Q, Sum, When
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel

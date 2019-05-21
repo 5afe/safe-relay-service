@@ -1,5 +1,6 @@
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 
 from eth_account import Account
@@ -10,6 +11,7 @@ from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.safe_creation_service import (InvalidPaymentToken,
+                                              NotEnoughFundingForCreation,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
 
@@ -21,6 +23,32 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
     def setUpTestData(cls):
         cls.prepare_tests()
         cls.safe_creation_service = SafeCreationServiceProvider()
+
+    def test_deploy_create2_safe_tx(self):
+        random_safe_address = Account.create().address
+        with self.assertRaises(ObjectDoesNotExist):
+            self.safe_creation_service.deploy_create2_safe_tx(random_safe_address)
+
+        owner_accounts = [Account.create() for _ in range(4)]
+        owners = [owner_account.address for owner_account in owner_accounts]
+
+        salt_nonce = 17051863
+        threshold = 2
+        payment_token = None
+        safe_creation_2 = self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
+        safe_address = safe_creation_2.safe_id
+        self.assertFalse(self.ethereum_client.is_contract(safe_address))
+        self.assertIsNone(safe_creation_2.tx_hash)
+        with self.assertRaisesMessage(NotEnoughFundingForCreation, str(safe_creation_2.payment)):
+            self.safe_creation_service.deploy_create2_safe_tx(safe_address)
+        self.send_ether(safe_address, safe_creation_2.payment)
+        new_safe_creation_2 = self.safe_creation_service.deploy_create2_safe_tx(safe_address)
+        self.assertTrue(new_safe_creation_2.tx_hash)
+        self.assertTrue(self.ethereum_client.is_contract(safe_address))
+
+        # If already deployed it will return `SafeCreation2`
+        another_safe_creation2 = self.safe_creation_service.deploy_create2_safe_tx(safe_address)
+        self.assertEqual(another_safe_creation2, new_safe_creation_2)
 
     def test_creation_service_provider_singleton(self):
         self.assertEqual(SafeCreationServiceProvider(), SafeCreationServiceProvider())

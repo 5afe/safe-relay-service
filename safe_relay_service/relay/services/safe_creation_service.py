@@ -186,7 +186,6 @@ class SafeCreationService:
             gas_price_estimated=safe_creation_tx.gas_price,
         )
 
-    #Fixme Test this!
     def deploy_create2_safe_tx(self, safe_address: str) -> SafeCreation2:
         """
         Deploys safe if SafeCreation2 exists.
@@ -197,7 +196,7 @@ class SafeCreationService:
 
         if safe_creation2.tx_hash:
             logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
-            return safe_creation2.tx_hash
+            return safe_creation2
 
         if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
             safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
