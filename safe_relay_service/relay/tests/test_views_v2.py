@@ -40,7 +40,7 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         safe_creation_estimates = response.json()
         self.assertEqual(len(safe_creation_estimates), 1)
         safe_creation_estimate = safe_creation_estimates[0]
-        self.assertEqual(safe_creation_estimate['paymentToken'], NULL_ADDRESS)
+        self.assertEqual(safe_creation_estimate['paymentToken'], None)
 
         token = TokenFactory(gas=True, fixed_eth_conversion=None)
         response = self.client.post(url, data=data, format='json')

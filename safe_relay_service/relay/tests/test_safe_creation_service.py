@@ -63,7 +63,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertGreater(safe_creation_estimate.gas, 0)
         self.assertEqual(safe_creation_estimate.gas_price, gas_price)
         self.assertGreater(safe_creation_estimate.payment, 0)
-        self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
+        self.assertIsNone(safe_creation_estimate.payment_token)
         estimated_payment = safe_creation_estimate.payment
 
         number_owners = 8
@@ -72,7 +72,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertGreater(safe_creation_estimate.gas, 0)
         self.assertEqual(safe_creation_estimate.gas_price, gas_price)
         self.assertGreater(safe_creation_estimate.payment, estimated_payment)
-        self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
+        self.assertIsNone(safe_creation_estimate.payment_token)
 
         payment_token = get_eth_address_with_key()[0]
         with self.assertRaisesMessage(InvalidPaymentToken, payment_token):
@@ -99,7 +99,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertGreater(safe_creation_estimate.gas, 0)
         self.assertEqual(safe_creation_estimate.gas_price, gas_price)
         self.assertGreater(safe_creation_estimate.payment, 0)
-        self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
+        self.assertIsNone(safe_creation_estimate.payment_token)
         estimated_payment = safe_creation_estimate.payment
 
         number_owners = 8
@@ -108,7 +108,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertGreater(safe_creation_estimate.gas, 0)
         self.assertEqual(safe_creation_estimate.gas_price, gas_price)
         self.assertGreater(safe_creation_estimate.payment, estimated_payment)
-        self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
+        self.assertIsNone(safe_creation_estimate.payment_token)
 
         payment_token = get_eth_address_with_key()[0]
         with self.assertRaisesMessage(InvalidPaymentToken, payment_token):
@@ -131,7 +131,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         safe_creation_estimates = self.safe_creation_service.estimate_safe_creation_for_all_tokens(number_owners)
         self.assertEqual(len(safe_creation_estimates), 1)
         safe_creation_estimate = safe_creation_estimates[0]
-        self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
+        self.assertIsNone(safe_creation_estimate.payment_token)
 
         token = TokenFactory(gas=True, fixed_eth_conversion=None)
         safe_creation_estimates = self.safe_creation_service.estimate_safe_creation_for_all_tokens(number_owners)
