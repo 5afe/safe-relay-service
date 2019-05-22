@@ -28,6 +28,44 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
     def setUpTestData(cls):
         cls.prepare_tests()
 
+    def test_safe_creation_estimate(self):
+        url = reverse('v2:safe-creation-estimate')
+        number_owners = 4
+        data = {
+            'numberOwners': number_owners
+        }
+
+        response = self.client.post(url, data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        safe_creation_estimates = response.json()
+        self.assertEqual(len(safe_creation_estimates), 1)
+        safe_creation_estimate = safe_creation_estimates[0]
+        self.assertEqual(safe_creation_estimate['paymentToken'], NULL_ADDRESS)
+
+        token = TokenFactory(gas=True, fixed_eth_conversion=None)
+        response = self.client.post(url, data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        safe_creation_estimates = response.json()
+        self.assertEqual(len(safe_creation_estimates), 2)
+        # No price oracles, so estimation will be `0`
+        safe_creation_estimate = safe_creation_estimates[1]
+        self.assertEqual(safe_creation_estimate['paymentToken'], token.address)
+        self.assertEqual(safe_creation_estimate['payment'], 0)
+        self.assertEqual(safe_creation_estimate['gasPrice'], 0)
+        self.assertEqual(safe_creation_estimate['gas'], 0)
+
+        fixed_price_token = TokenFactory(gas=True, fixed_eth_conversion=1.0)
+        response = self.client.post(url, data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        safe_creation_estimates = response.json()
+        self.assertEqual(len(safe_creation_estimates), 3)
+        # Fixed price oracle, so estimation will work
+        safe_creation_estimate = safe_creation_estimates[2]
+        self.assertEqual(safe_creation_estimate['paymentToken'], fixed_price_token.address)
+        self.assertGreater(safe_creation_estimate['payment'], 0)
+        self.assertGreater(safe_creation_estimate['gasPrice'], 0)
+        self.assertGreater(safe_creation_estimate['gas'], 0)
+
     def test_safe_creation(self):
         salt_nonce = generate_salt_nonce()
         owners = [Account.create().address for _ in range(2)]

@@ -3,7 +3,7 @@ from logging import getLogger
 from drf_yasg.utils import swagger_auto_schema
 from hexbytes import HexBytes
 from rest_framework import status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,11 +14,35 @@ from gnosis.eth.constants import NULL_ADDRESS
 from .models import SafeContract, SafeCreation2
 from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreation2Serializer,
+                          SafeCreationEstimateResponseSerializer,
+                          SafeCreationEstimateV2Serializer,
                           SafeFunding2ResponseSerializer)
 from .services.safe_creation_service import SafeCreationServiceProvider
 from .tasks import deploy_create2_safe_task
 
 logger = getLogger(__name__)
+
+
+class SafeCreationEstimateView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeCreationEstimateV2Serializer
+
+    @swagger_auto_schema(responses={201: SafeCreationEstimateResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
+    def post(self, request, *args, **kwargs):
+        """
+        Estimates creation of a Safe
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            number_owners = serializer.data['number_owners']
+            safe_creation_estimates = SafeCreationServiceProvider().estimate_safe_creation_for_all_tokens(number_owners)
+            safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(safe_creation_estimates,
+                                                                                          many=True)
+            return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
+        else:
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
 
 class SafeCreationView(CreateAPIView):

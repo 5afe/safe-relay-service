@@ -65,13 +65,12 @@ class Token(models.Model):
                     prices.append(price)
                 except ExchangeApiException:
                     logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
-            number_prices = len(prices)
-            if number_prices == 0:
-                raise CannotGetTokenPriceFromApi('There is no working provider')
+            if not prices:
+                raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
             else:
-                return sum(prices) / number_prices
+                return sum(prices) / len(prices)
 
-    def calculate_gas_price(self, gas_price: int, price_margin: float=1.0) -> int:
+    def calculate_gas_price(self, gas_price: int, price_margin: float = 1.0) -> int:
         """
         Converts ether gas price to token's gas price
         :param gas_price: Regular ether gas price

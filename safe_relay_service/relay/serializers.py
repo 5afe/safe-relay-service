@@ -79,6 +79,10 @@ class SafeCreationEstimateSerializer(serializers.Serializer):
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
 
 
+class SafeCreationEstimateV2Serializer(serializers.Serializer):
+    number_owners = serializers.IntegerField(min_value=1)
+
+
 # TODO Rename this
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
@@ -114,6 +118,7 @@ class SafeCreationEstimateResponseSerializer(serializers.Serializer):
     gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
     payment = serializers.IntegerField(min_value=0)
+    payment_token = EthereumAddressField(allow_null=True)
 
 
 class SafeCreationResponseSerializer(serializers.Serializer):

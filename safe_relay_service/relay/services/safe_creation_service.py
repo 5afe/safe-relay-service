@@ -13,6 +13,7 @@ from gnosis.safe.safe import SafeCreationEstimate
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
+from safe_relay_service.tokens.exchanges import CannotGetTokenPriceFromApi
 from safe_relay_service.tokens.models import Token
 
 from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
@@ -80,7 +81,7 @@ class SafeCreationService:
         """
         :param address: Token address
         :return: Current eth value of the token
-        :raises: InvalidPaymentToken
+        :raises: InvalidPaymentToken, CannotGetTokenPriceFromApi
         """
         address = address or NULL_ADDRESS
         if address == NULL_ADDRESS:
@@ -230,7 +231,7 @@ class SafeCreationService:
         logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
         return safe_creation2
 
-    def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str]) -> SafeCreationEstimate:
+    def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str] = None) -> SafeCreationEstimate:
         """
         :param number_owners:
         :param payment_token:
@@ -245,6 +246,35 @@ class SafeCreationService:
                                            self.safe_old_contract_address, number_owners, gas_price, payment_token,
                                            payment_token_eth_value=payment_token_eth_value,
                                            fixed_creation_cost=fixed_creation_cost)
+
+    def estimate_safe_creation2(self, number_owners: int, payment_token: Optional[str] = None) -> SafeCreationEstimate:
+        """
+        :param number_owners:
+        :param payment_token:
+        :return:
+        :raises: InvalidPaymentToken
+        """
+        payment_token = payment_token or NULL_ADDRESS
+        payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
+        gas_price = self.gas_station.get_gas_prices().fast
+        fixed_creation_cost = self.safe_fixed_creation_cost
+        return Safe.estimate_safe_creation_2(self.ethereum_client,
+                                             self.safe_contract_address, self.proxy_factory.address,
+                                             number_owners, gas_price, payment_token,
+                                             payment_token_eth_value=payment_token_eth_value,
+                                             fixed_creation_cost=fixed_creation_cost)
+
+    def estimate_safe_creation_for_all_tokens(self, number_owners: int) -> List[SafeCreationEstimate]:
+        ether_safe_creation_estimate = self.estimate_safe_creation2(number_owners)
+        safe_creation_estimates = [ether_safe_creation_estimate]
+
+        for token in Token.objects.filter(gas=True):
+            try:
+                safe_creation_estimate = self.estimate_safe_creation2(number_owners, token.address)
+            except CannotGetTokenPriceFromApi:
+                safe_creation_estimate = SafeCreationEstimate(0, 0, 0, token.address)
+            safe_creation_estimates.append(safe_creation_estimate)
+        return safe_creation_estimates
 
     def retrieve_safe_info(self, address: str) -> SafeInfo:
         safe = Safe(address, self.ethereum_client)
