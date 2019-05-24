@@ -1,10 +1,10 @@
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Case, F, Q, Sum, When
-from django.db.models.expressions import RawSQL
+from django.db.models import Case, DecimalField, F, Q, Sum, When
+from django.db.models.expressions import OuterRef, RawSQL, Subquery
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -289,6 +289,15 @@ class SafeMultisigTx(TimeStampedModel):
 
 
 class InternalTxManager(models.Manager):
+    def balance_for_all_safes(self):
+        outgoing_balance = InternalTx.objects.filter(_from=OuterRef('to')).order_by().values('_from').annotate(
+            total=Sum('value')).values('total')
+        incoming_balance = InternalTx.objects.filter(to=OuterRef('to')).order_by().values('to').annotate(
+            total=Sum('value')).values('total')
+        return InternalTx.objects.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
+                                                   Subquery(outgoing_balance,
+                                                            output_field=DecimalField()))
+
     def calculate_balance(self, address: str) -> int:
         # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
         # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)

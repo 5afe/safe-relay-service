@@ -131,6 +131,25 @@ class SafeContractDeployedListFilter(admin.SimpleListFilter):
             return queryset.deployed()
 
 
+class SafeContractBalanceListFilter(admin.SimpleListFilter):
+    title = 'Balance'
+    parameter_name = 'balance'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('HAS_BALANCE', 'Has some ether'),
+            ('HAS_MORE_THAN_1_ETH', 'Has more than 1 ether'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'HAS_BALANCE':
+            return queryset.filter(address__in=InternalTx.objects.balance_for_all_safes().filter(balance__gt=0
+                                                                                                 ).values('to'))
+        elif self.value() == 'HAS_MORE_THAN_1_ETH':
+            return queryset.filter(address__in=InternalTx.objects.balance_for_all_safes(
+            ).filter(balance__gt=Web3.toWei(1, 'ether')).values('to'))
+
+
 class SafeContractTokensListFilter(admin.SimpleListFilter):
     title = 'Tokens'
     parameter_name = 'tokens'
@@ -154,7 +173,8 @@ class SafeContractTokensListFilter(admin.SimpleListFilter):
 class SafeContractAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'address', 'master_copy', 'balance')
-    list_filter = ('master_copy', SafeContractDeployedListFilter, SafeContractTokensListFilter)
+    list_filter = ('master_copy',
+                   SafeContractDeployedListFilter, SafeContractBalanceListFilter, SafeContractTokensListFilter)
     search_fields = ['address']
 
 

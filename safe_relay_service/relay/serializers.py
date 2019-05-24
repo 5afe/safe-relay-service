@@ -17,7 +17,6 @@ from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
                                              EthereumTxCallType, InternalTx,
                                              SafeCreation2, SafeFunding)
 
-
 logger = logging.getLogger(__name__)
 
 
