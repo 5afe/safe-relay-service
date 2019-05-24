@@ -12,7 +12,6 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 logger = getLogger(__name__)
 
 
-#TODO Test this service
 class FundingServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
