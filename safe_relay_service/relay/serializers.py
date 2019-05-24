@@ -16,26 +16,9 @@ from gnosis.safe.serializers import (SafeMultisigTxSerializer,
 from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
                                              EthereumTxCallType, InternalTx,
                                              SafeCreation2, SafeFunding)
-from safe_relay_service.tokens.models import Token
+
 
 logger = logging.getLogger(__name__)
-
-
-# TODO Refactor
-def validate_gas_token(address: Optional[str]) -> str:
-    """
-    Raises ValidationError if gas token is not valid
-    :param address: Gas Token address
-    :return: address if everything goes well
-    """
-    if address and address != NULL_ADDRESS:
-        try:
-            token_db = Token.objects.get(address=address)
-            if not token_db.gas:
-                raise ValidationError('Token %s - %s cannot be used as gas token' % (token_db.name, address))
-        except Token.DoesNotExist:
-            raise ValidationError('Token %s not found' % address)
-    return address
 
 
 class SafeCreationSerializer(serializers.Serializer):
