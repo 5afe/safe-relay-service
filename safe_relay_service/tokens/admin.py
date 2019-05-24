@@ -1,8 +1,7 @@
 from django.contrib import admin
 
-from safe_relay_service.tokens.exchanges import CannotGetTokenPriceFromApi
-
 from .models import PriceOracle, PriceOracleTicker, Token
+from .price_oracles import CannotGetTokenPriceFromApi
 
 
 @admin.register(PriceOracle)
@@ -13,7 +12,7 @@ class PriceOracleAdmin(admin.ModelAdmin):
 
 @admin.register(PriceOracleTicker)
 class PriceOracleTicker(admin.ModelAdmin):
-    list_display = ('token_symbol', 'price_oracle_name', 'ticker', 'inverse')
+    list_display = ('token_symbol', 'price_oracle_name', 'ticker', 'inverse', 'price')
     list_filter = (('token', admin.RelatedOnlyFieldListFilter), 'inverse')
     list_select_related = ('price_oracle', 'token')
     search_fields = ['token__symbol', '=token__address', 'price_oracle__name']

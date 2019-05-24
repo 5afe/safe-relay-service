@@ -13,8 +13,8 @@ from gnosis.safe.safe import SafeCreationEstimate
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
-from safe_relay_service.tokens.exchanges import CannotGetTokenPriceFromApi
 from safe_relay_service.tokens.models import Token
+from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
 from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
                       SafeTxStatus)

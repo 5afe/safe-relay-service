@@ -1,5 +1,6 @@
 import logging
 import math
+from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -7,8 +8,8 @@ from django.db import models
 
 from gnosis.eth.django.models import EthereumAddressField
 
-from .exchanges import (CannotGetTokenPriceFromApi, ExchangeApiException,
-                        get_price_oracle)
+from .price_oracles import (CannotGetTokenPriceFromApi, ExchangeApiException,
+                            get_price_oracle)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,17 @@ class PriceOracleTicker(models.Model):
     def __str__(self):
         return '%s - %s - %s - Inverse %s' % (self.price_oracle.name, self.token.symbol, self.ticker, self.inverse)
 
+    def _price(self) -> Optional[float]:
+        try:
+            price = get_price_oracle(self.price_oracle.name).get_price(self.ticker)
+            if price and self.inverse:  # Avoid 1 / 0
+                price = 1 / price
+        except ExchangeApiException:
+            logger.warning('Cannot get price for %s - %s', self.price_oracle.name, self.ticker, exc_info=True)
+            price = None
+        return price
+    price = property(_price)
+
 
 class Token(models.Model):
     address = EthereumAddressField(primary_key=True)
@@ -46,29 +58,19 @@ class Token(models.Model):
     def __str__(self):
         return '%s - %s' % (self.name, self.address)
 
-    # TODO Cache
     def get_eth_value(self) -> float:
         if self.fixed_eth_conversion:  # `None` or `0` are ignored
             # Ether has 18 decimals, but maybe the token has a different number
             multiplier = 1e18 / 10**self.decimals
             return round(multiplier * float(self.fixed_eth_conversion), 10)
         else:
-            prices = []
-            # Get the average price of the price oracles
-            for price_oracle_ticker in self.price_oracle_tickers.all():
-                price_oracle_name = price_oracle_ticker.price_oracle.name
-                ticker = price_oracle_ticker.ticker
-                try:
-                    price = get_price_oracle(price_oracle_name).get_price(ticker)
-                    if price and price_oracle_ticker.inverse:  # Avoid 1 / 0
-                        price = 1 / price
-                    prices.append(price)
-                except ExchangeApiException:
-                    logger.warning('Cannot get price for %s', price_oracle_ticker, exc_info=True)
-            if not prices:
-                raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
-            else:
+            prices = [price_oracle_ticker.price for price_oracle_ticker in self.price_oracle_tickers.all()]
+            prices = [price for price in prices if price is not None]
+            if prices:
+                # Get the average price of the price oracles
                 return sum(prices) / len(prices)
+            else:
+                raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
 
     def calculate_gas_price(self, gas_price: int, price_margin: float = 1.0) -> int:
         """

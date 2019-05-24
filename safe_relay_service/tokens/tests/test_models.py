@@ -3,8 +3,8 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.test import TestCase
 
-from ..exchanges import CannotGetTokenPriceFromApi
 from ..models import PriceOracle
+from ..price_oracles import CannotGetTokenPriceFromApi
 from .factories import PriceOracleTickerFactory, TokenFactory
 
 
