@@ -131,11 +131,30 @@ class SafeContractDeployedListFilter(admin.SimpleListFilter):
             return queryset.deployed()
 
 
+class SafeContractTokensListFilter(admin.SimpleListFilter):
+    title = 'Tokens'
+    parameter_name = 'tokens'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('HAS_TOKENS', 'Safes with tokens'),
+            ('NO_TOKENS', 'Safes without tokens'),
+        )
+
+    def queryset(self, request, queryset):
+        events = EthereumEvent.objects.annotate(address=RawSQL("arguments->>'to'", ())
+                                                ).values('address').distinct()
+        if self.value() == 'HAS_TOKENS':
+            return queryset.filter(address__in=events)
+        elif self.value() == 'NO_TOKENS':
+            return queryset.exclude(address__in=events)
+
+
 @admin.register(SafeContract)
 class SafeContractAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'address', 'master_copy', 'balance')
-    list_filter = ('master_copy', SafeContractDeployedListFilter)
+    list_filter = ('master_copy', SafeContractDeployedListFilter, SafeContractTokensListFilter)
     search_fields = ['address']
 
 
