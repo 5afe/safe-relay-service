@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.contrib import admin
 from django.db.models.expressions import RawSQL
 
@@ -12,7 +14,7 @@ class EthereumTxForeignClassMixinAdmin:
     """
     Common utilities for classes that have a `ForeignKey` to `EthereumTx`
     """
-    list_select_related = ('ethereum_tx',)
+    list_select_related = ('ethereum_tx', 'ethereum_tx__block')
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
@@ -20,8 +22,9 @@ class EthereumTxForeignClassMixinAdmin:
         queryset |= self.model.objects.filter(ethereum_tx__tx_hash=search_term)
         return queryset, use_distinct
 
-    def block_number(self, obj: EthereumEvent):
-        return obj.ethereum_tx.block_number
+    def block_number(self, obj: EthereumEvent) -> Optional[int]:
+        if obj.ethereum_tx.block:
+            return obj.ethereum_tx.block.block_number
 
 
 class EthereumEventListFilter(admin.SimpleListFilter):
@@ -111,7 +114,7 @@ class EthereumTxAdmin(admin.ModelAdmin):
 class InternalTxAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
     list_display = ('block_number', 'ethereum_tx_id', '_from', 'to', 'value', 'call_type')
     list_filter = ('call_type',)
-    search_fields = ['=ethereum_tx__block_number', '=_from', '=to']
+    search_fields = ['=ethereum_tx__block__number', '=_from', '=to']
 
 
 class SafeContractDeployedListFilter(admin.SimpleListFilter):
@@ -182,7 +185,7 @@ class SafeContractAdmin(admin.ModelAdmin):
 class SafeCreationAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe_id', 'deployer', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
-    list_filter = ('safe__master_copy', 'threshold')
+    list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     search_fields = ['=safe__address', '=deployer', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
@@ -193,7 +196,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
 class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
-    list_filter = ('safe__master_copy', 'threshold')
+    list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     search_fields = ['=safe__address', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
