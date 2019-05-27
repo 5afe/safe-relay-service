@@ -9,8 +9,8 @@ from web3 import Web3
 
 from gnosis.eth import EthereumClient
 
-from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
-                      SafeTxStatus)
+from ..models import (EthereumBlock, EthereumTx, SafeContract, SafeCreation,
+                      SafeCreation2, SafeTxStatus)
 from ..utils import chunks
 
 logger = getLogger(__name__)
@@ -72,27 +72,24 @@ class TransactionScanService:
     def create_or_update_ethereum_tx(self, tx_hash: str) -> EthereumTx:
         try:
             ethereum_tx = EthereumTx.objects.get(tx_hash=tx_hash)
-            if ethereum_tx.block_number is None:
+            if ethereum_tx.block is None:
                 tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
-                ethereum_tx.block_number = tx_receipt.blockNumber
+                ethereum_tx.block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
                 ethereum_tx.gas_used = tx_receipt.gasUsed
                 ethereum_tx.save()
             return ethereum_tx
         except EthereumTx.DoesNotExist:
             tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
+            ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
             tx = self.ethereum_client.get_transaction(tx_hash)
-            return EthereumTx.objects.create(
-                tx_hash=tx_hash,
-                block_number=tx_receipt.blockNumber,
-                gas_used=tx_receipt.gasUsed,
-                _from=tx['from'],
-                gas=tx['gas'],
-                gas_price=tx['gasPrice'],
-                data=HexBytes(tx['input']),
-                nonce=tx['nonce'],
-                to=tx['to'],
-                value=tx['value'],
-            )
+            return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
+
+    def get_or_create_ethereum_block(self, block_number: int):
+        try:
+            return EthereumBlock.objects.get(number=block_number)
+        except EthereumBlock.DoesNotExist:
+            block = self.ethereum_client.get_block(block_number)
+            return EthereumBlock.objects.create_from_block(block)
 
     def get_or_create_safe_tx_status(self, safe_address: str) -> SafeTxStatus:
         safe_contract = SafeContract.objects.get(address=safe_address)

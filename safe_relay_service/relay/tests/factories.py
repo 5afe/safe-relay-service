@@ -1,5 +1,7 @@
 from logging import getLogger
 
+from django.utils import timezone
+
 import factory.fuzzy
 from eth_account import Account
 from ethereum.utils import checksum_encode, mk_contract_address
@@ -12,9 +14,10 @@ from gnosis.eth.constants import (ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 from gnosis.eth.utils import get_eth_address_with_key
 
-from ..models import (EthereumEvent, EthereumTx, EthereumTxCallType,
-                      InternalTx, SafeContract, SafeCreation, SafeCreation2,
-                      SafeFunding, SafeMultisigTx, SafeTxStatus)
+from ..models import (EthereumBlock, EthereumEvent, EthereumTx,
+                      EthereumTxCallType, InternalTx, SafeContract,
+                      SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
+                      SafeTxStatus)
 
 logger = getLogger(__name__)
 
@@ -82,12 +85,23 @@ class SafeFundingFactory(factory.DjangoModelFactory):
     safe = factory.SubFactory(SafeContractFactory)
 
 
+class EthereumBlockFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = EthereumBlock
+
+    number = factory.Sequence(lambda n: n)
+    gas_limit = factory.fuzzy.FuzzyInteger(100000000, 200000000)
+    gas_used = factory.fuzzy.FuzzyInteger(100000, 500000)
+    timestamp = factory.LazyFunction(timezone.now)
+    block_hash = factory.Sequence(lambda n: Web3.sha3(text='block%d' % n))
+
+
 class EthereumTxFactory(factory.DjangoModelFactory):
     class Meta:
         model = EthereumTx
 
+    block = factory.SubFactory(EthereumBlockFactory)
     tx_hash = factory.Sequence(lambda n: Web3.sha3(text='ethereum_tx_hash%d' % n))
-    block_number = 0
     _from = factory.LazyFunction(lambda: Account.create().address)
     gas = factory.fuzzy.FuzzyInteger(1000, 5000)
     gas_price = factory.fuzzy.FuzzyInteger(1, 100)

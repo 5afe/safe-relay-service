@@ -1,3 +1,5 @@
+import datetime
+from datetime import timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -225,15 +227,37 @@ class SafeFunding(TimeStampedModel):
         return s
 
 
-class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, block_number: Optional[int] = None):
+class EthereumBlockManager(models.Manager):
+    def create_from_block(self, block: Dict[str, any]) -> 'EthereumBlock':
         return super().create(
+            number=block['number'],
+            gas_limit=block['gasLimit'],
+            gas_used=block['gasUsed'],
+            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], timezone.utc),
+            block_hash=block['hash'],
+        )
+
+
+class EthereumBlock(models.Model):
+    objects = EthereumBlockManager()
+    number = models.PositiveIntegerField(primary_key=True, unique=True)
+    gas_limit = models.PositiveIntegerField()
+    gas_used = models.PositiveIntegerField()
+    timestamp = models.DateTimeField()
+    block_hash = Sha3HashField(unique=True)
+
+
+class EthereumTxManager(models.Manager):
+    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, gas_used: Optional[int] = None,
+                       ethereum_block: Optional[EthereumBlock] = None):
+        return super().create(
+            block=ethereum_block,
             tx_hash=tx_hash,
-            block_number=block_number,
             _from=tx['from'],
             gas=tx['gas'],
             gas_price=tx['gasPrice'],
-            data=HexBytes(tx['data']),
+            gas_used=gas_used,
+            data=HexBytes(tx.get('data') or tx.get('input')),
             nonce=tx['nonce'],
             to=tx.get('to'),
             value=tx['value'],
@@ -242,8 +266,9 @@ class EthereumTxManager(models.Manager):
 
 class EthereumTx(models.Model):
     objects = EthereumTxManager()
+    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
+                              related_name='txs')  # If mined
     tx_hash = Sha3HashField(unique=True, primary_key=True)
-    block_number = models.IntegerField(null=True, default=None)  # If mined
     gas_used = Uint256Field(null=True, default=None)  # If mined
     _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()

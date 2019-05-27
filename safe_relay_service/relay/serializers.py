@@ -191,6 +191,8 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     data = HexadecimalField()
     tx_hash = HexadecimalField()
+    block_number = serializers.SerializerMethodField()
+    block_timestamp = serializers.SerializerMethodField()
 
     def get_fields(self):
         result = super().get_fields()
@@ -198,6 +200,14 @@ class EthereumTxSerializer(serializers.ModelSerializer):
         _from = result.pop('_from')
         result['from'] = _from
         return result
+
+    def get_block_number(self, obj: EthereumTx):
+        if obj.block:
+            return obj.block.number
+
+    def get_block_timestamp(self, obj: EthereumTx):
+        if obj.block:
+            return obj.block.timestamp
 
 
 class InternalTxWithEthereumTxSerializer(InternalTxSerializer):

@@ -358,7 +358,7 @@ class SafeMultisigTxView(SafeListApiView):
 
 
 class EthereumTxView(SafeListApiView):
-    ordering = ('-block_number',)
+    ordering = ('-block__number',)
     serializer_class = EthereumTxWithInternalTxsSerializer
 
     def get_queryset(self):
@@ -368,29 +368,29 @@ class EthereumTxView(SafeListApiView):
                                          Q(internal_txs__to=address) |
                                          Q(internal_txs___from=address) |
                                          Q(internal_txs__contract_address=address)
-                                         ).distinct().prefetch_related('internal_txs')
+                                         ).distinct().select_related('block').prefetch_related('internal_txs')
 
 
 class ERC20View(SafeListApiView):
-    ordering = ('-ethereum_tx__block_number',)
+    ordering = ('-ethereum_tx__block__number',)
     serializer_class = ERC20Serializer
 
     def get_queryset(self):
         address = self.kwargs['address']
-        return EthereumEvent.objects.erc20_events(address=address).select_related('ethereum_tx')
+        return EthereumEvent.objects.erc20_events(address=address).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class ERC721View(SafeListApiView):
-    ordering = ('-ethereum_tx__block_number',)
+    ordering = ('-ethereum_tx__block__number',)
     serializer_class = ERC721Serializer
 
     def get_queryset(self):
         address = self.kwargs['address']
-        return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx')
+        return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class InternalTxsView(SafeListApiView):
-    ordering = ('-ethereum_tx__block_number',)
+    ordering = ('-ethereum_tx__block__number',)
     serializer_class = InternalTxWithEthereumTxSerializer
 
     def get_queryset(self):
@@ -398,7 +398,7 @@ class InternalTxsView(SafeListApiView):
         return InternalTx.objects.filter(Q(to=address) |
                                          Q(_from=address) |
                                          Q(contract_address=address)
-                                         ).select_related('ethereum_tx')
+                                         ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class PrivateSafesView(ListAPIView):
