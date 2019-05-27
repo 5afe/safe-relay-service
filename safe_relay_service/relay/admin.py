@@ -5,9 +5,9 @@ from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
-from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
-                     SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
-                     SafeTxStatus)
+from .models import (EthereumBlock, EthereumEvent, EthereumTx, InternalTx,
+                     SafeContract, SafeCreation, SafeCreation2, SafeFunding,
+                     SafeMultisigTx, SafeTxStatus)
 
 
 class EthereumTxForeignClassMixinAdmin:
@@ -72,6 +72,14 @@ class EthereumEventFromToListFilter(admin.SimpleListFilter):
         # Django doesn't support `->>` for auto conversion to text
         return queryset.annotate(address=RawSQL("arguments->>%s", (param,))
                                  ).filter(address__in=SafeContract.objects.values('address'))
+
+
+@admin.register(EthereumBlock)
+class EthereumEventAdmin(admin.ModelAdmin):
+    date_hierarchy = 'timestamp'
+    list_display = ('number', 'timestamp', 'gas_limit', 'gas_used', 'block_hash')
+    search_fields = ['=number']
+    ordering = ['number']
 
 
 @admin.register(EthereumEvent)
