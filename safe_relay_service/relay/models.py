@@ -320,8 +320,7 @@ class InternalTxManager(models.Manager):
         incoming_balance = InternalTx.objects.filter(to=OuterRef('to')).order_by().values('to').annotate(
             total=Sum('value')).values('total')
         return InternalTx.objects.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
-                                                   Subquery(outgoing_balance,
-                                                            output_field=DecimalField()))
+                                                   Subquery(outgoing_balance, output_field=DecimalField()))
 
     def calculate_balance(self, address: str) -> int:
         # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)

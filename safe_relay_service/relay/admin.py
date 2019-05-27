@@ -79,7 +79,7 @@ class EthereumEventAdmin(admin.ModelAdmin):
     date_hierarchy = 'timestamp'
     list_display = ('number', 'timestamp', 'gas_limit', 'gas_used', 'block_hash')
     search_fields = ['=number']
-    ordering = ['number']
+    ordering = ['-number']
 
 
 @admin.register(EthereumEvent)
