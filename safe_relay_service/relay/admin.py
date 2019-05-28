@@ -24,7 +24,7 @@ class EthereumTxForeignClassMixinAdmin:
 
     def block_number(self, obj: EthereumEvent) -> Optional[int]:
         if obj.ethereum_tx.block:
-            return obj.ethereum_tx.block.block_number
+            return obj.ethereum_tx.block.number
 
 
 class EthereumEventListFilter(admin.SimpleListFilter):
