@@ -46,21 +46,16 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         response = self.client.post(url, data=data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         safe_creation_estimates = response.json()
-        self.assertEqual(len(safe_creation_estimates), 2)
-        # No price oracles, so estimation will be `0`
-        safe_creation_estimate = safe_creation_estimates[1]
-        self.assertEqual(safe_creation_estimate['paymentToken'], token.address)
-        self.assertEqual(safe_creation_estimate['payment'], 0)
-        self.assertEqual(safe_creation_estimate['gasPrice'], 0)
-        self.assertEqual(safe_creation_estimate['gas'], 0)
+        # No price oracles, so no estimation
+        self.assertEqual(len(safe_creation_estimates), 1)
 
         fixed_price_token = TokenFactory(gas=True, fixed_eth_conversion=1.0)
         response = self.client.post(url, data=data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         safe_creation_estimates = response.json()
-        self.assertEqual(len(safe_creation_estimates), 3)
         # Fixed price oracle, so estimation will work
-        safe_creation_estimate = safe_creation_estimates[2]
+        self.assertEqual(len(safe_creation_estimates), 2)
+        safe_creation_estimate = safe_creation_estimates[1]
         self.assertEqual(safe_creation_estimate['paymentToken'], fixed_price_token.address)
         self.assertGreater(safe_creation_estimate['payment'], 0)
         self.assertGreater(safe_creation_estimate['gasPrice'], 0)

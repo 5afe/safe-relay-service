@@ -271,9 +271,9 @@ class SafeCreationService:
         for token in Token.objects.filter(gas=True):
             try:
                 safe_creation_estimate = self.estimate_safe_creation2(number_owners, token.address)
+                safe_creation_estimates.append(safe_creation_estimate)
             except CannotGetTokenPriceFromApi:
-                safe_creation_estimate = SafeCreationEstimate(0, 0, 0, token.address)
-            safe_creation_estimates.append(safe_creation_estimate)
+                logger.error('Cannot get price for token=%s', token.address)
         return safe_creation_estimates
 
     def retrieve_safe_info(self, address: str) -> SafeInfo:
