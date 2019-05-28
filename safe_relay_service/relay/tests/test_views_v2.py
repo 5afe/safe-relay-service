@@ -29,7 +29,7 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         cls.prepare_tests()
 
     def test_safe_creation_estimate(self):
-        url = reverse('v2:safe-creation-estimate')
+        url = reverse('v2:safe-creation-estimates')
         number_owners = 4
         data = {
             'numberOwners': number_owners
