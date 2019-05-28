@@ -1,13 +1,15 @@
 import logging
 
+from django.test import TestCase
+
 from eth_account import Account
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_paying_proxy_contract, get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe import CannotEstimateGas, SafeOperation
-from gnosis.safe.tests.test_safe_service import TestSafeService
+from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
+from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
@@ -24,10 +26,11 @@ from .factories import SafeContractFactory
 logger = logging.getLogger(__name__)
 
 
-class TestTransactionService(TestSafeService):
+class TestTransactionService(TestCase, SafeTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
+        cls.prepare_tests()
         cls.transaction_service = TransactionServiceProvider()
 
     def test_transaction_provider_singleton(self):
@@ -66,18 +69,18 @@ class TestTransactionService(TestSafeService):
         gas_price = gas_station.get_gas_prices().fast
         gas_token = NULL_ADDRESS
         refund_receiver = NULL_ADDRESS
-        nonce = self.safe_service.retrieve_nonce(my_safe_address)
-        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address=my_safe_address,
-                                                                       to=to,
-                                                                       value=value,
-                                                                       data=data,
-                                                                       operation=operation,
-                                                                       safe_tx_gas=safe_tx_gas,
-                                                                       data_gas=data_gas,
-                                                                       gas_price=gas_price,
-                                                                       gas_token=gas_token,
-                                                                       refund_receiver=refund_receiver,
-                                                                       nonce=nonce)
+        safe = Safe(my_safe_address, self.ethereum_client)
+        nonce = safe.retrieve_nonce()
+        safe_multisig_tx_hash = safe.build_multisig_tx(to,
+                                                       value,
+                                                       data,
+                                                       operation,
+                                                       safe_tx_gas,
+                                                       data_gas,
+                                                       gas_price,
+                                                       gas_token,
+                                                       refund_receiver,
+                                                       safe_nonce=nonce).safe_tx_hash
 
         # Just to make sure we are not miscalculating tx_hash
         contract_multisig_tx_hash = my_safe_contract.functions.getTransactionHash(
@@ -120,10 +123,11 @@ class TestTransactionService(TestSafeService):
 
         # Use invalid master copy
         random_master_copy = Account.create().address
-        proxy_create_tx = get_paying_proxy_contract(self.w3).constructor(random_master_copy, b'',
-                                                                         NULL_ADDRESS,
-                                                                         NULL_ADDRESS, 0
-                                                                         ).buildTransaction({'from': self.ethereum_test_account.address})
+        proxy_create_tx = get_paying_proxy_contract(self.w3
+                                                    ).constructor(random_master_copy, b'',
+                                                                  NULL_ADDRESS,
+                                                                  NULL_ADDRESS, 0
+                                                                  ).buildTransaction({'from': self.ethereum_test_account.address})
         tx_hash = self.ethereum_client.send_unsigned_transaction(proxy_create_tx, private_key=self.ethereum_test_account.privateKey)
         tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash, timeout=60)
         proxy_address = tx_receipt.contractAddress
@@ -281,22 +285,21 @@ class TestTransactionService(TestSafeService):
         # Real refund can be less if not all the `safe_tx_gas` is used
         self.assertGreaterEqual(estimated_refund, real_refund)
         self.assertEqual(sender_new_balance, sender_balance - tx_fees + real_refund)
-        self.assertEqual(self.safe_service.retrieve_nonce(my_safe_address), 1)
+        self.assertEqual(safe.retrieve_nonce(), 1)
 
         # Send again the tx and check that works
         nonce += 1
         value = 0
-        safe_multisig_tx_hash = self.safe_service.get_hash_for_safe_tx(safe_address=my_safe_address,
-                                                                       to=to,
-                                                                       value=value,
-                                                                       data=data,
-                                                                       operation=operation,
-                                                                       safe_tx_gas=safe_tx_gas,
-                                                                       data_gas=data_gas,
-                                                                       gas_price=gas_price,
-                                                                       gas_token=gas_token,
-                                                                       refund_receiver=refund_receiver,
-                                                                       nonce=nonce)
+        safe_multisig_tx_hash = safe.build_multisig_tx(to,
+                                                       value,
+                                                       data,
+                                                       operation,
+                                                       safe_tx_gas,
+                                                       data_gas,
+                                                       gas_price,
+                                                       gas_token,
+                                                       refund_receiver,
+                                                       safe_nonce=nonce).safe_tx_hash
 
         signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
 

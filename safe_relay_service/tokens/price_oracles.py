@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 
 import requests
+from cachetools import TTLCache, cached
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class Binance(PriceOracle):
     Get valid symbols from https://api.binance.com/api/v1/exchangeInfo
     Remember to always use USDT instead of USD
     """
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
     def get_price(self, ticker) -> float:
         url = 'https://api.binance.com/api/v3/avgPrice?symbol=' + ticker
         response = requests.get(url)
@@ -48,6 +51,7 @@ class DutchX(PriceOracle):
     def reverse_ticker(self, ticker: str):
         return '-'.join(reversed(ticker.split('-')))
 
+    @cached(cache=TTLCache(maxsize=1024, ttl=1200))
     def get_price(self, ticker: str) -> float:
         self.validate_ticker(ticker)
         url = 'https://dutchx.d.exchange/api/v1/markets/{}/prices/custom-median?requireWhitelisted=false&' \
@@ -64,6 +68,8 @@ class Huobi(PriceOracle):
     """
     Get valid symbols from https://api.huobi.pro/v1/common/symbols
     """
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
     def get_price(self, ticker) -> float:
         url = 'https://api.huobi.pro/market/detail/merged?symbol=%s' % ticker
         response = requests.get(url)
@@ -76,6 +82,8 @@ class Huobi(PriceOracle):
 
 
 class Kraken(PriceOracle):
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
     def get_price(self, ticker) -> float:
         url = 'https://api.kraken.com/0/public/Ticker?pair=' + ticker
         response = requests.get(url)
@@ -102,4 +110,4 @@ def get_price_oracle(name) -> PriceOracle:
     if oracle:
         return oracle()
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Oracle '%s' not found" % name)

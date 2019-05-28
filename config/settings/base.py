@@ -66,6 +66,7 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'rest_framework.authtoken',
     'drf_yasg',
 ]
 LOCAL_APPS = [
@@ -220,6 +221,9 @@ LOGGING = {
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
+        },
+        'ignore_check_url': {
+            '()': 'safe_relay_service.relay.utils.IgnoreCheckUrl'
         }
     },
     'formatters': {
@@ -257,7 +261,13 @@ LOGGING = {
             'level': 'ERROR',
             'handlers': ['console', 'mail_admins'],
             'propagate': True
-        }
+        },
+        'django.server': {  # Gunicorn uses `gunicorn.access`
+            'level': 'INFO',
+            'handlers': ['console'],
+            'propagate': True,
+            'filters': ['ignore_check_url'],
+        },
     }
 }
 
@@ -280,8 +290,8 @@ SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  #
 # Master Copy Address of Safe Contract
 SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
 SAFE_OLD_CONTRACT_ADDRESS = env('SAFE_OLD_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
-SAFE_VALID_CONTRACT_ADDRESSES = env.list('SAFE_VALID_CONTRACT_ADDRESSES',
-                                         default=[SAFE_CONTRACT_ADDRESS])
+SAFE_VALID_CONTRACT_ADDRESSES = set(env.list('SAFE_VALID_CONTRACT_ADDRESSES',
+                                             default=[])) | {SAFE_CONTRACT_ADDRESS, SAFE_OLD_CONTRACT_ADDRESS}
 SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x' + '0' * 39 + '2')
 # If FIXED_GAS_PRICE is None, GasStation will be used
 FIXED_GAS_PRICE = env.int('FIXED_GAS_PRICE', default=None)

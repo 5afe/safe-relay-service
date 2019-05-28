@@ -16,23 +16,16 @@ from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
 
 from .repositories.redis_repository import RedisRepository
-from .services import (FundingServiceProvider, InternalTxServiceProvider,
-                       NotificationServiceProvider,
+from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
+                       InternalTxServiceProvider, NotificationServiceProvider,
                        SafeCreationServiceProvider, TransactionServiceProvider)
 from .services.safe_creation_service import NotEnoughFundingForCreation
 
 logger = get_task_logger(__name__)
 
 
-#TODO Remove this from here
-ethereum_client = EthereumClientProvider()
-redis = RedisRepository().redis
-
 # Lock timeout of 2 minutes (just in the case that the application hangs to avoid a redis deadlock)
 LOCK_TIMEOUT = 60 * 2
-
-
-# TODO Control ConnectionError: HTTPConnectionPool for web3
 
 
 @app.shared_task(bind=True, max_retries=3, soft_time_limit=300)
@@ -62,7 +55,9 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     assert checksum_encode(mk_contract_address(sender=deployer_address, nonce=0)) == safe_address
     assert payment > 0
 
+    redis = RedisRepository().redis
     with redis.lock('locks:fund_deployer_task', timeout=LOCK_TIMEOUT):
+        ethereum_client = EthereumClientProvider()
         safe_funding, _ = SafeFunding.objects.get_or_create(safe=safe_contract)
 
         # Nothing to do if everything is funded and mined
@@ -83,7 +78,6 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
             assert (last_block_number - confirmations) > 0
 
             if safe_creation.payment_token and safe_creation.payment_token != NULL_ADDRESS:
-                # FIXME Add block number for confirmations
                 safe_balance = ethereum_client.erc20.get_balance(safe_address, safe_creation.payment_token)
             else:
                 safe_balance = ethereum_client.get_balance(safe_address, last_block_number - confirmations)
@@ -134,12 +128,14 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> N
     :param safe_address: safe account
     :param retry: if True, retries are allowed, otherwise don't retry
     """
+    redis = RedisRepository().redis
     lock = redis.lock("tasks:check_deployer_funded_task:%s" % safe_address, timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
         logger.info('check_deployer_funded_task is locked for safe=%s', safe_address)
         return
     try:
+        ethereum_client = EthereumClientProvider()
         logger.debug('Starting check deployer funded task for safe=%s', safe_address)
         safe_funding = SafeFunding.objects.get(safe=safe_address)
         deployer_funded_tx_hash = safe_funding.deployer_funded_tx_hash
@@ -195,11 +191,13 @@ def deploy_safes_task(retry: bool = True) -> None:
     is called again.
     :param retry: if True, retries are allowed, otherwise don't retry
     """
+    redis = RedisRepository().redis
     lock = redis.lock("tasks:deploy_safes_task", timeout=LOCK_TIMEOUT)
     have_lock = lock.acquire(blocking=False)
     if not have_lock:
         return
     try:
+        ethereum_client = EthereumClientProvider()
         logger.debug('Starting deploy safes task')
         pending_to_deploy = SafeFunding.objects.pending_just_to_deploy()
         logger.debug('%d safes pending to deploy', len(pending_to_deploy))
@@ -267,6 +265,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
 
     assert check_checksum(safe_address)
 
+    redis = RedisRepository().redis
     with redis.lock('locks:deploy_create2_safe', timeout=LOCK_TIMEOUT):
         try:
             SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
@@ -280,6 +279,7 @@ def check_create2_deployed_safes_task() -> None:
     """
     Check if create2 safes were deployed and store the `blockNumber` if there are enough confirmations
     """
+    ethereum_client = EthereumClientProvider()
     confirmations = 6
     current_block_number = ethereum_client.current_block_number
     for safe_creation2 in SafeCreation2.objects.pending_to_check():
@@ -322,6 +322,7 @@ def check_balance_of_accounts_task() -> bool:
     balance_warning_wei = settings.SAFE_ACCOUNTS_BALANCE_WARNING
     addresses = FundingServiceProvider().funder_account.address, TransactionServiceProvider().tx_sender_account.address
 
+    ethereum_client = EthereumClientProvider()
     result = True
     for address in addresses:
         balance_wei = ethereum_client.get_balance(address)
@@ -340,8 +341,27 @@ def find_internal_txs_task() -> int:
     """
     number_safes = 0
     try:
+        redis = RedisRepository().redis
         with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
-            number_safes = InternalTxServiceProvider().process_all_internal_txs()
+            number_safes = InternalTxServiceProvider().process_all()
     except LockError:
         pass
+    logger.info('Find internal txs task processed %d safes', number_safes)
+    return number_safes
+
+
+@app.shared_task(soft_time_limit=60 * 10)
+def find_erc_20_721_transfers_task() -> int:
+    """
+    Find and process internal txs for existing safes
+    :return: Number of safes processed
+    """
+    number_safes = 0
+    try:
+        redis = RedisRepository().redis
+        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
+            number_safes = Erc20EventsServiceProvider().process_all()
+    except LockError:
+        pass
+    logger.info('Find ERC20/721 task processed %d safes', number_safes)
     return number_safes

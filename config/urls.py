@@ -7,6 +7,7 @@ from django.views import defaults as default_views
 
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
+from rest_framework.authtoken import views as rest_views
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -30,6 +31,7 @@ urlpatterns = [
     url(r'^api/v1/', include('safe_relay_service.relay.urls', namespace='v1')),
     url(r'^api/v2/', include('safe_relay_service.relay.urls_v2', namespace='v2')),
     url(r'^check/', lambda request: HttpResponse("Ok"), name='check'),
+    url(r'^api-token-auth/', rest_views.obtain_auth_token, name='api-token-auth'),
 ]
 
 if settings.DEBUG:

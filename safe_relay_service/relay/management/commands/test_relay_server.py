@@ -10,7 +10,7 @@ from eth_account import Account
 from web3 import HTTPProvider, Web3
 
 from gnosis.eth.contracts import get_erc20_contract
-from gnosis.safe import SafeService
+from gnosis.safe import SafeTx
 from gnosis.safe.tests.utils import generate_valid_s
 
 
@@ -221,17 +221,17 @@ class Command(BaseCommand):
             fees = r.json()['gasPrice'] * estimate_gas
             tx['value'] = safe_balance - fees
 
-        tx['dataGas'] = r.json()['dataGas']
+        tx['dataGas'] = r.json()['dataGas'] + r.json()['operationalGas']
         tx['gasPrice'] = r.json()['gasPrice']
         tx['safeTxGas'] = r.json()['safeTxGas']
         tx['nonce'] = 0 if r.json()['lastUsedNonce'] is None else r.json()['lastUsedNonce'] + 1
         tx['refundReceiver'] = None
 
         # Sign the tx
-        safe_tx_hash = SafeService.get_hash_for_safe_tx(safe_address, tx['to'], tx['value'], tx['data'],
-                                                        tx['operation'], tx['safeTxGas'], tx['dataGas'],
-                                                        tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
-                                                        tx['nonce'], safe_version=safe_version)
+        safe_tx_hash = SafeTx(None, safe_address, tx['to'], tx['value'], tx['data'],
+                              tx['operation'], tx['safeTxGas'], tx['dataGas'],
+                              tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
+                              safe_nonce=tx['nonce'], safe_version=safe_version).safe_tx_hash
 
         signatures = [account.signHash(safe_tx_hash) for account in accounts[:2]]
         curated_signatures = [{'r': signature['r'], 's': signature['s'], 'v': signature['v']}
@@ -291,10 +291,10 @@ class Command(BaseCommand):
             tx['refundReceiver'] = None
 
             # Sign the tx
-            safe_tx_hash = SafeService.get_hash_for_safe_tx(safe_address, tx['to'], tx['value'], tx['data'],
-                                                            tx['operation'], tx['safeTxGas'], tx['dataGas'],
-                                                            tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
-                                                            tx['nonce'], safe_version=safe_version)
+            safe_tx_hash = SafeTx(None, safe_address, tx['to'], tx['value'], tx['data'],
+                                  tx['operation'], tx['safeTxGas'], tx['dataGas'],
+                                  tx['gasPrice'], tx['gasToken'], tx['refundReceiver'],
+                                  tx['nonce'], safe_version=safe_version).safe_tx_hash
 
             signatures = [account.signHash(safe_tx_hash) for account in accounts[:2]]
             curated_signatures = [{'r': signature['r'], 's': signature['s'], 'v': signature['v']}

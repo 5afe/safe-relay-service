@@ -1,17 +1,20 @@
+import datetime
+from datetime import timezone
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Q
+from django.db.models import Case, DecimalField, F, Q, Sum, When
+from django.db.models.expressions import OuterRef, RawSQL, Subquery
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
-from gnosis.eth import EthereumClientProvider
+from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
-from gnosis.safe.safe_service import SafeOperation, SafeServiceProvider
+from gnosis.safe import SafeOperation
 
 
 class EthereumTxType(Enum):
@@ -35,29 +38,45 @@ class EthereumTxCallType(Enum):
             return None
 
 
-class SafeContractManager(models.Manager):
+class SafeContractQuerySet(models.QuerySet):
     def deployed(self):
         return self.filter(
             ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
         )
 
+    def not_deployed(self):
+        return self.filter(
+            Q(safecreation2__block_number=None) & ~Q(safefunding__safe_deployed=True)
+        )
+
 
 class SafeContract(TimeStampedModel):
-    objects = SafeContractManager()
+    objects = SafeContractQuerySet.as_manager()
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
-    def has_valid_code(self) -> bool:
-        return SafeServiceProvider().check_proxy_code(self.address)
-
-    def has_valid_master_copy(self) -> bool:
-        return SafeServiceProvider().check_master_copy(self.address)
-
-    def get_balance(self, block_identifier=None):
-        return EthereumClientProvider().get_balance(address=self.address, block_identifier=block_identifier)
-
     def __str__(self):
-        return self.address
+        return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
+
+    def _balance(self) -> Optional[int]:
+        return InternalTx.objects.calculate_balance(self.address)
+    balance = property(_balance)
+
+    def _tokens_with_balance(self) -> List[Dict[str, any]]:
+        """
+        :return: List of dictionaries {'token_address': str, 'balance': int}
+        """
+        address = self.address
+        arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
+        return EthereumEvent.objects.erc20_events(
+            address=address
+        ).values('token_address').annotate(
+            balance=Sum(Case(
+                When(arguments__from=address, then=-arguments_value_field),
+                default=arguments_value_field,
+            ))
+        ).order_by('-balance').values('token_address', 'balance')
+    tokens_with_balance = property(_tokens_with_balance)
 
 
 class SafeCreation(TimeStampedModel):
@@ -126,6 +145,9 @@ class SafeCreation2(TimeStampedModel):
     gas_price_estimated = Uint256Field()
     tx_hash = Sha3HashField(unique=True, null=True, default=None)
     block_number = models.IntegerField(null=True, default=None)  # If mined
+
+    class Meta:
+        verbose_name_plural = "Safe creation2s"
 
     def __str__(self):
         if self.block_number:
@@ -205,15 +227,37 @@ class SafeFunding(TimeStampedModel):
         return s
 
 
-class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, block_number: Optional[int] = None):
+class EthereumBlockManager(models.Manager):
+    def create_from_block(self, block: Dict[str, any]) -> 'EthereumBlock':
         return super().create(
+            number=block['number'],
+            gas_limit=block['gasLimit'],
+            gas_used=block['gasUsed'],
+            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], timezone.utc),
+            block_hash=block['hash'],
+        )
+
+
+class EthereumBlock(models.Model):
+    objects = EthereumBlockManager()
+    number = models.PositiveIntegerField(primary_key=True, unique=True)
+    gas_limit = models.PositiveIntegerField()
+    gas_used = models.PositiveIntegerField()
+    timestamp = models.DateTimeField()
+    block_hash = Sha3HashField(unique=True)
+
+
+class EthereumTxManager(models.Manager):
+    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, gas_used: Optional[int] = None,
+                       ethereum_block: Optional[EthereumBlock] = None):
+        return super().create(
+            block=ethereum_block,
             tx_hash=tx_hash,
-            block_number=block_number,
             _from=tx['from'],
             gas=tx['gas'],
             gas_price=tx['gasPrice'],
-            data=HexBytes(tx['data']),
+            gas_used=gas_used,
+            data=HexBytes(tx.get('data') or tx.get('input')),
             nonce=tx['nonce'],
             to=tx.get('to'),
             value=tx['value'],
@@ -222,15 +266,16 @@ class EthereumTxManager(models.Manager):
 
 class EthereumTx(models.Model):
     objects = EthereumTxManager()
+    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
+                              related_name='txs')  # If mined
     tx_hash = Sha3HashField(unique=True, primary_key=True)
-    block_number = models.IntegerField(null=True, default=None)  # If mined
     gas_used = Uint256Field(null=True, default=None)  # If mined
-    _from = EthereumAddressField(null=True)
+    _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
     data = models.BinaryField(null=True)
     nonce = Uint256Field()
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
 
     def __str__(self):
@@ -247,7 +292,7 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
     data = models.BinaryField(null=True)
     operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
@@ -268,15 +313,39 @@ class SafeMultisigTx(TimeStampedModel):
                                           self.safe.address)
 
 
+class InternalTxManager(models.Manager):
+    def balance_for_all_safes(self):
+        outgoing_balance = InternalTx.objects.filter(_from=OuterRef('to')).order_by().values('_from').annotate(
+            total=Sum('value')).values('total')
+        incoming_balance = InternalTx.objects.filter(to=OuterRef('to')).order_by().values('to').annotate(
+            total=Sum('value')).values('total')
+        return InternalTx.objects.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
+                                                   Subquery(outgoing_balance, output_field=DecimalField()))
+
+    def calculate_balance(self, address: str) -> int:
+        # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)
+        # return balances_to - balances_from
+
+        # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
+        return InternalTx.objects.filter(Q(_from=address) | Q(to=address)).annotate(
+            balance=Case(
+                When(_from=address, then=-F('value')),
+                default='value',
+            )
+        ).aggregate(Sum('balance')).get('balance__sum', 0)
+
+
 class InternalTx(models.Model):
+    objects = InternalTxManager()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
-    _from = EthereumAddressField()
+    _from = EthereumAddressField(db_index=True)
     gas = Uint256Field()
     data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
-    to = EthereumAddressField(null=True)
+    to = EthereumAddressField(null=True, db_index=True)
     value = Uint256Field()
     gas_used = Uint256Field()
-    contract_address = EthereumAddressField(null=True)  # Create
+    contract_address = EthereumAddressField(null=True, db_index=True)  # Create
     code = models.BinaryField(null=True)                # Create
     output = models.BinaryField(null=True)              # Call
     call_type = models.PositiveSmallIntegerField(null=True,
@@ -315,9 +384,87 @@ class SafeTxStatus(models.Model):
     tx_block_number = models.IntegerField(default=0)  # Block number when last internal tx scan ended
     erc_20_block_number = models.IntegerField(default=0)  # Block number when last erc20 events scan ended
 
+    class Meta:
+        verbose_name_plural = "Safe tx status"
+
     def __str__(self):
         return 'Safe {} - Initial-block-number={} - ' \
                'Tx-block-number={} - Erc20-block-number={}'.format(self.safe.address,
                                                                    self.initial_block_number,
                                                                    self.tx_block_number,
                                                                    self.erc_20_block_number)
+
+
+class EthereumEventQuerySet(models.QuerySet):
+    def not_erc_20_721_events(self):
+        return self.exclude(topic=ERC20_721_TRANSFER_TOPIC)
+
+    def erc20_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        queryset = self.filter(topic=ERC20_721_TRANSFER_TOPIC)
+        if token_address:
+            queryset = queryset.filter(token_address=token_address)
+        if address:
+            queryset = queryset.filter(Q(arguments__to=address) | Q(arguments__from=address))
+        return queryset
+
+    def erc20_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        return self.erc20_721_events(token_address=token_address,
+                                     address=address).filter(arguments__has_key='value')
+
+    def erc721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+        return self.erc20_721_events(token_address=token_address,
+                                     address=address).filter(arguments__has_key='tokenId')
+
+    def get_or_create_erc20_or_721_event(self, decoded_event: Dict[str, any]):
+        if 'value' in decoded_event['args']:
+            return self.get_or_create_erc20_event(decoded_event)
+        elif 'tokenId' in decoded_event['args']:
+            return self.get_or_create_erc20_event(decoded_event)
+        raise ValueError('Invalid ERC20 or ERC721 event %s' % decoded_event)
+
+    def get_or_create_erc20_event(self, decoded_event: Dict[str, any]):
+        return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
+                                  log_index=decoded_event['logIndex'],
+                                  defaults={
+                                      'token_address': decoded_event['address'],
+                                      'topic': decoded_event['topics'][0],
+                                      'arguments': {
+                                          'from': decoded_event['args']['from'],
+                                          'to': decoded_event['args']['to'],
+                                          'value': decoded_event['args']['value'],
+                                      }
+                                  })
+
+    def get_or_create_erc721_event(self, decoded_event: Dict[str, any]):
+        return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
+                                  log_index=decoded_event['logIndex'],
+                                  defaults={
+                                      'token_address': decoded_event.address,
+                                      'topic': decoded_event['topics'][0],
+                                      'arguments': {
+                                          'from': decoded_event['args']['from'],
+                                          'to': decoded_event['args']['to'],
+                                          'tokenId': decoded_event['args']['tokenId'],
+                                      }
+                                  })
+
+
+class EthereumEvent(models.Model):
+    objects = EthereumEventQuerySet.as_manager()
+    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='events')
+    log_index = models.PositiveIntegerField()
+    token_address = EthereumAddressField(db_index=True)
+    topic = Sha3HashField(db_index=True)
+    arguments = JSONField()
+
+    class Meta:
+        unique_together = (('ethereum_tx', 'log_index'),)
+
+    def __str__(self):
+        return 'Tx-hash={} Log-index={} Arguments={}'.format(self.ethereum_tx_id, self.log_index, self.arguments)
+
+    def is_erc20(self) -> bool:
+        return 'value' in self.arguments
+
+    def is_erc721(self) -> bool:
+        return 'tokenId' in self.arguments

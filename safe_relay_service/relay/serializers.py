@@ -13,29 +13,11 @@ from gnosis.safe import SafeOperation
 from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
-from safe_relay_service.relay.models import (EthereumTx, EthereumTxCallType,
-                                             InternalTx, SafeCreation2,
-                                             SafeFunding)
-from safe_relay_service.tokens.models import Token
+from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
+                                             EthereumTxCallType, InternalTx,
+                                             SafeCreation2, SafeFunding)
 
 logger = logging.getLogger(__name__)
-
-
-# TODO Refactor
-def validate_gas_token(address: Optional[str]) -> str:
-    """
-    Raises ValidationError if gas token is not valid
-    :param address: Gas Token address
-    :return: address if everything goes well
-    """
-    if address and address != NULL_ADDRESS:
-        try:
-            token_db = Token.objects.get(address=address)
-            if not token_db.gas:
-                raise ValidationError('Token %s - %s cannot be used as gas token' % (token_db.name, address))
-        except Token.DoesNotExist:
-            raise ValidationError('Token %s not found' % address)
-    return address
 
 
 class SafeCreationSerializer(serializers.Serializer):
@@ -79,6 +61,10 @@ class SafeCreationEstimateSerializer(serializers.Serializer):
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
 
 
+class SafeCreationEstimateV2Serializer(serializers.Serializer):
+    number_owners = serializers.IntegerField(min_value=1)
+
+
 # TODO Rename this
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
@@ -101,6 +87,18 @@ class SignatureResponseSerializer(serializers.Serializer):
     s = serializers.CharField()
 
 
+class TokensWithBalanceSerializer(serializers.Serializer):
+    token_address = EthereumAddressField()
+    balance = serializers.IntegerField()
+
+
+class SafeContractSerializer(serializers.Serializer):
+    created = serializers.DateTimeField()
+    address = EthereumAddressField()
+    balance = serializers.IntegerField(min_value=0, allow_null=True)
+    tokens_with_balance = TokensWithBalanceSerializer(many=True)
+
+
 class SafeResponseSerializer(serializers.Serializer):
     address = EthereumAddressField()
     master_copy = EthereumAddressField()
@@ -114,6 +112,7 @@ class SafeCreationEstimateResponseSerializer(serializers.Serializer):
     gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)
     payment = serializers.IntegerField(min_value=0)
+    payment_token = EthereumAddressField(allow_null=True)
 
 
 class SafeCreationResponseSerializer(serializers.Serializer):
@@ -154,7 +153,7 @@ class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
 class InternalTxSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternalTx
-        exclude = ('id', 'ethereum_tx')
+        exclude = ('id',)
 
     _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
@@ -164,6 +163,7 @@ class InternalTxSerializer(serializers.ModelSerializer):
     output = HexadecimalField()
     call_type = serializers.SerializerMethodField()
     tx_type = serializers.SerializerMethodField()
+    ethereum_tx = None
 
     def get_fields(self):
         result = super().get_fields()
@@ -191,7 +191,46 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
     data = HexadecimalField()
     tx_hash = HexadecimalField()
+    block_number = serializers.SerializerMethodField()
+    block_timestamp = serializers.SerializerMethodField()
+
+    def get_fields(self):
+        result = super().get_fields()
+        # Rename `_from` to `from`
+        _from = result.pop('_from')
+        result['from'] = _from
+        return result
+
+    def get_block_number(self, obj: EthereumTx):
+        if obj.block:
+            return obj.block.number
+
+    def get_block_timestamp(self, obj: EthereumTx):
+        if obj.block:
+            return obj.block.timestamp
+
+
+class InternalTxWithEthereumTxSerializer(InternalTxSerializer):
+    ethereum_tx = EthereumTxSerializer()
+
+
+class EthereumTxWithInternalTxsSerializer(EthereumTxSerializer):
     internal_txs = InternalTxSerializer(many=True)
+
+
+class ERCTransfer(serializers.ModelSerializer):
+    """
+    Base class for ERC20 and ERC721 serializer
+    """
+    class Meta:
+        model = EthereumEvent
+        exclude = ('arguments', 'topic')
+
+    ethereum_tx = EthereumTxSerializer()
+    log_index = serializers.IntegerField(min_value=0)
+    token_address = EthereumAddressField()
+    _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='arguments.from')
+    to = EthereumAddressField(allow_null=False, allow_zero_address=True, source='arguments.to')
 
     def get_fields(self):
         result = super().get_fields()
@@ -201,9 +240,17 @@ class EthereumTxSerializer(serializers.ModelSerializer):
         return result
 
 
+class ERC20Serializer(ERCTransfer):
+    value = serializers.CharField(source='arguments.value')
+
+
+class ERC721Serializer(ERCTransfer):
+    token_id = serializers.CharField(source='arguments.tokenId')
+
+
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    ethereum_tx = EthereumTxSerializer()
+    ethereum_tx = EthereumTxWithInternalTxsSerializer()
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
     timestamp = serializers.DateTimeField(source='created')
@@ -235,6 +282,7 @@ class SafeMultisigTxResponseSerializer(serializers.Serializer):
 
 class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     safe_tx_gas = serializers.IntegerField(min_value=0)
+    base_gas = serializers.IntegerField(min_value=0)
     data_gas = serializers.IntegerField(min_value=0)
     operational_gas = serializers.IntegerField(min_value=0)
     gas_price = serializers.IntegerField(min_value=0)

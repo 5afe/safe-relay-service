@@ -1,13 +1,14 @@
 from typing import List, Optional
 
 from django.db.models import Q
+from django.test import TestCase
 
 from eth_account import Account
-from gnosis.eth import EthereumClient
 from hexbytes import HexBytes
 from web3.datastructures import AttributeDict
 
-from gnosis.safe.tests.test_safe_service import TestSafeService
+from gnosis.eth import EthereumClient
+from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
 from ..models import InternalTx, SafeContract, SafeTxStatus
 from ..services import InternalTxService
@@ -312,6 +313,81 @@ class EthereumClientMock:
                                'transactionHash': HexBytes('0xa3c522763c3d9e127d6f43f90185691cfac81af24fded3466ff12f4517e69a99'),
                                'transactionIndex': 6})]
 
+    blocks = [AttributeDict({'number': 4265981,
+                             'hash': HexBytes('0x10a08da6bc63c0941396b94933df40eb63ca14860e936fa40eeeccd0dde457a0'),
+                             'parentHash': HexBytes('0x4474379eb0b83c8382206d70d8d9ce5751ba3472416745efc57a6df70da1ba40'),
+                             'mixHash': HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'),
+                             'nonce': HexBytes('0x0000000000000000'),
+                             'sha3Uncles': HexBytes('0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'),
+                             'logsBloom': HexBytes('0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'),
+                             'transactionsRoot': HexBytes('0x386481c8732b634326d42668ec9e8f73c7f531d05c796c91f1f12935d9e9cc6f'),
+                             'stateRoot': HexBytes('0x6a433c9fe577dba272b920a1b5b02279945e7f171706b68163a5eff471a7357a'),
+                             'receiptsRoot': HexBytes('0x7b25b59ca38ad64a54b752cb2d33fb7d8dba464d61fa65678d1e545a77af528d'),
+                             'miner': '0x0000000000000000000000000000000000000000',
+                             'difficulty': 0,
+                             'totalDifficulty': 0,
+                             'extraData': HexBytes('0x'),
+                             'size': 1000,
+                             'gasLimit': 100000000,
+                             'gasUsed': 878659,
+                             'timestamp': 1558945671,
+                             'transactions': [HexBytes('0x870b0cd9bdf64b0e7d8fbacfc0a9003d6568a0b3370e7f5e106ee1e2173d4c53')],
+                             'uncles': []}),
+              AttributeDict({'number': 4265982,
+                             'hash': HexBytes('0x20a08da6bc63c0941396b94933df40eb63ca14860e936fa40eeeccd0dde457a1'),
+                             'parentHash': HexBytes(
+                                 '0x4474379eb0b83c8382206d70d8d9ce5751ba3472416745efc57a6df70da1ba40'),
+                             'mixHash': HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'),
+                             'nonce': HexBytes('0x0000000000000000'),
+                             'sha3Uncles': HexBytes(
+                                 '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'),
+                             'logsBloom': HexBytes(
+                                 '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'),
+                             'transactionsRoot': HexBytes(
+                                 '0x386481c8732b634326d42668ec9e8f73c7f531d05c796c91f1f12935d9e9cc6f'),
+                             'stateRoot': HexBytes(
+                                 '0x6a433c9fe577dba272b920a1b5b02279945e7f171706b68163a5eff471a7357a'),
+                             'receiptsRoot': HexBytes(
+                                 '0x7b25b59ca38ad64a54b752cb2d33fb7d8dba464d61fa65678d1e545a77af528d'),
+                             'miner': '0x0000000000000000000000000000000000000000',
+                             'difficulty': 0,
+                             'totalDifficulty': 0,
+                             'extraData': HexBytes('0x'),
+                             'size': 1000,
+                             'gasLimit': 100000000,
+                             'gasUsed': 878659,
+                             'timestamp': 1558945671,
+                             'transactions': [
+                                 HexBytes('0x870b0cd9bdf64b0e7d8fbacfc0a9003d6568a0b3370e7f5e106ee1e2173d4c53')],
+                             'uncles': []}),
+              AttributeDict({'number': 4265984,
+                             'hash': HexBytes('0x30a08da6bc63c0941396b94933df40eb63ca14860e936fa40eeeccd0dde457bb'),
+                             'parentHash': HexBytes(
+                                 '0x4474379eb0b83c8382206d70d8d9ce5751ba3472416745efc57a6df70da1ba40'),
+                             'mixHash': HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'),
+                             'nonce': HexBytes('0x0000000000000000'),
+                             'sha3Uncles': HexBytes(
+                                 '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'),
+                             'logsBloom': HexBytes(
+                                 '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'),
+                             'transactionsRoot': HexBytes(
+                                 '0x386481c8732b634326d42668ec9e8f73c7f531d05c796c91f1f12935d9e9cc6f'),
+                             'stateRoot': HexBytes(
+                                 '0x6a433c9fe577dba272b920a1b5b02279945e7f171706b68163a5eff471a7357a'),
+                             'receiptsRoot': HexBytes(
+                                 '0x7b25b59ca38ad64a54b752cb2d33fb7d8dba464d61fa65678d1e545a77af528d'),
+                             'miner': '0x0000000000000000000000000000000000000000',
+                             'difficulty': 0,
+                             'totalDifficulty': 0,
+                             'extraData': HexBytes('0x'),
+                             'size': 1000,
+                             'gasLimit': 100000000,
+                             'gasUsed': 878659,
+                             'timestamp': 1558945671,
+                             'transactions': [
+                                 HexBytes('0x870b0cd9bdf64b0e7d8fbacfc0a9003d6568a0b3370e7f5e106ee1e2173d4c53')],
+                             'uncles': []})]
+
     def get_transaction_receipt(self, tx_hash: str, timeout=None):
         receipt = [receipt for receipt in self.receipts if receipt.transactionHash == HexBytes(tx_hash)]
         if receipt:
@@ -322,8 +398,13 @@ class EthereumClientMock:
         if tx:
             return tx[0]
 
+    def get_block(self, block_number: int):
+        blocks = [block for block in self.blocks if block.number == block_number]
+        if blocks:
+            return blocks[0]
 
-class TestInternalTxService(TestSafeService):
+
+class TestInternalTxService(TestCase, SafeTestCaseMixin):
     def setUp(self):
         self.ethereum_client_mock = EthereumClientMock()
         self.internal_tx_service = InternalTxService(self.ethereum_client_mock)
@@ -354,24 +435,27 @@ class TestInternalTxService(TestSafeService):
         self.assertEqual(safe_tx_status.tx_block_number, 0)
         self.assertEqual(safe_tx_status.tx_block_number, safe_tx_status.initial_block_number)
 
-    def test_process_internal_txs(self):
+    def test_process_addresses(self):
         address = '0xd714EE2aEE29c404491AA18FE0442228C2d955f0'
         safe_contract = SafeContractFactory(address=address)
 
+        with self.assertRaisesMessage(AssertionError, 'Safe addresses cannot be empty'):
+            self.internal_tx_service.process_addresses([])
+
         block_process_limit = self.internal_tx_service.block_process_limit
-        self.assertIsNone(self.internal_tx_service.process_internal_txs([address]))
+        self.assertIsNone(self.internal_tx_service.process_addresses([address]))
         self.assertEqual(SafeTxStatus.objects.filter(safe=safe_contract).count(), 0)
         self.assertEqual(InternalTx.objects.filter(Q(_from=address) | Q(to=address)).count(), 0)
         SafeTxStatusFactory(safe=safe_contract)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertFalse(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         self.assertEqual(safe_tx_status.tx_block_number, block_process_limit)
 
         # We scan for every tx
         self.internal_tx_service.block_process_limit = 0
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations
@@ -379,7 +463,7 @@ class TestInternalTxService(TestSafeService):
                          self.internal_tx_service.ethereum_client.current_block_number - confirmations)
         self.assertEqual(InternalTx.objects.count(), 11)
 
-        _, updated = self.internal_tx_service.process_internal_txs([address])
+        _, updated = self.internal_tx_service.process_addresses([address])
         self.assertTrue(updated)
         safe_tx_status = SafeTxStatus.objects.get(safe=safe_contract)
         confirmations = self.internal_tx_service.confirmations
