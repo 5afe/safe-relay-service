@@ -1,6 +1,8 @@
 from django.conf.urls import include, url
 from django.urls import path
 
+from rest_framework.authtoken import views as rest_views
+
 from safe_relay_service.gas_station.views import GasStationView
 from safe_relay_service.tokens.views import TokenView
 
@@ -25,5 +27,6 @@ urlpatterns = [
     path('safes/<str:address>/all-transactions/', views.EthereumTxView.as_view(), name='safe-all-txs'),
     path('safes/<str:address>/transactions/estimate/', views.SafeMultisigTxEstimateView.as_view(),
          name='safe-multisig-tx-estimate'),
+    path('private/api-token-auth/', rest_views.obtain_auth_token, name='api-token-auth'),
     path('private/safes/', views.PrivateSafesView.as_view(), name='private-safes'),
 ]

@@ -778,14 +778,14 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         username, password = 'admin', 'mypass'
 
         # No user created
-        response = self.client.post(reverse('api-token-auth'), format='json', data={'username': username,
-                                                                                    'password': password})
+        response = self.client.post(reverse('v1:api-token-auth'), format='json', data={'username': username,
+                                                                                       'password': password})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Create user
         User.objects.create_superuser(username, 'admin@admin.com', password)
-        response = self.client.post(reverse('api-token-auth'), format='json', data={'username': username,
-                                                                                    'password': password})
+        response = self.client.post(reverse('v1:api-token-auth'), format='json', data={'username': username,
+                                                                                       'password': password})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         token = response.json()['token']
 
