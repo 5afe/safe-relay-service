@@ -96,7 +96,7 @@ class SafeContractSerializer(serializers.Serializer):
     created = serializers.DateTimeField()
     address = EthereumAddressField()
     balance = serializers.IntegerField(min_value=0, allow_null=True)
-    tokens_with_balance = TokensWithBalanceSerializer(many=True)
+    tokens_with_balance = TokensWithBalanceSerializer(source='get_tokens_with_balance', many=True)
 
 
 class SafeResponseSerializer(serializers.Serializer):

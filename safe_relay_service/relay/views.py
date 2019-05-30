@@ -439,4 +439,4 @@ class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SafeContractSerializer
-    queryset = SafeContract.objects.deployed()
+    queryset = SafeContract.objects.deployed().with_balance()
