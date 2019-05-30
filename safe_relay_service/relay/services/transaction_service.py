@@ -14,6 +14,7 @@ from gnosis.safe.signatures import signatures_to_bytes
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
+from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
 from ..models import EthereumTx, SafeContract, SafeMultisigTx
 from ..repositories.redis_repository import RedisRepository
@@ -69,14 +70,27 @@ class GasPriceTooLow(TransactionServiceException):
     pass
 
 
-class TransactionEstimation(NamedTuple):
+class TransactionEstimationWithNonce(NamedTuple):
     safe_tx_gas: int
-    base_gas: int
+    base_gas: int  # For old versions it will equal to `data_gas`
     data_gas: int  # DEPRECATED
     operational_gas: int  # DEPRECATED
     gas_price: int
     gas_token: str
     last_used_nonce: int
+
+
+class TransactionGasTokenEstimation(NamedTuple):
+    base_gas: int  # For old versions it will equal to `data_gas`
+    gas_price: int
+    gas_token: str
+
+
+class TransactionEstimationWithNonceAndGasTokens(NamedTuple):
+    last_used_nonce: int
+    safe_tx_gas: int
+    operational_gas: int  # DEPRECATED
+    estimations: List[TransactionGasTokenEstimation]
 
 
 class TransactionServiceProvider:
@@ -175,7 +189,7 @@ class TransactionService:
             return gas_price_fast
 
     def estimate_tx(self, safe_address: str, to: str, value: int, data: str, operation: int,
-                    gas_token: Optional[str]) -> TransactionEstimation:
+                    gas_token: Optional[str]) -> TransactionEstimationWithNonce:
         """
         :return: TransactionEstimation with costs and last used nonce of safe
         :raises: InvalidGasToken: If Gas Token is not valid
@@ -196,8 +210,34 @@ class TransactionService:
 
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
-        return TransactionEstimation(safe_tx_gas, safe_tx_base_gas, safe_tx_base_gas, safe_tx_operational_gas,
-                                     gas_price, gas_token or NULL_ADDRESS, last_used_nonce)
+        return TransactionEstimationWithNonce(safe_tx_gas, safe_tx_base_gas, safe_tx_base_gas, safe_tx_operational_gas,
+                                              gas_price, gas_token or NULL_ADDRESS, last_used_nonce)
+
+    def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: str,
+                                   operation: int) -> TransactionEstimationWithNonceAndGasTokens:
+        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
+        safe = Safe(safe_address, self.ethereum_client)
+        safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
+
+        safe_version = safe.retrieve_version()
+        if Version(safe_version) >= Version('1.0.0'):
+            safe_tx_operational_gas = 0
+        else:
+            safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
+
+        gas_token_estimations = []
+        # Ether (NULL_ADDRESS) and the other tokens
+        for token_address in [NULL_ADDRESS] + [token.address for token in Token.objects.gas_tokens()]:
+            safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, token_address, safe_tx_gas)
+            try:
+                gas_price = self._estimate_tx_gas_price(token_address)
+                gas_token_estimation = TransactionGasTokenEstimation(safe_tx_base_gas, gas_price, token_address)
+                gas_token_estimations.append(gas_token_estimation)
+            except CannotGetTokenPriceFromApi:
+                logger.error('Cannot get price for token=%s', token_address)
+
+        return TransactionEstimationWithNonceAndGasTokens(last_used_nonce, safe_tx_gas, safe_tx_operational_gas,
+                                                          gas_token_estimations)
 
     def create_multisig_tx(self,
                            safe_address: str,

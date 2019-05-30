@@ -590,6 +590,65 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_safe_multisig_tx_estimates(self):
+        my_safe_address = get_eth_address_with_invalid_checksum()
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
+                                    data={},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        my_safe_address, _ = get_eth_address_with_key()
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
+                                    data={},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        initial_funding = self.w3.toWei(0.0001, 'ether')
+
+        safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
+
+        to = Account.create().address
+        tx = {
+            'to': to,
+            'value': initial_funding // 2,
+            'data': '0x',
+            'operation': 1
+        }
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
+                                    data=tx,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = response.json()
+        self.assertGreater(response['safeTxGas'], 0)
+        self.assertEqual(response['operationalGas'], 0)
+        self.assertIsNone(response['lastUsedNonce'])
+        self.assertEqual(len(response['estimations']), 1)
+        estimation = response['estimations'][0]
+        self.assertGreater(estimation['baseGas'], 0)
+        self.assertGreater(estimation['gasPrice'], 0)
+        self.assertEqual(estimation['gasToken'], NULL_ADDRESS)
+
+        valid_token = TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=2)
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
+                                    data=tx,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = response.json()
+        self.assertGreater(response['safeTxGas'], 0)
+        self.assertEqual(response['operationalGas'], 0)
+        self.assertIsNone(response['lastUsedNonce'])
+        self.assertEqual(len(response['estimations']), 2)
+        estimation_ether = response['estimations'][0]
+        self.assertGreater(estimation_ether['baseGas'], 0)
+        self.assertGreater(estimation_ether['gasPrice'], 0)
+        self.assertEqual(estimation_ether['gasToken'], NULL_ADDRESS)
+        estimation_token = response['estimations'][1]
+        self.assertGreater(estimation_token['baseGas'], estimation_ether['baseGas'])
+        self.assertAlmostEqual(estimation_token['gasPrice'], estimation_ether['gasPrice'] // 2, delta=1.0)
+        self.assertEqual(estimation_token['gasToken'], valid_token.address)
+
     def test_get_safe_signal(self):
         safe_address, _ = get_eth_address_with_key()
 

@@ -42,7 +42,13 @@ class PriceOracleTicker(models.Model):
     price = property(_price)
 
 
+class TokenManager(models.Manager):
+    def gas_tokens(self):
+        return self.filter(gas=True)
+
+
 class Token(models.Model):
+    objects = TokenManager()
     address = EthereumAddressField(primary_key=True)
     name = models.CharField(max_length=30)
     symbol = models.CharField(max_length=30)

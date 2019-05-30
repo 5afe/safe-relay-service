@@ -340,4 +340,54 @@ class TestTransactionService(TestCase, SafeTestCaseMixin):
         # We need a real safe deployed for this method to work
         gas_token = NULL_ADDRESS
         safe_address = self.deploy_test_safe().safe_address
-        transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+        transaction_estimation = transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+        self.assertEqual(transaction_estimation.last_used_nonce, None)
+        self.assertGreater(transaction_estimation.safe_tx_gas, 0)
+        self.assertGreater(transaction_estimation.base_gas, 0)
+        self.assertGreater(transaction_estimation.data_gas, 0)
+        self.assertGreater(transaction_estimation.gas_price, 0)
+        self.assertEqual(transaction_estimation.operational_gas, 0)
+        self.assertEqual(transaction_estimation.gas_token, NULL_ADDRESS)
+        #TODO Test operational gas for old safes
+
+    def test_estimate_tx_for_all_tokent(self):
+        transaction_service = self.transaction_service
+
+        safe_address = self.deploy_test_safe().safe_address
+        to = Account.create().address
+        value = 0
+        data = b''
+        operation = SafeOperation.CALL.value
+
+        # TokenFactory(address=gas_token, gas=True)
+        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                 data, operation)
+        self.assertEqual(transaction_estimations.last_used_nonce, None)
+        self.assertGreater(transaction_estimations.safe_tx_gas, 0)
+        self.assertEqual(transaction_estimations.operational_gas, 0)  # Operational gas must be `0` for new Safes
+        self.assertEqual(len(transaction_estimations.estimations), 1)  # Just ether
+        estimation = transaction_estimations.estimations[0]
+        self.assertGreater(estimation.gas_price, 0)
+        self.assertGreater(estimation.base_gas, 0)
+        self.assertEqual(estimation.gas_token, NULL_ADDRESS)
+
+        TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=None)
+        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                 data, operation)
+        self.assertEqual(len(transaction_estimations.estimations), 1)  # Just ether as no price was configured
+
+        valid_token = TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=2)
+        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                 data, operation)
+        self.assertEqual(transaction_estimations.last_used_nonce, None)
+        self.assertGreater(transaction_estimations.safe_tx_gas, 0)
+        self.assertEqual(transaction_estimations.operational_gas, 0)  # Operational gas must be `0` for new Safes
+        self.assertEqual(len(transaction_estimations.estimations), 2)  # Just ether
+        estimation_ether = transaction_estimations.estimations[0]
+        self.assertGreater(estimation_ether.gas_price, 0)
+        self.assertGreater(estimation_ether.base_gas, 0)
+        self.assertEqual(estimation_ether.gas_token, NULL_ADDRESS)
+        estimation_token = transaction_estimations.estimations[1]
+        self.assertAlmostEqual(estimation_token.gas_price, estimation_ether.gas_price // 2, delta=1.0)
+        self.assertGreater(estimation_token.base_gas, estimation_ether.base_gas)
+        self.assertEqual(estimation_token.gas_token, valid_token.address)

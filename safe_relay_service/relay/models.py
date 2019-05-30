@@ -283,9 +283,9 @@ class EthereumTx(models.Model):
 
 
 class SafeMultisigTxManager(models.Manager):
-    def get_last_nonce_for_safe(self, safe_address: str):
-        tx = self.filter(safe=safe_address).order_by('-nonce').first()
-        return tx.nonce if tx else None
+    def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:
+        nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
+        return nonce_dict['nonce'] if nonce_dict else None
 
 
 class SafeMultisigTx(TimeStampedModel):
