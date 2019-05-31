@@ -96,7 +96,7 @@ class SafeContractSerializer(serializers.Serializer):
     created = serializers.DateTimeField()
     address = EthereumAddressField()
     balance = serializers.IntegerField(min_value=0, allow_null=True)
-    tokens_with_balance = TokensWithBalanceSerializer(many=True)
+    tokens_with_balance = TokensWithBalanceSerializer(source='get_tokens_with_balance', many=True)
 
 
 class SafeResponseSerializer(serializers.Serializer):
@@ -288,3 +288,16 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     gas_price = serializers.IntegerField(min_value=0)
     last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
+
+
+class TransactionGasTokenEstimationResponseSerializer(serializers.Serializer):
+    base_gas = serializers.IntegerField(min_value=0)
+    gas_price = serializers.IntegerField(min_value=0)
+    gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
+
+
+class TransactionEstimationWithNonceAndGasTokensResponseSerializer(serializers.Serializer):
+    last_used_nonce = serializers.IntegerField(min_value=0)
+    safe_tx_gas = serializers.IntegerField(min_value=0)
+    operational_gas = serializers.IntegerField(min_value=0)
+    estimations = TransactionGasTokenEstimationResponseSerializer(many=True)

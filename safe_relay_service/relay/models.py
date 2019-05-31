@@ -39,6 +39,13 @@ class EthereumTxCallType(Enum):
 
 
 class SafeContractQuerySet(models.QuerySet):
+    def with_balance(self):
+        """
+        :return: Queryset with the Safes and a `balance` attribute
+        """
+        return self.annotate(balance=Subquery(InternalTx.objects.balance_for_all_safes(
+        ).filter(to=OuterRef('address')).values('balance').distinct(), DecimalField()))
+
     def deployed(self):
         return self.filter(
             ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
@@ -58,25 +65,11 @@ class SafeContract(TimeStampedModel):
     def __str__(self):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
 
-    def _balance(self) -> Optional[int]:
+    def get_balance(self) -> Optional[int]:
         return InternalTx.objects.calculate_balance(self.address)
-    balance = property(_balance)
 
-    def _tokens_with_balance(self) -> List[Dict[str, any]]:
-        """
-        :return: List of dictionaries {'token_address': str, 'balance': int}
-        """
-        address = self.address
-        arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
-        return EthereumEvent.objects.erc20_events(
-            address=address
-        ).values('token_address').annotate(
-            balance=Sum(Case(
-                When(arguments__from=address, then=-arguments_value_field),
-                default=arguments_value_field,
-            ))
-        ).order_by('-balance').values('token_address', 'balance')
-    tokens_with_balance = property(_tokens_with_balance)
+    def get_tokens_with_balance(self) -> List[Dict[str, any]]:
+        return EthereumEvent.objects.erc20_tokens_with_balance(self.address)
 
 
 class SafeCreation(TimeStampedModel):
@@ -283,9 +276,9 @@ class EthereumTx(models.Model):
 
 
 class SafeMultisigTxManager(models.Manager):
-    def get_last_nonce_for_safe(self, safe_address: str):
-        tx = self.filter(safe=safe_address).order_by('-nonce').first()
-        return tx.nonce if tx else None
+    def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:
+        nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
+        return nonce_dict['nonce'] if nonce_dict else None
 
 
 class SafeMultisigTx(TimeStampedModel):
@@ -399,7 +392,7 @@ class EthereumEventQuerySet(models.QuerySet):
     def not_erc_20_721_events(self):
         return self.exclude(topic=ERC20_721_TRANSFER_TOPIC)
 
-    def erc20_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
+    def erc20_and_721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
         queryset = self.filter(topic=ERC20_721_TRANSFER_TOPIC)
         if token_address:
             queryset = queryset.filter(token_address=token_address)
@@ -408,12 +401,26 @@ class EthereumEventQuerySet(models.QuerySet):
         return queryset
 
     def erc20_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
-        return self.erc20_721_events(token_address=token_address,
-                                     address=address).filter(arguments__has_key='value')
+        return self.erc20_and_721_events(token_address=token_address,
+                                         address=address).filter(arguments__has_key='value')
 
     def erc721_events(self, token_address: Optional[str] = None, address: Optional[str] = None):
-        return self.erc20_721_events(token_address=token_address,
-                                     address=address).filter(arguments__has_key='tokenId')
+        return self.erc20_and_721_events(token_address=token_address,
+                                         address=address).filter(arguments__has_key='tokenId')
+
+    def erc20_tokens_with_balance(self, address: str) -> Dict[str, any]:
+        """
+        :return: List of dictionaries {'token_address': str, 'balance': int}
+        """
+        arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
+        return EthereumEvent.objects.erc20_events(
+            address=address
+        ).values('token_address').annotate(
+            balance=Sum(Case(
+                When(arguments__from=address, then=-arguments_value_field),
+                default=arguments_value_field,
+            ))
+        ).order_by('-balance').values('token_address', 'balance')
 
     def get_or_create_erc20_or_721_event(self, decoded_event: Dict[str, any]):
         if 'value' in decoded_event['args']:

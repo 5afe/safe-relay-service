@@ -17,26 +17,24 @@ from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.exceptions import SafeServiceException
-from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
+from gnosis.safe.serializers import (
+    SafeMultisigEstimateTxSerializer,
+    SafeMultisigEstimateTxSerializerWithGasToken)
 
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
 from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
                      SafeFunding, SafeMultisigTx)
-from .serializers import (ERC20Serializer, ERC721Serializer,
-                          EthereumTxWithInternalTxsSerializer,
-                          InternalTxWithEthereumTxSerializer,
-                          SafeContractSerializer,
-                          SafeCreationEstimateResponseSerializer,
-                          SafeCreationEstimateSerializer,
-                          SafeCreationResponseSerializer,
-                          SafeCreationSerializer,
-                          SafeFundingResponseSerializer,
-                          SafeMultisigEstimateTxResponseSerializer,
-                          SafeMultisigTxResponseSerializer,
-                          SafeRelayMultisigTxSerializer,
-                          SafeResponseSerializer)
+from .serializers import (
+    ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
+    InternalTxWithEthereumTxSerializer, SafeContractSerializer,
+    SafeCreationEstimateResponseSerializer, SafeCreationEstimateSerializer,
+    SafeCreationResponseSerializer, SafeCreationSerializer,
+    SafeFundingResponseSerializer, SafeMultisigEstimateTxResponseSerializer,
+    SafeMultisigTxResponseSerializer, SafeRelayMultisigTxSerializer,
+    SafeResponseSerializer,
+    TransactionEstimationWithNonceAndGasTokensResponseSerializer)
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
 from .services.transaction_service import (SafeMultisigTxExists,
@@ -241,7 +239,7 @@ class SafeSignalView(APIView):
 
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeMultisigEstimateTxSerializer
+    serializer_class = SafeMultisigEstimateTxSerializerWithGasToken
 
     @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
                                     400: 'Data not valid',
@@ -269,6 +267,42 @@ class SafeMultisigTxEstimateView(CreateAPIView):
                                                                               data['data'], data['operation'],
                                                                               data['gas_token'])
             response_serializer = SafeMultisigEstimateTxResponseSerializer(transaction_estimation)
+            return Response(status=status.HTTP_200_OK, data=response_serializer.data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
+class SafeMultisigTxEstimatesView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeMultisigEstimateTxSerializer
+
+    @swagger_auto_schema(responses={200: TransactionEstimationWithNonceAndGasTokensResponseSerializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def post(self, request, address):
+        """
+        Estimates a Safe Multisig Transaction. `operational_gas` and `data_gas` are deprecated, use `base_gas` instead
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+        request.data['safe'] = address
+        serializer = self.get_serializer_class()(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+
+            transaction_estimations = TransactionServiceProvider().estimate_tx_for_all_tokens(address, data['to'],
+                                                                                              data['value'],
+                                                                                              data['data'],
+                                                                                              data['operation'])
+            response_serializer = TransactionEstimationWithNonceAndGasTokensResponseSerializer(transaction_estimations)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
@@ -405,4 +439,4 @@ class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SafeContractSerializer
-    queryset = SafeContract.objects.deployed()
+    queryset = SafeContract.objects.deployed().with_balance()

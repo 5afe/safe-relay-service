@@ -15,6 +15,7 @@ class EthereumTxForeignClassMixinAdmin:
     Common utilities for classes that have a `ForeignKey` to `EthereumTx`
     """
     list_select_related = ('ethereum_tx', 'ethereum_tx__block')
+    ordering = ['-ethereum_tx__block__number']
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
@@ -154,11 +155,9 @@ class SafeContractBalanceListFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() == 'HAS_BALANCE':
-            return queryset.filter(address__in=InternalTx.objects.balance_for_all_safes().filter(balance__gt=0
-                                                                                                 ).values('to'))
+            return queryset.with_balance().filter(balance__gt=0)
         elif self.value() == 'HAS_MORE_THAN_1_ETH':
-            return queryset.filter(address__in=InternalTx.objects.balance_for_all_safes(
-            ).filter(balance__gt=Web3.toWei(1, 'ether')).values('to'))
+            return queryset.with_balance().filter(balance__gt=Web3.toWei(1, 'ether'))
 
 
 class SafeContractTokensListFilter(admin.SimpleListFilter):
@@ -184,9 +183,16 @@ class SafeContractTokensListFilter(admin.SimpleListFilter):
 class SafeContractAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'address', 'master_copy', 'balance')
-    list_filter = ('master_copy',
-                   SafeContractDeployedListFilter, SafeContractBalanceListFilter, SafeContractTokensListFilter)
+    list_filter = ('master_copy', SafeContractDeployedListFilter,
+                   SafeContractBalanceListFilter, SafeContractTokensListFilter)
+    ordering = ['-created']
     search_fields = ['address']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).with_balance()
+
+    def balance(self, obj):
+        return obj.balance
 
 
 @admin.register(SafeCreation)
