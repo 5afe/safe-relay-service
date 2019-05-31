@@ -308,10 +308,20 @@ class SafeMultisigTx(TimeStampedModel):
 
 class InternalTxManager(models.Manager):
     def balance_for_all_safes(self):
-        outgoing_balance = InternalTx.objects.filter(_from=OuterRef('to')).order_by().values('_from').annotate(
+        # TODO Write test
+        # Exclude `DELEGATE_CALL` from `balance` calculations
+        outgoing_balance = InternalTx.objects.filter(
+            _from=OuterRef('to')
+        ).exclude(call_type=EthereumTxCallType.DELEGATE_CALL.value
+                  ).order_by().values('_from').annotate(
             total=Sum('value')).values('total')
-        incoming_balance = InternalTx.objects.filter(to=OuterRef('to')).order_by().values('to').annotate(
+
+        incoming_balance = InternalTx.objects.filter(
+            to=OuterRef('to')
+        ).exclude(call_type=EthereumTxCallType.DELEGATE_CALL.value
+                  ).order_by().values('to').annotate(
             total=Sum('value')).values('total')
+
         return InternalTx.objects.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
                                                    Subquery(outgoing_balance, output_field=DecimalField()))
 
@@ -321,7 +331,11 @@ class InternalTxManager(models.Manager):
         # return balances_to - balances_from
 
         # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
-        return InternalTx.objects.filter(Q(_from=address) | Q(to=address)).annotate(
+        return InternalTx.objects.exclude(
+            call_type=EthereumTxCallType.DELEGATE_CALL.value
+        ).filter(
+            Q(_from=address) | Q(to=address)
+        ).annotate(
             balance=Case(
                 When(_from=address, then=-F('value')),
                 default='value',
