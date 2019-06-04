@@ -71,7 +71,7 @@ class Token(models.Model):
             return round(multiplier * float(self.fixed_eth_conversion), 10)
         else:
             prices = [price_oracle_ticker.price for price_oracle_ticker in self.price_oracle_tickers.all()]
-            prices = [price for price in prices if price is not None]
+            prices = [price for price in prices if price is not None and price > 0]
             if prices:
                 # Get the average price of the price oracles
                 return sum(prices) / len(prices)
