@@ -185,7 +185,7 @@ class InternalTxSerializer(serializers.ModelSerializer):
 class EthereumTxSerializer(serializers.ModelSerializer):
     class Meta:
         model = EthereumTx
-        exclude = ()
+        exclude = ('block',)
 
     _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)

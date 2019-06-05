@@ -55,7 +55,7 @@ class DutchX(PriceOracle):
     def get_price(self, ticker: str) -> float:
         self.validate_ticker(ticker)
         url = 'https://dutchx.d.exchange/api/v1/markets/{}/prices/custom-median?requireWhitelisted=false&' \
-              'maximumTimePeriod=388800&numberOfAuctions=3'.format(ticker)
+              'maximumTimePeriod=388800&numberOfAuctions=9'.format(ticker)
         response = requests.get(url)
         api_json = response.json()
         if not response.ok or api_json is None:

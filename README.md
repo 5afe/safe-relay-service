@@ -15,7 +15,7 @@ Service for Gnosis Safe Relay
 Docs
 ------------
 Docs are available on [Readthedocs](https://gnosis-safe.readthedocs.io/en/latest/services/relay.html)
-You can open the diagrams with [Staruml](http://staruml.io/)
+You can open the diagrams under `docs/` with [Staruml](http://staruml.io/)
 
 Configuration
 ------------

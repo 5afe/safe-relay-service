@@ -50,7 +50,7 @@ class InternalTxService(TransactionScanService):
 
         # Log INFO if traces found, DEBUG if not
         log_fn = logger.info if to_traces + from_traces else logger.debug
-        log_fn('Found %d relevant txs between block-number=%d and block-number%d. Safes=%s',
+        log_fn('Found %d relevant txs between block-number=%d and block-number=%d. Safes=%s',
                len(to_traces + from_traces), from_block_number, to_block_number, safe_addresses)
 
         return set([trace['transactionHash'] for trace in (to_traces + from_traces)])
