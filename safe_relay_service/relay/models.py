@@ -460,7 +460,7 @@ class EthereumEventQuerySet(models.QuerySet):
         return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
                                   log_index=decoded_event['logIndex'],
                                   defaults={
-                                      'token_address': decoded_event.address,
+                                      'token_address': decoded_event['address'],
                                       'topic': decoded_event['topics'][0],
                                       'arguments': {
                                           'from': decoded_event['args']['from'],
