@@ -48,7 +48,7 @@ class Erc20EventsService(TransactionScanService):
                                                                                       to_block=to_block_number)
         # Log INFO if erc events found, DEBUG otherwise
         logger_fn = logger.info if erc20_transfer_events else logger.debug
-        logger_fn('Found %d relevant erc20 txs between block-number=%d and block-number%d. Safes=%s',
+        logger_fn('Found %d relevant erc20 txs between block-number=%d and block-number=%d. Safes=%s',
                   len(erc20_transfer_events), from_block_number, to_block_number, safe_addresses)
 
         return set([event['transactionHash'] for event in erc20_transfer_events])

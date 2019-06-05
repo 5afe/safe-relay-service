@@ -440,7 +440,7 @@ class EthereumEventQuerySet(models.QuerySet):
         if 'value' in decoded_event['args']:
             return self.get_or_create_erc20_event(decoded_event)
         elif 'tokenId' in decoded_event['args']:
-            return self.get_or_create_erc20_event(decoded_event)
+            return self.get_or_create_erc721_event(decoded_event)
         raise ValueError('Invalid ERC20 or ERC721 event %s' % decoded_event)
 
     def get_or_create_erc20_event(self, decoded_event: Dict[str, any]):
