@@ -20,6 +20,19 @@ from gnosis.safe import SafeOperation
 class EthereumTxType(Enum):
     CALL = 0
     CREATE = 1
+    SELF_DESTRUCT = 2
+
+    @staticmethod
+    def parse(tx_type: str):
+        tx_type = tx_type.upper()
+        if tx_type == 'CALL':
+            return EthereumTxType.CALL
+        elif tx_type == 'CREATE':
+            return EthereumTxType.CREATE
+        elif tx_type == 'SUICIDE':
+            return EthereumTxType.SELF_DESTRUCT
+        else:
+            raise ValueError('%s is not a valid EthereumTxType' % tx_type)
 
 
 class EthereumTxCallType(Enum):
@@ -346,7 +359,7 @@ class InternalTxManager(models.Manager):
 class InternalTx(models.Model):
     objects = InternalTxManager()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
-    _from = EthereumAddressField(db_index=True)
+    _from = EthereumAddressField(null=True, db_index=True)  # For SELF-DESTRUCT it can be null
     gas = Uint256Field()
     data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
     to = EthereumAddressField(null=True, db_index=True)
@@ -355,6 +368,8 @@ class InternalTx(models.Model):
     contract_address = EthereumAddressField(null=True, db_index=True)  # Create
     code = models.BinaryField(null=True)                # Create
     output = models.BinaryField(null=True)              # Call
+    refund_address = EthereumAddressField(null=True, db_index=True)  # For SELF-DESTRUCT
+    tx_type = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in EthereumTxType])
     call_type = models.PositiveSmallIntegerField(null=True,
                                                  choices=[(tag.value, tag.name) for tag in EthereumTxCallType])  # Call
     trace_address = models.CharField(max_length=100)  # Stringified traceAddress
@@ -368,12 +383,6 @@ class InternalTx(models.Model):
             return 'Internal tx hash={} from={} to={}'.format(self.ethereum_tx.tx_hash, self._from, self.to)
         else:
             return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
-
-    def tx_type(self) -> EthereumTxType:
-        if self.contract_address:
-            return EthereumTxType.CREATE
-        else:
-            return EthereumTxType.CALL
 
 
 class SafeTxStatusManager(models.Manager):
@@ -422,7 +431,7 @@ class EthereumEventQuerySet(models.QuerySet):
         return self.erc20_and_721_events(token_address=token_address,
                                          address=address).filter(arguments__has_key='tokenId')
 
-    def erc20_tokens_with_balance(self, address: str) -> Dict[str, any]:
+    def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, any]]:
         """
         :return: List of dictionaries {'token_address': str, 'balance': int}
         """

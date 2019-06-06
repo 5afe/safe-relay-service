@@ -10,7 +10,7 @@ from web3.datastructures import AttributeDict
 from gnosis.eth import EthereumClient
 from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
-from ..models import InternalTx, SafeContract, SafeTxStatus
+from ..models import EthereumTxType, InternalTx, SafeContract, SafeTxStatus
 from ..services import InternalTxService
 from .factories import (SafeContractFactory, SafeCreation2Factory,
                         SafeTxStatusFactory)
@@ -176,7 +176,18 @@ class ParityMock:
          'transactionHash': '0xa3c522763c3d9e127d6f43f90185691cfac81af24fded3466ff12f4517e69a99',
          'transactionPosition': 6,
          'type': 'call'
-         },
+        },
+        {'action': {'address': '0x4440AdaFBc6c4E45C299451C0eEdC7C8B98c14Ac',
+                    'balance': 10,
+                    'refundAddress': '0x1110ADAFbC6C4e45C299451c0EedC7C8b98C1234'},
+         'blockHash': '0x8512d367492371edf44ebcbbbd935bc434946dddc2b126cb558df5906012186c',
+         'blockNumber': 7829689,
+         'result': None,
+         'subtraces': 0,
+         'traceAddress': [0, 0, 0, 0, 0, 0],
+         'transactionHash': '0xa3c522763c3d9e127d6f43f90185691cfac81af24fded3466ff12f4517e69a99',
+         'transactionPosition': 6,
+         'type': 'suicide'},
     ]
 
     def __init__(self, ethereum_client: EthereumClient):
@@ -461,7 +472,7 @@ class TestInternalTxService(TestCase, SafeTestCaseMixin):
         confirmations = self.internal_tx_service.confirmations
         self.assertEqual(safe_tx_status.tx_block_number,
                          self.internal_tx_service.ethereum_client.current_block_number - confirmations)
-        self.assertEqual(InternalTx.objects.count(), 11)
+        self.assertEqual(InternalTx.objects.count(), 12)
 
         _, updated = self.internal_tx_service.process_addresses([address])
         self.assertTrue(updated)
@@ -469,10 +480,13 @@ class TestInternalTxService(TestCase, SafeTestCaseMixin):
         confirmations = self.internal_tx_service.confirmations
         self.assertEqual(safe_tx_status.tx_block_number,
                          self.internal_tx_service.ethereum_client.current_block_number - confirmations)
-        self.assertEqual(InternalTx.objects.count(), 11)
+        self.assertEqual(InternalTx.objects.count(), 12)
         self.assertEqual(InternalTx.objects.filter(Q(_from=address) | Q(to=address)).count(), 8)
-        self.assertEqual(InternalTx.objects.filter(error=None).count(), 10)
+        self.assertEqual(InternalTx.objects.filter(error=None).count(), 11)
         self.assertEqual(InternalTx.objects.exclude(error=None).first().error, 'Out of gas')
         self.assertEqual(InternalTx.objects.filter(trace_address='1,0,0').count(), 1)
+        self_destruct_internal_tx = InternalTx.objects.get(tx_type=EthereumTxType.SELF_DESTRUCT.value)
+        self.assertEqual(self_destruct_internal_tx.to, '0x4440AdaFBc6c4E45C299451C0eEdC7C8B98c14Ac')
+        self.assertEqual(self_destruct_internal_tx.refund_address, '0x1110ADAFbC6C4e45C299451c0EedC7C8b98C1234')
 
         self.internal_tx_service.block_process_limit = block_process_limit

@@ -15,9 +15,9 @@ from gnosis.eth.constants import (ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS,
 from gnosis.eth.utils import get_eth_address_with_key
 
 from ..models import (EthereumBlock, EthereumEvent, EthereumTx,
-                      EthereumTxCallType, InternalTx, SafeContract,
-                      SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
-                      SafeTxStatus)
+                      EthereumTxCallType, EthereumTxType, InternalTx,
+                      SafeContract, SafeCreation, SafeCreation2, SafeFunding,
+                      SafeMultisigTx, SafeTxStatus)
 
 logger = getLogger(__name__)
 
@@ -144,6 +144,8 @@ class InternalTxFactory(factory.DjangoModelFactory):
     contract_address = None
     code = None
     output = None
+    refund_address = NULL_ADDRESS
+    tx_type = EthereumTxType.CALL.value
     call_type = EthereumTxCallType.CALL.value
     trace_address = factory.Sequence(lambda n: n)
 
