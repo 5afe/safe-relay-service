@@ -303,10 +303,10 @@ def check_create2_deployed_safes_task() -> None:
                             safe_address, safe_creation2.tx_hash)
                 safe_creation2.tx_hash = None
                 safe_creation2.save()
-                deploy_create2_safe_task.delay(safe_address)
+                deploy_create2_safe_task.delay(safe_address, retry=False)
 
     for safe_creation2 in SafeCreation2.objects.not_deployed():
-        deploy_create2_safe_task.delay(safe_creation2.safe.address)
+        deploy_create2_safe_task.delay(safe_creation2.safe.address, retry=False)
 
 
 @app.shared_task(soft_time_limit=300)
