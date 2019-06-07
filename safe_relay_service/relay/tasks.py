@@ -266,12 +266,16 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     assert check_checksum(safe_address)
 
     redis = RedisRepository().redis
-    with redis.lock('locks:deploy_create2_safe', timeout=LOCK_TIMEOUT):
-        try:
-            SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
-        except NotEnoughFundingForCreation:
-            if retry:
-                raise self.retry(countdown=30)
+    lock_name = 'locks:deploy_create2_safe:{}'.format(safe_address)
+    try:
+        with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            try:
+                SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
+            except NotEnoughFundingForCreation:
+                if retry:
+                    raise self.retry(countdown=30)
+    except LockError:
+        logger.warning('Cannot get lock={} for deploying safe={}'.format(lock_name, safe_address))
 
 
 @app.shared_task(soft_time_limit=300)
@@ -300,6 +304,9 @@ def check_create2_deployed_safes_task() -> None:
                 safe_creation2.tx_hash = None
                 safe_creation2.save()
                 deploy_create2_safe_task.delay(safe_address)
+
+    for safe_creation2 in SafeCreation2.objects.not_deployed():
+        deploy_create2_safe_task.delay(safe_creation2.safe.address)
 
 
 @app.shared_task(soft_time_limit=300)
