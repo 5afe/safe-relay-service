@@ -10,7 +10,7 @@ from gnosis.eth import EthereumClient, EthereumClientProvider
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 
-from ..repositories.redis_repository import RedisRepository
+from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
 
@@ -42,19 +42,12 @@ class FundingService:
                     retry: bool = False, block_identifier='pending'):
         if not gas_price:
             gas_price = self.gas_station.get_gas_prices().standard
-        with self.redis.lock('ethereum:locks:{}'.format(self.funder_account.address), timeout=60 * 2):
-            nonce_key = 'ethereum:nonce:{}'.format(self.funder_account.address)
-            tx_nonce = self.redis.incr(nonce_key)
-            if tx_nonce == 1:
-                tx_nonce = self.ethereum_client.get_nonce_for_account(self.funder_account.address)
-                self.redis.set(nonce_key, tx_nonce)
-            try:
-                return self.ethereum_client.send_eth_to(self.funder_account.privateKey, to, gas_price, value,
-                                                        gas=gas,
-                                                        retry=retry,
-                                                        block_identifier=block_identifier,
-                                                        max_eth_to_send=self.max_eth_to_send,
-                                                        nonce=tx_nonce)
-            except Exception as e:
-                self.redis.delete(nonce_key)
-                raise e
+
+        with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
+                               timeout=60 * 2) as tx_nonce:
+            return self.ethereum_client.send_eth_to(self.funder_account.privateKey, to, gas_price, value,
+                                                    gas=gas,
+                                                    retry=retry,
+                                                    block_identifier=block_identifier,
+                                                    max_eth_to_send=self.max_eth_to_send,
+                                                    nonce=tx_nonce)

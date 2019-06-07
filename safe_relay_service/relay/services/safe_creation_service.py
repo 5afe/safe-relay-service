@@ -19,7 +19,7 @@ from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
 from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
                       SafeTxStatus)
-from ..repositories.redis_repository import RedisRepository
+from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
 
@@ -222,28 +222,20 @@ class SafeCreationService:
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
 
-        with self.redis.lock('ethereum:locks:{}'.format(self.funder_account.address), timeout=60 * 2):
-            nonce_key = 'ethereum:nonce:{}'.format(self.funder_account.address)
-            tx_nonce = self.redis.incr(nonce_key)
-            if tx_nonce == 1:
-                tx_nonce = self.ethereum_client.get_nonce_for_account(self.funder_account.address)
-                self.redis.set(nonce_key, tx_nonce)
-            try:
-                ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
-                                                                                       self.safe_contract_address,
-                                                                                       setup_data,
-                                                                                       safe_creation2.salt_nonce,
-                                                                                       safe_creation2.gas_estimated,
-                                                                                       safe_creation2.gas_price_estimated,
-                                                                                       nonce=tx_nonce)
-                EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
-                safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
-                safe_creation2.save()
-                logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
-                return safe_creation2
-            except Exception as e:
-                self.redis.delete(nonce_key)
-                raise e
+        with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
+                               timeout=60 * 2) as tx_nonce:
+            ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
+                                                                                   self.safe_contract_address,
+                                                                                   setup_data,
+                                                                                   safe_creation2.salt_nonce,
+                                                                                   safe_creation2.gas_estimated,
+                                                                                   safe_creation2.gas_price_estimated,
+                                                                                   nonce=tx_nonce)
+            EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+            safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
+            safe_creation2.save()
+            logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
+            return safe_creation2
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str] = None) -> SafeCreationEstimate:
         """
