@@ -115,18 +115,21 @@ class SafeCreation(TimeStampedModel):
 
 
 class SafeCreation2Manager(models.Manager):
-    def pending_to_check(self):
+    def deployed_and_checked(self):
         return self.exclude(
             tx_hash=None,
-        ).filter(
             block_number=None,
         ).select_related(
             'safe'
         )
 
-    def deployed_and_checked(self):
+    def not_deployed(self):
+        return self.filter(tx_hash=None)
+
+    def pending_to_check(self):
         return self.exclude(
             tx_hash=None,
+        ).filter(
             block_number=None,
         ).select_related(
             'safe'

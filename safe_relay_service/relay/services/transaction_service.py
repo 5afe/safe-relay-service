@@ -390,8 +390,8 @@ class TransactionService:
 
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 
-        with self.redis.lock('locks:send-multisig-tx:%s' % self.tx_sender_account.address, timeout=60 * 2):
-            nonce_key = '%s:nonce' % self.tx_sender_account.address
+        with self.redis.lock('ethereum:locks:{}'.format(self.tx_sender_account.address), timeout=60 * 2):
+            nonce_key = 'ethereum:nonce:{}'.format(self.tx_sender_account.address)
             tx_nonce = self.redis.incr(nonce_key)
             if tx_nonce == 1:
                 tx_nonce = self.ethereum_client.get_nonce_for_account(self.tx_sender_account.address)

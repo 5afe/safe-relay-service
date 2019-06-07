@@ -293,8 +293,8 @@ def check_create2_deployed_safes_task() -> None:
                 safe_creation2.block_number = block_number
                 safe_creation2.save()
         else:
-            # If safe was not included in any block after 15 minutes, we try to deploy it again
-            if safe_creation2.modified + timedelta(minutes=15) < timezone.now():
+            # If safe was not included in any block after 35 minutes (mempool limit is 30), we try to deploy it again
+            if safe_creation2.modified + timedelta(minutes=35) < timezone.now():
                 logger.info('Safe=%s with tx-hash=%s was not deployed after 10 minutes',
                             safe_address, safe_creation2.tx_hash)
                 safe_creation2.tx_hash = None
