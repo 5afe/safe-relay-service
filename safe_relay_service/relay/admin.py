@@ -201,6 +201,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe_id', 'deployer', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    ordering = ['-created']
     search_fields = ['=safe__address', '=deployer', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
@@ -212,6 +213,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    ordering = ['-created']
     search_fields = ['=safe__address', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
