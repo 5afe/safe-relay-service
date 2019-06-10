@@ -18,7 +18,7 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
                                             SignaturesNotSorted,
-                                            TransactionServiceProvider)
+                                            TransactionServiceProvider, TransactionService)
 from .factories import SafeContractFactory
 
 
@@ -35,8 +35,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
 
     def test_create_multisig_tx(self):
         w3 = self.w3
-        transaction_service = self.transaction_service
-        gas_station = transaction_service.gas_station
+        transaction_service: TransactionService = self.transaction_service
 
         # The balance we will send to the safe
         safe_balance = w3.toWei(0.02, 'ether')
@@ -61,7 +60,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         operation = 0
         safe_tx_gas = 100000
         data_gas = 300000
-        gas_price = gas_station.get_gas_prices().fast
+        gas_price = transaction_service._get_minimum_gas_price()
         gas_token = NULL_ADDRESS
         refund_receiver = NULL_ADDRESS
         safe = Safe(my_safe_address, self.ethereum_client)
@@ -208,7 +207,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
                 operation,
                 safe_tx_gas,
                 data_gas,
-                gas_station.get_gas_prices().standard - 1,
+                transaction_service._get_minimum_gas_price() - 1,
                 gas_token,
                 refund_receiver,
                 nonce,
@@ -272,9 +271,11 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
         self.assertEqual(w3.toChecksumAddress(tx_receipt['to']), my_safe_address)
 
+        self.assertGreater(safe_multisig_tx.ethereum_tx.gas_price, gas_price)  # We used minimum gas price
+
         sender_new_balance = w3.eth.getBalance(sender)
         gas_used = tx_receipt['gasUsed']
-        tx_fees = gas_used * gas_price
+        tx_fees = gas_used * safe_multisig_tx.ethereum_tx.gas_price
         estimated_refund = (safe_multisig_tx.data_gas + safe_multisig_tx.safe_tx_gas) * safe_multisig_tx.gas_price
         real_refund = safe_balance - w3.eth.getBalance(my_safe_address) - value
         # Real refund can be less if not all the `safe_tx_gas` is used

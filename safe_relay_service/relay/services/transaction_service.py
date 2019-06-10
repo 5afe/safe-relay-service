@@ -160,11 +160,11 @@ class TransactionService:
         if safe_gas_price < 1:
             raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less, it was %d' % safe_gas_price)
 
-        current_standard_gas_price = self.gas_station.get_gas_prices().standard
+        minimum_accepted_gas_price = self._get_minimum_gas_price()
         if gas_token and gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                estimated_gas_price = gas_token_model.calculate_gas_price(current_standard_gas_price)
+                estimated_gas_price = gas_token_model.calculate_gas_price(minimum_accepted_gas_price)
                 if safe_gas_price < estimated_gas_price:
                     raise GasPriceTooLow('Required gas-price>=%d to use gas-token' % estimated_gas_price)
                 # We use gas station tx gas price. We cannot use internal tx's because is calculated
@@ -173,8 +173,8 @@ class TransactionService:
                 logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % gas_token)
                 raise InvalidGasToken('Gas token %s not valid' % gas_token)
         else:
-            if safe_gas_price < current_standard_gas_price:
-                raise GasPriceTooLow('Required gas-price>=%d' % current_standard_gas_price)
+            if safe_gas_price < minimum_accepted_gas_price:
+                raise GasPriceTooLow('Required gas-price>=%d' % minimum_accepted_gas_price)
         return True
 
     def _estimate_tx_gas_price(self, gas_token: Optional[str] = None):
