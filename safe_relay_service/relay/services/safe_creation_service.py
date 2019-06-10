@@ -5,6 +5,7 @@ from django.conf import settings
 
 from eth_account import Account
 from hexbytes import HexBytes
+from redis import Redis
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
@@ -18,6 +19,7 @@ from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
 from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
                       SafeTxStatus)
+from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
 
@@ -52,6 +54,7 @@ class SafeCreationServiceProvider:
         if not hasattr(cls, 'instance'):
             cls.instance = SafeCreationService(GasStationProvider(),
                                                EthereumClientProvider(),
+                                               RedisRepository().redis,
                                                settings.SAFE_CONTRACT_ADDRESS,
                                                settings.SAFE_OLD_CONTRACT_ADDRESS,
                                                settings.SAFE_PROXY_FACTORY_ADDRESS,
@@ -66,15 +69,16 @@ class SafeCreationServiceProvider:
 
 
 class SafeCreationService:
-    def __init__(self, gas_station: GasStation, ethereum_client: EthereumClient,
+    def __init__(self, gas_station: GasStation, ethereum_client: EthereumClient, redis: Redis,
                  safe_contract_address: str, safe_old_contract_address: str, proxy_factory_address: str,
                  safe_funder_private_key: str, safe_fixed_creation_cost: int):
         self.gas_station = gas_station
         self.ethereum_client = ethereum_client
+        self.redis = redis
         self.safe_contract_address = safe_contract_address
         self.safe_old_contract_address = safe_old_contract_address
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
-        self.safe_funder_account = Account.privateKeyToAccount(safe_funder_private_key)
+        self.funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
     def _get_token_eth_value_or_raise(self, address: str) -> float:
@@ -113,7 +117,7 @@ class SafeCreationService:
         logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
         safe_creation_tx = Safe.build_safe_creation_tx(self.ethereum_client, self.safe_old_contract_address,
                                                        s, owners, threshold, fast_gas_price, payment_token,
-                                                       self.safe_funder_account.address,
+                                                       self.funder_account.address,
                                                        payment_token_eth_value=payment_token_eth_value,
                                                        fixed_creation_cost=self.safe_fixed_creation_cost)
 
@@ -217,19 +221,21 @@ class SafeCreationService:
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
-        deployer_account = Account.privateKeyToAccount(self.safe_funder_account.privateKey)
-        ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(deployer_account,
-                                                                               self.safe_contract_address,
-                                                                               setup_data,
-                                                                               safe_creation2.salt_nonce,
-                                                                               safe_creation2.gas_estimated,
-                                                                               safe_creation2.gas_price_estimated)
 
-        EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
-        safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
-        safe_creation2.save()
-        logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
-        return safe_creation2
+        with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
+                               timeout=60 * 2) as tx_nonce:
+            ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
+                                                                                   self.safe_contract_address,
+                                                                                   setup_data,
+                                                                                   safe_creation2.salt_nonce,
+                                                                                   safe_creation2.gas_estimated,
+                                                                                   safe_creation2.gas_price_estimated,
+                                                                                   nonce=tx_nonce)
+            EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+            safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
+            safe_creation2.save()
+            logger.info('Deployed safe=%s with tx-hash=%s', safe_address, ethereum_tx_sent.tx_hash.hex())
+            return safe_creation2
 
     def estimate_safe_creation(self, number_owners: int, payment_token: Optional[str] = None) -> SafeCreationEstimate:
         """

@@ -122,7 +122,7 @@ class EthereumTxAdmin(admin.ModelAdmin):
 @admin.register(InternalTx)
 class InternalTxAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
     list_display = ('block_number', 'ethereum_tx_id', '_from', 'to', 'value', 'call_type')
-    list_filter = ('call_type',)
+    list_filter = ('tx_type', 'call_type')
     search_fields = ['=ethereum_tx__block__number', '=_from', '=to']
 
 

@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -14,7 +13,8 @@ from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
 from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
-                                             EthereumTxCallType, InternalTx,
+                                             EthereumTxCallType,
+                                             EthereumTxType, InternalTx,
                                              SafeCreation2, SafeFunding)
 
 logger = logging.getLogger(__name__)
@@ -161,8 +161,8 @@ class InternalTxSerializer(serializers.ModelSerializer):
     data = HexadecimalField()
     code = HexadecimalField()
     output = HexadecimalField()
-    call_type = serializers.SerializerMethodField()
     tx_type = serializers.SerializerMethodField()
+    call_type = serializers.SerializerMethodField()
     ethereum_tx = None
 
     def get_fields(self):
@@ -179,7 +179,7 @@ class InternalTxSerializer(serializers.ModelSerializer):
             return EthereumTxCallType(obj.call_type).name
 
     def get_tx_type(self, obj) -> str:
-        return obj.tx_type().name
+        return EthereumTxType(obj.tx_type).name
 
 
 class EthereumTxSerializer(serializers.ModelSerializer):

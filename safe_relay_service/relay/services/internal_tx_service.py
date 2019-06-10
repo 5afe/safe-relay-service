@@ -3,7 +3,7 @@ from typing import Dict, List, Set
 
 from gnosis.eth import EthereumClient
 
-from ..models import EthereumTxCallType, InternalTx
+from ..models import EthereumTxCallType, EthereumTxType, InternalTx
 from .transaction_scan_service import TransactionScanService
 
 logger = getLogger(__name__)
@@ -65,21 +65,24 @@ class InternalTxService(TransactionScanService):
 
     def _process_trace(self, trace: Dict[str, any]) -> InternalTx:
         ethereum_tx = self.create_or_update_ethereum_tx(trace['transactionHash'])
+        tx_type = EthereumTxType.parse(trace['type'])
         call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
         trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
         internal_tx, _ = InternalTx.objects.get_or_create(
             ethereum_tx=ethereum_tx,
             trace_address=trace_address_str,
             defaults={
-                '_from': trace['action']['from'],
-                'gas': trace['action']['gas'],
+                '_from': trace['action'].get('from'),
+                'gas': trace['action'].get('gas', 0),
                 'data': trace['action'].get('input') or trace['action'].get('init'),
-                'to': trace['action'].get('to'),
-                'value': trace['action'].get('value'),
-                'gas_used': trace.get('result', {}).get('gasUsed', 0),
-                'contract_address': trace.get('result', {}).get('address'),
-                'output': trace.get('result', {}).get('output'),
-                'code': trace.get('result', {}).get('code'),
+                'to': trace['action'].get('to') or trace['action'].get('address'),
+                'value': trace['action'].get('value') or trace['action'].get('balance', 0),
+                'gas_used': (trace.get('result') or {}).get('gasUsed', 0),
+                'contract_address': (trace.get('result') or {}).get('address'),
+                'code': (trace.get('result') or {}).get('code'),
+                'output': (trace.get('result') or {}).get('output'),
+                'refund_address': trace['action'].get('refundAddress'),
+                'tx_type': tx_type.value,
                 'call_type': call_type.value if call_type else None,
                 'error': trace.get('error'),
             }

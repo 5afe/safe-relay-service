@@ -17,7 +17,7 @@ from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
 from ..models import EthereumTx, SafeContract, SafeMultisigTx
-from ..repositories.redis_repository import RedisRepository
+from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
 
@@ -390,16 +390,8 @@ class TransactionService:
 
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 
-        with self.redis.lock('locks:send-multisig-tx:%s' % self.tx_sender_account.address, timeout=60 * 2):
-            nonce_key = '%s:nonce' % self.tx_sender_account.address
-            tx_nonce = self.redis.incr(nonce_key)
-            if tx_nonce == 1:
-                tx_nonce = self.ethereum_client.get_nonce_for_account(self.tx_sender_account.address)
-                self.redis.set(nonce_key, tx_nonce)
-            try:
-                tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
-                                              tx_nonce=tx_nonce, block_identifier=block_identifier)
-                return tx_hash, safe_tx.tx_hash, tx
-            except Exception as e:
-                self.redis.delete(nonce_key)
-                raise e
+        with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
+                               timeout=60 * 2) as tx_nonce:
+            tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
+                                          tx_nonce=tx_nonce, block_identifier=block_identifier)
+            return tx_hash, safe_tx.tx_hash, tx
