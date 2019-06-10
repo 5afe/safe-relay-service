@@ -4,6 +4,7 @@ from django.conf import settings
 
 from eth_account import Account
 from redis import Redis
+from web3 import Web3
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 
@@ -13,6 +14,14 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
+
+
+class FundingServiceException(Exception):
+    pass
+
+
+class EtherLimitExceeded(FundingServiceException):
+    pass
 
 
 class FundingServiceProvider:
@@ -43,11 +52,13 @@ class FundingService:
         if not gas_price:
             gas_price = self.gas_station.get_gas_prices().standard
 
+        if self.max_eth_to_send and value > Web3.toWei(self.max_eth_to_send, 'ether'):
+            raise EtherLimitExceeded('%d is bigger than %f' % (value, self.max_eth_to_send))
+
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
             return self.ethereum_client.send_eth_to(self.funder_account.privateKey, to, gas_price, value,
                                                     gas=gas,
                                                     retry=retry,
                                                     block_identifier=block_identifier,
-                                                    max_eth_to_send=self.max_eth_to_send,
                                                     nonce=tx_nonce)

@@ -6,7 +6,8 @@ from eth_account import Account
 
 from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
-from ..services.funding_service import FundingServiceProvider
+from ..services.funding_service import (EtherLimitExceeded,
+                                        FundingServiceProvider)
 
 logger = logging.getLogger(__name__)
 
@@ -26,3 +27,9 @@ class TestFundingService(TestCase, SafeTestCaseMixin):
         tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash, timeout=200)
         self.assertEqual(tx_receipt.status, 1)
         self.assertEqual(self.ethereum_client.get_balance(to), value)
+
+        with self.assertRaises(EtherLimitExceeded):
+            self.funding_service.max_eth_to_send = 1
+            self.funding_service.send_eth_to(to, self.w3.toWei(1.1, 'ether'))
+
+        FundingServiceProvider.del_singleton()
