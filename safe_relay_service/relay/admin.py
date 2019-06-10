@@ -109,8 +109,9 @@ class EthereumEventAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
 
 @admin.register(EthereumTx)
 class EthereumTxAdmin(admin.ModelAdmin):
-    list_display = ('tx_hash', 'nonce', '_from', 'to')
+    list_display = ('block_id', 'tx_hash', 'nonce', '_from', 'to')
     search_fields = ['=tx_hash', '=_from', '=to']
+    ordering = ['-block_id']
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
