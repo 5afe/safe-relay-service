@@ -32,6 +32,11 @@ class GasStationProvider:
                     cls.instance = GasStationMock()
         return cls.instance
 
+    @classmethod
+    def del_singleton(cls):
+        if hasattr(cls, "instance"):
+            del cls.instance
+
 
 class GasStation:
     def __init__(self,
@@ -153,7 +158,6 @@ class GasStation:
                 # This should never happen, just the first execution
                 # Celery worker should have GasPrice created
                 gas_price = self.calculate_gas_prices()
-
         return gas_price
 
 
@@ -178,3 +182,6 @@ class GasStationMock(GasStation):
                         standard=self.standard,
                         fast=self.fast,
                         fastest=self.fastest)
+
+    def get_gas_prices(self) -> GasPrice:
+        return self.calculate_gas_prices()

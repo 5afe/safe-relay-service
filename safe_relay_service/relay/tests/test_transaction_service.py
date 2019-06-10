@@ -17,8 +17,7 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             InvalidRefundReceiver,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
-                                            SignaturesNotSorted,
-                                            TransactionServiceProvider, TransactionService)
+                                            SignaturesNotSorted)
 from .factories import SafeContractFactory
 
 
@@ -28,14 +27,8 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         super().setUpTestData()
         cls.prepare_tests()
 
-    def test_transaction_provider_singleton(self):
-        service1 = TransactionServiceProvider()
-        service2 = TransactionServiceProvider()
-        self.assertEqual(service1, service2)
-
     def test_create_multisig_tx(self):
         w3 = self.w3
-        transaction_service: TransactionService = self.transaction_service
 
         # The balance we will send to the safe
         safe_balance = w3.toWei(0.02, 'ether')
@@ -60,7 +53,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         operation = 0
         safe_tx_gas = 100000
         data_gas = 300000
-        gas_price = transaction_service._get_minimum_gas_price()
+        gas_price = self.transaction_service._get_minimum_gas_price()
         gas_token = NULL_ADDRESS
         refund_receiver = NULL_ADDRESS
         safe = Safe(my_safe_address, self.ethereum_client)
@@ -100,7 +93,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         invalid_proxy = self.deploy_example_erc20(1, NULL_ADDRESS)
         with self.assertRaises(InvalidProxyContract):
             SafeContractFactory(address=invalid_proxy.address)
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 invalid_proxy.address,
                 to,
                 value,
@@ -127,7 +120,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         proxy_address = tx_receipt.contractAddress
         with self.assertRaises(InvalidMasterCopyAddress):
             SafeContractFactory(address=proxy_address)
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 proxy_address,
                 to,
                 value,
@@ -143,7 +136,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
             )
 
         with self.assertRaises(NotEnoughFundsForMultisigTx):
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -166,7 +159,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
 
         bad_refund_receiver = get_eth_address_with_key()[0]
         with self.assertRaises(InvalidRefundReceiver):
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -183,7 +176,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
 
         invalid_gas_price = 0
         with self.assertRaises(RefundMustBeEnabled):
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -199,7 +192,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
             )
 
         with self.assertRaises(GasPriceTooLow):
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -207,16 +200,16 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
                 operation,
                 safe_tx_gas,
                 data_gas,
-                transaction_service._get_minimum_gas_price() - 1,
+                self.transaction_service._get_minimum_gas_price() - 1,
                 gas_token,
                 refund_receiver,
                 nonce,
                 signatures,
-            )
+                )
 
         with self.assertRaises(InvalidGasToken):
             invalid_gas_token = Account.create().address
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -232,7 +225,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
             )
 
         with self.assertRaises(SignaturesNotSorted):
-            transaction_service.create_multisig_tx(
+            self.transaction_service.create_multisig_tx(
                 my_safe_address,
                 to,
                 value,
@@ -247,11 +240,11 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
                 reversed(signatures)
             )
 
-        sender = transaction_service.tx_sender_account.address
+        sender = self.transaction_service.tx_sender_account.address
         sender_balance = w3.eth.getBalance(sender)
         safe_balance = w3.eth.getBalance(my_safe_address)
 
-        safe_multisig_tx = transaction_service.create_multisig_tx(
+        safe_multisig_tx = self.transaction_service.create_multisig_tx(
             my_safe_address,
             to,
             value,
@@ -270,7 +263,6 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         self.assertTrue(tx_receipt['status'])
         self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
         self.assertEqual(w3.toChecksumAddress(tx_receipt['to']), my_safe_address)
-
         self.assertGreater(safe_multisig_tx.ethereum_tx.gas_price, gas_price)  # We used minimum gas price
 
         sender_new_balance = w3.eth.getBalance(sender)
@@ -299,7 +291,7 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
 
         signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
 
-        safe_multisig_tx = transaction_service.create_multisig_tx(
+        safe_multisig_tx = self.transaction_service.create_multisig_tx(
             my_safe_address,
             to,
             value,
@@ -317,8 +309,6 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         self.assertTrue(tx_receipt['status'])
 
     def test_estimate_tx(self):
-        transaction_service = self.transaction_service
-
         safe_address = Account.create().address
         to = Account.create().address
         value = 0
@@ -327,16 +317,16 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         gas_token = Account().create().address
 
         with self.assertRaises(InvalidGasToken):
-            transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+            self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
 
         TokenFactory(address=gas_token, gas=True)
         with self.assertRaises(CannotEstimateGas):
-            transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+            self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
 
         # We need a real safe deployed for this method to work
         gas_token = NULL_ADDRESS
         safe_address = self.deploy_test_safe().safe_address
-        transaction_estimation = transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+        transaction_estimation = self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
         self.assertEqual(transaction_estimation.last_used_nonce, None)
         self.assertGreater(transaction_estimation.safe_tx_gas, 0)
         self.assertGreater(transaction_estimation.base_gas, 0)
@@ -347,8 +337,6 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         #TODO Test operational gas for old safes
 
     def test_estimate_tx_for_all_tokent(self):
-        transaction_service = self.transaction_service
-
         safe_address = self.deploy_test_safe().safe_address
         to = Account.create().address
         value = 0
@@ -356,8 +344,8 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         operation = SafeOperation.CALL.value
 
         # TokenFactory(address=gas_token, gas=True)
-        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
-                                                                                 data, operation)
+        transaction_estimations = self.transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                      data, operation)
         self.assertEqual(transaction_estimations.last_used_nonce, None)
         self.assertGreater(transaction_estimations.safe_tx_gas, 0)
         self.assertEqual(transaction_estimations.operational_gas, 0)  # Operational gas must be `0` for new Safes
@@ -368,13 +356,13 @@ class TestTransactionService(TestCase, RelayTestCaseMixin):
         self.assertEqual(estimation.gas_token, NULL_ADDRESS)
 
         TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=None)
-        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
-                                                                                 data, operation)
+        transaction_estimations = self.transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                      data, operation)
         self.assertEqual(len(transaction_estimations.estimations), 1)  # Just ether as no price was configured
 
         valid_token = TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=2)
-        transaction_estimations = transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
-                                                                                 data, operation)
+        transaction_estimations = self.transaction_service.estimate_tx_for_all_tokens(safe_address, to, value,
+                                                                                      data, operation)
         self.assertEqual(transaction_estimations.last_used_nonce, None)
         self.assertGreater(transaction_estimations.safe_tx_gas, 0)
         self.assertEqual(transaction_estimations.operational_gas, 0)  # Operational gas must be `0` for new Safes
