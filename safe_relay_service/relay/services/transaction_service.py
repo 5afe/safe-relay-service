@@ -178,7 +178,7 @@ class TransactionService:
         return True
 
     def _estimate_tx_gas_price(self, gas_token: Optional[str] = None):
-        gas_price_fast = self.gas_station.get_gas_prices().fast
+        gas_price_fast = self._get_configured_gas_price()
         if gas_token and gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
@@ -187,6 +187,18 @@ class TransactionService:
                 raise InvalidGasToken('Gas token %s not found' % gas_token)
         else:
             return gas_price_fast
+
+    def _get_configured_gas_price(self) -> int:
+        """
+        :return: Gas price for txs
+        """
+        return self.gas_station.get_gas_prices().standard
+
+    def _get_minimum_gas_price(self) -> int:
+        """
+        :return: Minimum gas price accepted for txs set by the user
+        """
+        return self.gas_station.get_gas_prices().safe_low
 
     def estimate_tx(self, safe_address: str, to: str, value: int, data: str, operation: int,
                     gas_token: Optional[str]) -> TransactionEstimationWithNonce:
@@ -365,7 +377,7 @@ class TransactionService:
                                        (safe_tx_gas_estimation, safe_base_gas_estimation, safe_tx_gas, base_gas))
 
         # We use fast tx gas price, if not txs could be stuck
-        tx_gas_price = self.gas_station.get_gas_prices().fast
+        tx_gas_price = self._get_configured_gas_price()
         tx_sender_private_key = self.tx_sender_account.privateKey
         tx_sender_address = Account.privateKeyToAccount(tx_sender_private_key).address
 
