@@ -34,16 +34,17 @@ class GasStationProvider:
 
 
 class GasStation:
-    CONSTANT_GAS_INCREMENT = 1  # Increase a little for fastest mining for API Calls
-
     def __init__(self,
                  http_provider_uri='http://localhost:8545',
                  number_of_blocks: int = 200,
-                 cache_timeout_seconds: int = 10 * 60):
+                 cache_timeout_seconds: int = 10 * 60,
+                 constant_gas_increment: int = 1):  # Increase a little for fastest mining for API Calls
+
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
+        self.constant_gas_increment = constant_gas_increment
         self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
             if self.w3.net.version != 1:
@@ -128,11 +129,11 @@ class GasStation:
             raise NoBlocksFound
         else:
             np_gas_prices = np.array(gas_prices)
-            lowest = np_gas_prices.min() + self.CONSTANT_GAS_INCREMENT
-            safe_low = math.ceil(np.percentile(np_gas_prices, 30)) + self.CONSTANT_GAS_INCREMENT
-            standard = math.ceil(np.percentile(np_gas_prices, 50)) + self.CONSTANT_GAS_INCREMENT
-            fast = math.ceil(np.percentile(np_gas_prices, 75)) + self.CONSTANT_GAS_INCREMENT
-            fastest = np_gas_prices.max() + self.CONSTANT_GAS_INCREMENT
+            lowest = np_gas_prices.min() + self.constant_gas_increment
+            safe_low = math.ceil(np.percentile(np_gas_prices, 30)) + self.constant_gas_increment
+            standard = math.ceil(np.percentile(np_gas_prices, 50)) + self.constant_gas_increment
+            fast = math.ceil(np.percentile(np_gas_prices, 75)) + self.constant_gas_increment
+            fastest = np_gas_prices.max() + self.constant_gas_increment
 
             gas_price = GasPrice.objects.create(lowest=lowest,
                                                 safe_low=safe_low,
