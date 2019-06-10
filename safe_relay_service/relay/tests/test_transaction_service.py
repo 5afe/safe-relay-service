@@ -1,5 +1,3 @@
-import logging
-
 from django.test import TestCase
 
 from eth_account import Account
@@ -9,8 +7,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_paying_proxy_contract, get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
-from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
+from .relay_test_case import RelayTestCaseMixin
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
@@ -23,15 +21,12 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             TransactionServiceProvider)
 from .factories import SafeContractFactory
 
-logger = logging.getLogger(__name__)
 
-
-class TestTransactionService(TestCase, SafeTestCaseMixin):
+class TestTransactionService(TestCase, RelayTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         cls.prepare_tests()
-        cls.transaction_service = TransactionServiceProvider()
 
     def test_transaction_provider_singleton(self):
         service1 = TransactionServiceProvider()
