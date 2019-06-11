@@ -8,7 +8,6 @@ from gnosis.eth.contracts import get_paying_proxy_contract, get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
 from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
 
-from .relay_test_case import RelayTestCaseMixin
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
@@ -19,6 +18,7 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             RefundMustBeEnabled,
                                             SignaturesNotSorted)
 from .factories import SafeContractFactory
+from .relay_test_case import RelayTestCaseMixin
 
 
 class TestTransactionService(TestCase, RelayTestCaseMixin):

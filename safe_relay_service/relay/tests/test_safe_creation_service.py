@@ -8,13 +8,13 @@ from eth_account import Account
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_key
 
-from .relay_test_case import RelayTestCaseMixin
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.safe_creation_service import (InvalidPaymentToken,
                                               NotEnoughFundingForCreation,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
+from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
 

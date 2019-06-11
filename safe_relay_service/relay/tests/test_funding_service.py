@@ -2,9 +2,9 @@ from django.test import TestCase
 
 from eth_account import Account
 
-from .relay_test_case import RelayTestCaseMixin
 from ..services.funding_service import (EtherLimitExceeded,
                                         FundingServiceProvider)
+from .relay_test_case import RelayTestCaseMixin
 
 
 class TestFundingService(TestCase, RelayTestCaseMixin):
