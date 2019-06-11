@@ -294,6 +294,7 @@ def check_create2_deployed_safes_task() -> None:
             if (current_block_number - block_number) >= confirmations:
                 logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
                             safe_address, safe_creation2.tx_hash, block_number)
+                send_create_notification.delay(safe_address, safe_creation2.owners)
                 safe_creation2.block_number = block_number
                 safe_creation2.save()
         else:
