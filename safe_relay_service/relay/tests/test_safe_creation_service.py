@@ -7,7 +7,6 @@ from eth_account import Account
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
@@ -15,15 +14,15 @@ from ..services.safe_creation_service import (InvalidPaymentToken,
                                               NotEnoughFundingForCreation,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
+from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
 
 
-class TestSafeCreationService(SafeTestCaseMixin, TestCase):
+class TestSafeCreationService(TestCase, RelayTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         cls.prepare_tests()
-        cls.safe_creation_service = SafeCreationServiceProvider()
 
     def test_deploy_create2_safe_tx(self):
         random_safe_address = Account.create().address
@@ -55,7 +54,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertEqual(SafeCreationServiceProvider(), SafeCreationServiceProvider())
 
     def test_estimate_safe_creation(self):
-        gas_price = self.safe_creation_service.gas_station.get_gas_prices().fast
+        gas_price = self.safe_creation_service._get_configured_gas_price()
 
         number_owners = 4
         payment_token = None
@@ -91,7 +90,7 @@ class TestSafeCreationService(SafeTestCaseMixin, TestCase):
         self.assertEqual(safe_creation_estimate.payment_token, payment_token)
 
     def test_estimate_safe_creation2(self):
-        gas_price = self.safe_creation_service.gas_station.get_gas_prices().fast
+        gas_price = self.safe_creation_service._get_configured_gas_price()
 
         number_owners = 4
         payment_token = None

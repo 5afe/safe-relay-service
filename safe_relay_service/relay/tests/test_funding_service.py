@@ -1,23 +1,17 @@
-import logging
-
 from django.test import TestCase
 
 from eth_account import Account
 
-from gnosis.safe.tests.safe_test_case import SafeTestCaseMixin
-
 from ..services.funding_service import (EtherLimitExceeded,
                                         FundingServiceProvider)
+from .relay_test_case import RelayTestCaseMixin
 
-logger = logging.getLogger(__name__)
 
-
-class TestFundingService(TestCase, SafeTestCaseMixin):
+class TestFundingService(TestCase, RelayTestCaseMixin):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         cls.prepare_tests()
-        cls.funding_service = FundingServiceProvider()
 
     def test_send_eth_to(self):
         to = Account.create().address

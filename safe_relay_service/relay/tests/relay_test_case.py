@@ -6,6 +6,7 @@ from gnosis.safe.tests.utils import generate_salt_nonce, generate_valid_s
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
 from ..models import SafeCreation, SafeCreation2
+from ..services import FundingServiceProvider
 from ..services.safe_creation_service import SafeCreationServiceProvider
 from ..services.transaction_service import TransactionServiceProvider
 
@@ -14,9 +15,12 @@ class RelayTestCaseMixin(SafeTestCaseMixin):
     @classmethod
     def prepare_tests(cls):
         super().prepare_tests()
-        cls.gas_station = GasStationProvider()
+        GasStationProvider.del_singleton()
         SafeCreationServiceProvider.del_singleton()
         TransactionServiceProvider.del_singleton()
+        FundingServiceProvider.del_singleton()
+        cls.gas_station = GasStationProvider()
+        cls.funding_service = FundingServiceProvider()
         cls.safe_creation_service = SafeCreationServiceProvider()
         cls.transaction_service = TransactionServiceProvider()
 
