@@ -206,7 +206,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         response_json = response.json()
         for field in ['payment', 'gasPrice', 'gas']:
             self.assertIn(field, response_json)
-            self.assertGreater(response_json[field], 0)
+            self.assertGreater(int(response_json[field]), 0)
         estimated_payment = response_json['payment']
 
         # With payment token
@@ -222,7 +222,7 @@ class TestViews(APITestCase, RelayTestCaseMixin):
         response_json = response.json()
         for field in ['payment', 'gasPrice', 'gas']:
             self.assertIn(field, response_json)
-            self.assertGreater(response_json[field], 0)
+            self.assertGreater(int(response_json[field]), 0)
         self.assertGreater(response_json['payment'], estimated_payment)
 
     def test_safe_view(self):
@@ -621,13 +621,13 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response = response.json()
-        self.assertGreater(response['safeTxGas'], 0)
-        self.assertEqual(response['operationalGas'], 0)
+        self.assertGreater(int(response['safeTxGas']), 0)
+        self.assertEqual(response['operationalGas'], '0')
         self.assertIsNone(response['lastUsedNonce'])
         self.assertEqual(len(response['estimations']), 1)
         estimation = response['estimations'][0]
-        self.assertGreater(estimation['baseGas'], 0)
-        self.assertGreater(estimation['gasPrice'], 0)
+        self.assertGreater(int(estimation['baseGas']), 0)
+        self.assertGreater(int(estimation['gasPrice']), 0)
         self.assertEqual(estimation['gasToken'], NULL_ADDRESS)
 
         valid_token = TokenFactory(address=Account.create().address, gas=True, fixed_eth_conversion=2)
@@ -636,17 +636,17 @@ class TestViews(APITestCase, RelayTestCaseMixin):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response = response.json()
-        self.assertGreater(response['safeTxGas'], 0)
-        self.assertEqual(response['operationalGas'], 0)
+        self.assertGreater(int(response['safeTxGas']), 0)
+        self.assertEqual(response['operationalGas'], '0')
         self.assertIsNone(response['lastUsedNonce'])
         self.assertEqual(len(response['estimations']), 2)
         estimation_ether = response['estimations'][0]
-        self.assertGreater(estimation_ether['baseGas'], 0)
-        self.assertGreater(estimation_ether['gasPrice'], 0)
+        self.assertGreater(int(estimation_ether['baseGas']), 0)
+        self.assertGreater(int(estimation_ether['gasPrice']), 0)
         self.assertEqual(estimation_ether['gasToken'], NULL_ADDRESS)
         estimation_token = response['estimations'][1]
         self.assertGreater(estimation_token['baseGas'], estimation_ether['baseGas'])
-        self.assertAlmostEqual(estimation_token['gasPrice'], estimation_ether['gasPrice'] // 2, delta=1.0)
+        self.assertAlmostEqual(int(estimation_token['gasPrice']), int(estimation_ether['gasPrice']) // 2, delta=1.0)
         self.assertEqual(estimation_token['gasToken'], valid_token.address)
 
     def test_get_safe_signal(self):
