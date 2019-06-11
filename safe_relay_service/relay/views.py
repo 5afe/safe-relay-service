@@ -35,6 +35,7 @@ from .serializers import (
     SafeMultisigTxResponseSerializer, SafeRelayMultisigTxSerializer,
     SafeResponseSerializer,
     TransactionEstimationWithNonceAndGasTokensResponseSerializer)
+from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
 from .services.transaction_service import (SafeMultisigTxExists,
@@ -52,7 +53,8 @@ def custom_exception_handler(exc, context):
 
     # Now add the HTTP status code to the response.
     if not response:
-        if isinstance(exc, (SafeServiceException, SafeCreationServiceException, TransactionServiceException)):
+        if isinstance(exc, (SafeServiceException, SafeCreationServiceException, TransactionServiceException,
+                            FundingServiceException)):
             response = Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             response = Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)

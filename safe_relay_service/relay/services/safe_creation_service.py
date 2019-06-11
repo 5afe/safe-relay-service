@@ -98,6 +98,12 @@ class SafeCreationService:
             logger.warning('Cannot get value of token in eth: Gas token %s not valid' % address)
             raise InvalidPaymentToken(address)
 
+    def _get_configured_gas_price(self) -> int:
+        """
+        :return: Gas price for txs
+        """
+        return self.gas_station.get_gas_prices().fast
+
     def create_safe_tx(self, s: int, owners: List[str], threshold: int,
                        payment_token: Optional[str]) -> SafeCreation:
         """
@@ -113,7 +119,7 @@ class SafeCreationService:
 
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        fast_gas_price: int = self.gas_station.get_gas_prices().fast
+        fast_gas_price: int = self._get_configured_gas_price()
         logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
         safe_creation_tx = Safe.build_safe_creation_tx(self.ethereum_client, self.safe_old_contract_address,
                                                        s, owners, threshold, fast_gas_price, payment_token,
@@ -158,7 +164,7 @@ class SafeCreationService:
 
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        fast_gas_price: int = self.gas_station.get_gas_prices().fast
+        fast_gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
         logger.debug('Building safe create2 tx with gas price %d' % fast_gas_price)
         safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
@@ -246,7 +252,7 @@ class SafeCreationService:
         """
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        gas_price = self.gas_station.get_gas_prices().fast
+        gas_price = self._get_configured_gas_price()
         fixed_creation_cost = self.safe_fixed_creation_cost
         return Safe.estimate_safe_creation(self.ethereum_client,
                                            self.safe_old_contract_address, number_owners, gas_price, payment_token,
@@ -262,7 +268,7 @@ class SafeCreationService:
         """
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        gas_price = self.gas_station.get_gas_prices().fast
+        gas_price = self._get_configured_gas_price()
         fixed_creation_cost = self.safe_fixed_creation_cost
         return Safe.estimate_safe_creation_2(self.ethereum_client,
                                              self.safe_contract_address, self.proxy_factory.address,

@@ -32,18 +32,24 @@ class GasStationProvider:
                     cls.instance = GasStationMock()
         return cls.instance
 
+    @classmethod
+    def del_singleton(cls):
+        if hasattr(cls, "instance"):
+            del cls.instance
+
 
 class GasStation:
-    CONSTANT_GAS_INCREMENT = 1  # Increase a little for fastest mining for API Calls
-
     def __init__(self,
                  http_provider_uri='http://localhost:8545',
                  number_of_blocks: int = 200,
-                 cache_timeout_seconds: int = 10 * 60):
+                 cache_timeout_seconds: int = 10 * 60,
+                 constant_gas_increment: int = 1):  # Increase a little for fastest mining for API Calls
+
         self.http_provider_uri = http_provider_uri
         self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
+        self.constant_gas_increment = constant_gas_increment
         self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
             if self.w3.net.version != 1:
@@ -128,11 +134,11 @@ class GasStation:
             raise NoBlocksFound
         else:
             np_gas_prices = np.array(gas_prices)
-            lowest = np_gas_prices.min() + self.CONSTANT_GAS_INCREMENT
-            safe_low = math.ceil(np.percentile(np_gas_prices, 30)) + self.CONSTANT_GAS_INCREMENT
-            standard = math.ceil(np.percentile(np_gas_prices, 50)) + self.CONSTANT_GAS_INCREMENT
-            fast = math.ceil(np.percentile(np_gas_prices, 75)) + self.CONSTANT_GAS_INCREMENT
-            fastest = np_gas_prices.max() + self.CONSTANT_GAS_INCREMENT
+            lowest = np_gas_prices.min() + self.constant_gas_increment
+            safe_low = math.ceil(np.percentile(np_gas_prices, 30)) + self.constant_gas_increment
+            standard = math.ceil(np.percentile(np_gas_prices, 50)) + self.constant_gas_increment
+            fast = math.ceil(np.percentile(np_gas_prices, 75)) + self.constant_gas_increment
+            fastest = np_gas_prices.max() + self.constant_gas_increment
 
             gas_price = GasPrice.objects.create(lowest=lowest,
                                                 safe_low=safe_low,
@@ -147,29 +153,28 @@ class GasStation:
         gas_price = self._get_gas_price_from_cache()
         if not gas_price:
             try:
-                gas_price = GasPrice.objects.earliest()
+                gas_price = GasPrice.objects.latest()
             except GasPrice.DoesNotExist:
                 # This should never happen, just the first execution
                 # Celery worker should have GasPrice created
                 gas_price = self.calculate_gas_prices()
-
         return gas_price
 
 
 class GasStationMock(GasStation):
     def __init__(self, gas_price: Optional[int] = None):
         if gas_price is None:
-            self.lowest = 1
-            self.safe_low = 5
-            self.standard = 10
-            self.fast = 20
-            self.fastest = 50
+            self.lowest = Web3.toWei(1, 'gwei')
+            self.safe_low = Web3.toWei(5, 'gwei')
+            self.standard = Web3.toWei(10, 'gwei')
+            self.fast = Web3.toWei(20, 'gwei')
+            self.fastest = Web3.toWei(50, 'gwei')
         else:
-            self.lowest = gas_price
-            self.safe_low = gas_price + 1
-            self.standard = gas_price + 2
-            self.fast = gas_price + 3
-            self.fastest = gas_price + 4
+            self.lowest = Web3.toWei(gas_price, 'gwei')
+            self.safe_low = Web3.toWei(gas_price + 1, 'gwei')
+            self.standard = Web3.toWei(gas_price + 2, 'gwei')
+            self.fast = Web3.toWei(gas_price + 3, 'gwei')
+            self.fastest = Web3.toWei(gas_price + 4, 'gwei')
 
     def calculate_gas_prices(self) -> GasPrice:
         return GasPrice(lowest=self.lowest,
@@ -177,3 +182,6 @@ class GasStationMock(GasStation):
                         standard=self.standard,
                         fast=self.fast,
                         fastest=self.fastest)
+
+    def get_gas_prices(self) -> GasPrice:
+        return self.calculate_gas_prices()

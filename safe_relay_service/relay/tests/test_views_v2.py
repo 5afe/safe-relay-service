@@ -57,9 +57,9 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.assertEqual(len(safe_creation_estimates), 2)
         safe_creation_estimate = safe_creation_estimates[1]
         self.assertEqual(safe_creation_estimate['paymentToken'], fixed_price_token.address)
-        self.assertGreater(safe_creation_estimate['payment'], 0)
-        self.assertGreater(safe_creation_estimate['gasPrice'], 0)
-        self.assertGreater(safe_creation_estimate['gas'], 0)
+        self.assertGreater(int(safe_creation_estimate['payment']), 0)
+        self.assertGreater(int(safe_creation_estimate['gasPrice']), 0)
+        self.assertGreater(int(safe_creation_estimate['gas']), 0)
 
     def test_safe_creation(self):
         salt_nonce = generate_salt_nonce()
@@ -76,9 +76,10 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.assertTrue(check_checksum(safe_address))
         self.assertTrue(check_checksum(response_json['paymentReceiver']))
         self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
-        self.assertEqual(response_json['payment'], response_json['gasEstimated'] * response_json['gasPriceEstimated'])
-        self.assertGreater(response_json['gasEstimated'], 0)
-        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertEqual(int(response_json['payment']),
+                         int(response_json['gasEstimated']) * int(response_json['gasPriceEstimated']))
+        self.assertGreater(int(response_json['gasEstimated']), 0)
+        self.assertGreater(int(response_json['gasPriceEstimated']), 0)
         self.assertGreater(len(response_json['setupData']), 2)
 
         self.assertTrue(SafeContract.objects.filter(address=safe_address))
@@ -117,9 +118,9 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.assertTrue(check_checksum(safe_address))
         self.assertTrue(check_checksum(response_json['paymentReceiver']))
         self.assertEqual(response_json['paymentToken'], NULL_ADDRESS)
-        self.assertEqual(response_json['payment'], 123)
-        self.assertGreater(response_json['gasEstimated'], 0)
-        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertEqual(response_json['payment'], '123')
+        self.assertGreater(int(response_json['gasEstimated']), 0)
+        self.assertGreater(int(response_json['gasPriceEstimated']), 0)
         self.assertGreater(len(response_json['setupData']), 2)
 
     def test_safe_creation_with_payment_token(self):
@@ -148,11 +149,11 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.assertTrue(check_checksum(safe_address))
         self.assertTrue(check_checksum(response_json['paymentReceiver']))
         self.assertEqual(response_json['paymentToken'], payment_token)
-        self.assertEqual(response_json['payment'],
-                         response_json['gasEstimated'] * response_json['gasPriceEstimated'] *
+        self.assertEqual(int(response_json['payment']),
+                         int(response_json['gasEstimated']) * int(response_json['gasPriceEstimated']) *
                          (1 / fixed_eth_conversion))
-        self.assertGreater(response_json['gasEstimated'], 0)
-        self.assertGreater(response_json['gasPriceEstimated'], 0)
+        self.assertGreater(int(response_json['gasEstimated']), 0)
+        self.assertGreater(int(response_json['gasPriceEstimated']), 0)
         self.assertGreater(len(response_json['setupData']), 2)
 
         self.assertTrue(SafeContract.objects.filter(address=safe_address))

@@ -294,6 +294,7 @@ def check_create2_deployed_safes_task() -> None:
             if (current_block_number - block_number) >= confirmations:
                 logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
                             safe_address, safe_creation2.tx_hash, block_number)
+                send_create_notification.delay(safe_address, safe_creation2.owners)
                 safe_creation2.block_number = block_number
                 safe_creation2.save()
         else:
@@ -351,9 +352,9 @@ def find_internal_txs_task() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
             number_safes = InternalTxServiceProvider().process_all()
+            logger.info('Find internal txs task processed %d safes', number_safes)
     except LockError:
         pass
-    logger.info('Find internal txs task processed %d safes', number_safes)
     return number_safes
 
 
@@ -368,7 +369,7 @@ def find_erc_20_721_transfers_task() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
             number_safes = Erc20EventsServiceProvider().process_all()
+            logger.info('Find ERC20/721 task processed %d safes', number_safes)
     except LockError:
         pass
-    logger.info('Find ERC20/721 task processed %d safes', number_safes)
     return number_safes

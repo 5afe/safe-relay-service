@@ -109,9 +109,9 @@ class SafeResponseSerializer(serializers.Serializer):
 
 
 class SafeCreationEstimateResponseSerializer(serializers.Serializer):
-    gas = serializers.IntegerField(min_value=0)
-    gas_price = serializers.IntegerField(min_value=0)
-    payment = serializers.IntegerField(min_value=0)
+    gas = serializers.CharField()
+    gas_price = serializers.CharField()
+    payment = serializers.CharField()
     payment_token = EthereumAddressField(allow_null=True)
 
 
@@ -131,11 +131,11 @@ class SafeCreation2ResponseSerializer(serializers.Serializer):
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
     payment_token = EthereumAddressField(allow_zero_address=True)
-    payment = serializers.IntegerField(min_value=0)
+    payment = serializers.CharField()
     payment_receiver = EthereumAddressField(allow_zero_address=True)
     setup_data = HexadecimalField()
-    gas_estimated = serializers.IntegerField(min_value=0)
-    gas_price_estimated = serializers.IntegerField(min_value=0)
+    gas_estimated = serializers.CharField()
+    gas_price_estimated = serializers.CharField()
 
 
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
@@ -144,10 +144,9 @@ class SafeFundingResponseSerializer(serializers.ModelSerializer):
         fields = ('safe_funded', 'deployer_funded', 'deployer_funded_tx_hash', 'safe_deployed', 'safe_deployed_tx_hash')
 
 
-class SafeFunding2ResponseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SafeCreation2
-        fields = ('tx_hash', 'block_number')
+class SafeFunding2ResponseSerializer(serializers.Serializer):
+    block_number = serializers.CharField()
+    tx_hash = Sha3HashField()
 
 
 class InternalTxSerializer(serializers.ModelSerializer):
@@ -291,13 +290,13 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
 
 
 class TransactionGasTokenEstimationResponseSerializer(serializers.Serializer):
-    base_gas = serializers.IntegerField(min_value=0)
-    gas_price = serializers.IntegerField(min_value=0)
+    base_gas = serializers.CharField()
+    gas_price = serializers.CharField()
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
 
 
 class TransactionEstimationWithNonceAndGasTokensResponseSerializer(serializers.Serializer):
     last_used_nonce = serializers.IntegerField(min_value=0)
-    safe_tx_gas = serializers.IntegerField(min_value=0)
-    operational_gas = serializers.IntegerField(min_value=0)
+    safe_tx_gas = serializers.CharField()
+    operational_gas = serializers.CharField()
     estimations = TransactionGasTokenEstimationResponseSerializer(many=True)

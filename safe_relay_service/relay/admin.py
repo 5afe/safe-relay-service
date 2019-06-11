@@ -109,8 +109,9 @@ class EthereumEventAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
 
 @admin.register(EthereumTx)
 class EthereumTxAdmin(admin.ModelAdmin):
-    list_display = ('tx_hash', 'nonce', '_from', 'to')
+    list_display = ('block_id', 'tx_hash', 'nonce', '_from', 'to')
     search_fields = ['=tx_hash', '=_from', '=to']
+    ordering = ['-block_id']
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
@@ -200,6 +201,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe_id', 'deployer', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    ordering = ['-created']
     search_fields = ['=safe__address', '=deployer', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
@@ -211,6 +213,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    ordering = ['-created']
     search_fields = ['=safe__address', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
