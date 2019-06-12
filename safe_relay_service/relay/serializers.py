@@ -289,6 +289,19 @@ class SafeMultisigEstimateTxResponseSerializer(serializers.Serializer):
     gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
 
 
+class SafeMultisigEstimateTxResponseV2Serializer(serializers.Serializer):
+    """
+    Same as `SafeMultisigEstimateTxResponseSerializer`, but formatting `big integers` as `strings`
+    """
+    safe_tx_gas = serializers.CharField()
+    base_gas = serializers.CharField()
+    data_gas = serializers.CharField()
+    operational_gas = serializers.CharField()
+    gas_price = serializers.CharField()
+    last_used_nonce = serializers.IntegerField(min_value=0, allow_null=True)
+    gas_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
+
+
 class TransactionGasTokenEstimationResponseSerializer(serializers.Serializer):
     base_gas = serializers.CharField()
     gas_price = serializers.CharField()

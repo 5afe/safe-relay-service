@@ -10,13 +10,19 @@ from rest_framework.views import APIView
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.safe.serializers import \
+    SafeMultisigEstimateTxSerializerWithGasToken
+
+from safe_relay_service.relay.services import TransactionServiceProvider
 
 from .models import SafeContract, SafeCreation2
 from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreation2Serializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateV2Serializer,
-                          SafeFunding2ResponseSerializer)
+                          SafeFunding2ResponseSerializer,
+                          SafeMultisigEstimateTxResponseSerializer,
+                          SafeMultisigEstimateTxResponseV2Serializer)
 from .services.safe_creation_service import SafeCreationServiceProvider
 from .tasks import deploy_create2_safe_task
 
@@ -80,6 +86,41 @@ class SafeCreationView(CreateAPIView):
         else:
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             data=serializer.errors)
+
+
+class SafeMultisigTxEstimateView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeMultisigEstimateTxSerializerWithGasToken
+
+    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseV2Serializer(),
+                                    400: 'Data not valid',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid/Tx not valid'})
+    def post(self, request, address):
+        """
+        Estimates a Safe Multisig Transaction. `operational_gas` and `data_gas` are deprecated, use `base_gas` instead
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+        request.data['safe'] = address
+        serializer = self.get_serializer_class()(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+
+            transaction_estimation = TransactionServiceProvider().estimate_tx(address, data['to'], data['value'],
+                                                                              data['data'], data['operation'],
+                                                                              data['gas_token'])
+            response_serializer = SafeMultisigEstimateTxResponseV2Serializer(transaction_estimation)
+            return Response(status=status.HTTP_200_OK, data=response_serializer.data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
 class SafeSignalView(APIView):

@@ -16,6 +16,7 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation2
 from ..services.safe_creation_service import SafeCreationServiceProvider
+from .factories import SafeContractFactory
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -162,6 +163,56 @@ class TestViewsV2(APITestCase, RelayTestCaseMixin):
         self.assertEqual(safe_creation.payment_token, payment_token)
         # Payment includes deployment gas + gas to send eth to the deployer
         self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost() * (1 / fixed_eth_conversion))
+
+    def test_safe_multisig_tx_estimate_v2(self):
+        my_safe_address = get_eth_address_with_invalid_checksum()
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data={},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        my_safe_address = Account.create().address
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data={},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        initial_funding = self.w3.toWei(0.0001, 'ether')
+        to = Account.create().address
+        data = {
+            'to': to,
+            'value': initial_funding // 2,
+            'data': '0x',
+            'operation': 1
+        }
+
+        safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
+        my_safe_address = safe_creation.safe_address
+        SafeContractFactory(address=my_safe_address)
+
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = response.json()
+        for field in ('safeTxGas', 'dataGas', 'gasPrice'):
+            self.assertTrue(isinstance(response[field], str))
+            self.assertGreater(int(response[field]), 0)
+
+        self.assertIsNone(response['lastUsedNonce'])
+        self.assertEqual(response['gasToken'], NULL_ADDRESS)
+
+        to = Account.create().address
+        data = {
+            'to': to,
+            'value': initial_funding // 2,
+            'data': None,
+            'operation': 0
+        }
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_safe_signal_v2(self):
         safe_address = Account.create().address
