@@ -341,7 +341,7 @@ def check_balance_of_accounts_task() -> bool:
     return result
 
 
-@app.shared_task(soft_time_limit=60 * 10)
+@app.shared_task(soft_time_limit=60 * 20)
 def find_internal_txs_task() -> int:
     """
     Find and process internal txs for existing safes
@@ -358,7 +358,7 @@ def find_internal_txs_task() -> int:
     return number_safes
 
 
-@app.shared_task(soft_time_limit=60 * 10)
+@app.shared_task(soft_time_limit=60 * 20)
 def find_erc_20_721_transfers_task() -> int:
     """
     Find and process internal txs for existing safes
