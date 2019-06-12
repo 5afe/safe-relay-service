@@ -341,7 +341,7 @@ def check_balance_of_accounts_task() -> bool:
     return result
 
 
-@app.shared_task(soft_time_limit=60 * 20)
+@app.shared_task(soft_time_limit=60 * 30)
 def find_internal_txs_task() -> int:
     """
     Find and process internal txs for existing safes
@@ -350,7 +350,7 @@ def find_internal_txs_task() -> int:
     number_safes = 0
     try:
         redis = RedisRepository().redis
-        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
+        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 30):
             number_safes = InternalTxServiceProvider().process_all()
             logger.info('Find internal txs task processed %d safes', number_safes)
     except LockError:
@@ -358,7 +358,7 @@ def find_internal_txs_task() -> int:
     return number_safes
 
 
-@app.shared_task(soft_time_limit=60 * 20)
+@app.shared_task(soft_time_limit=60 * 30)
 def find_erc_20_721_transfers_task() -> int:
     """
     Find and process internal txs for existing safes
@@ -367,7 +367,7 @@ def find_erc_20_721_transfers_task() -> int:
     number_safes = 0
     try:
         redis = RedisRepository().redis
-        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 10):
+        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 30):
             number_safes = Erc20EventsServiceProvider().process_all()
             logger.info('Find ERC20/721 task processed %d safes', number_safes)
     except LockError:
