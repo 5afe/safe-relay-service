@@ -178,7 +178,8 @@ class SafeCreationService:
 
         SafeTxStatus.objects.create(safe=safe_contract,
                                     initial_block_number=current_block_number,
-                                    tx_block_number=current_block_number)
+                                    tx_block_number=current_block_number,
+                                    erc_20_block_number=current_block_number)
 
         return SafeCreation2.objects.create(
             safe=safe_contract,
