@@ -305,6 +305,7 @@ def check_create2_deployed_safes_task() -> None:
     except LockError:
         pass
 
+
 @app.shared_task(soft_time_limit=300)
 def send_create_notification(safe_address: str, owners: List[str]) -> None:
     """

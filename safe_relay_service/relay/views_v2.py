@@ -10,8 +10,7 @@ from rest_framework.views import APIView
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.serializers import \
-    SafeMultisigEstimateTxSerializerWithGasToken
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.relay.services import TransactionServiceProvider
 
@@ -90,7 +89,7 @@ class SafeCreationView(CreateAPIView):
 
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeMultisigEstimateTxSerializerWithGasToken
+    serializer_class = SafeMultisigEstimateTxSerializer
 
     @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseV2Serializer(),
                                     400: 'Data not valid',

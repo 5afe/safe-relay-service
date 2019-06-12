@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 GAS_PRICE = settings.FIXED_GAS_PRICE
 
 
-class TestTasks(RelayTestCaseMixin, TestCase):
+class TestTasks(TestCase, RelayTestCaseMixin):
 
     @classmethod
     def setUpTestData(cls):
