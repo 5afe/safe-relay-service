@@ -21,12 +21,7 @@ from .factories import SafeContractFactory
 from .relay_test_case import RelayTestCaseMixin
 
 
-class TestTransactionService(TestCase, RelayTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        cls.prepare_tests()
-
+class TestTransactionService(RelayTestCaseMixin, TestCase):
     def test_create_multisig_tx(self):
         w3 = self.w3
 

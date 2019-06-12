@@ -7,12 +7,7 @@ from ..services.funding_service import (EtherLimitExceeded,
 from .relay_test_case import RelayTestCaseMixin
 
 
-class TestFundingService(TestCase, RelayTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        cls.prepare_tests()
-
+class TestFundingService(RelayTestCaseMixin, TestCase):
     def test_send_eth_to(self):
         to = Account.create().address
         value = 1

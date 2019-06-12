@@ -19,11 +19,7 @@ from .relay_test_case import RelayTestCaseMixin
 logger = logging.getLogger(__name__)
 
 
-class TestSafeCreationService(TestCase, RelayTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
+class TestSafeCreationService(RelayTestCaseMixin, TestCase):
     def test_deploy_create2_safe_tx(self):
         random_safe_address = Account.create().address
         with self.assertRaises(ObjectDoesNotExist):

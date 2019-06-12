@@ -8,11 +8,7 @@ from ..services import Erc20EventsService
 from .factories import SafeContractFactory, SafeTxStatusFactory
 
 
-class TestErc20EventsService(TestCase, SafeTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
+class TestErc20EventsService(SafeTestCaseMixin, TestCase):
     def test_erc20_process_addresses(self):
         block_process_limit = 1
         confirmations = 10

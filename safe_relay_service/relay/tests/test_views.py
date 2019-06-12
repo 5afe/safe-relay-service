@@ -33,11 +33,7 @@ faker = Faker()
 logger = logging.getLogger(__name__)
 
 
-class TestViews(APITestCase, RelayTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
+class TestViews(RelayTestCaseMixin, APITestCase):
     def test_about(self):
         response = self.client.get(reverse('v1:about'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -22,12 +22,7 @@ logger = logging.getLogger(__name__)
 GAS_PRICE = settings.FIXED_GAS_PRICE
 
 
-class TestTasks(TestCase, RelayTestCaseMixin):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
+class TestTasks(RelayTestCaseMixin, TestCase):
     def test_balance_in_deployer(self):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment
