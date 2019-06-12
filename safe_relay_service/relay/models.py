@@ -273,7 +273,7 @@ class EthereumTxManager(models.Manager):
         )
 
 
-class EthereumTx(models.Model):
+class EthereumTx(TimeStampedModel):
     objects = EthereumTxManager()
     block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
                               related_name='txs')  # If mined
