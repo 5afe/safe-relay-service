@@ -154,8 +154,8 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
+                SafeCreation2.objects.get(safe=address)
+            except SafeCreation2.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             deploy_create2_safe_task.delay(address)
