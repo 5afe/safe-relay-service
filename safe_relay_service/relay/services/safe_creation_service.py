@@ -119,16 +119,24 @@ class SafeCreationService:
 
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        fast_gas_price: int = self._get_configured_gas_price()
-        logger.debug('Building safe creation tx with gas price %d' % fast_gas_price)
+        gas_price: int = self._get_configured_gas_price()
+        current_block_number = self.ethereum_client.current_block_number
+
+        logger.debug('Building safe creation tx with gas price %d' % gas_price)
         safe_creation_tx = Safe.build_safe_creation_tx(self.ethereum_client, self.safe_old_contract_address,
-                                                       s, owners, threshold, fast_gas_price, payment_token,
+                                                       s, owners, threshold, gas_price, payment_token,
                                                        self.funder_account.address,
                                                        payment_token_eth_value=payment_token_eth_value,
                                                        fixed_creation_cost=self.safe_fixed_creation_cost)
 
         safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
                                                     master_copy=safe_creation_tx.master_copy)
+
+        # Enable tx and erc20 tracing
+        SafeTxStatus.objects.create(safe=safe_contract,
+                                    initial_block_number=current_block_number,
+                                    tx_block_number=current_block_number,
+                                    erc_20_block_number=current_block_number)
 
         return SafeCreation.objects.create(
             deployer=safe_creation_tx.deployer_address,
@@ -164,12 +172,12 @@ class SafeCreationService:
 
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
-        fast_gas_price: int = self._get_configured_gas_price()
+        gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
-        logger.debug('Building safe create2 tx with gas price %d' % fast_gas_price)
+        logger.debug('Building safe create2 tx with gas price %d', gas_price)
         safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
                                                       self.proxy_factory.address, salt_nonce, owners, threshold,
-                                                      fast_gas_price, payment_token,
+                                                      gas_price, payment_token,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
 
