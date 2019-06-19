@@ -78,7 +78,7 @@ class SafeContract(TimeStampedModel):
     def __str__(self):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
 
-    def get_balance(self) -> Optional[int]:
+    def get_balance(self) -> int:
         return InternalTx.objects.calculate_balance(self.address)
 
     def get_tokens_with_balance(self) -> List[Dict[str, any]]:
@@ -347,7 +347,7 @@ class InternalTxManager(models.Manager):
         # return balances_to - balances_from
 
         # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
-        return InternalTx.objects.exclude(
+        balance = InternalTx.objects.exclude(
             call_type=EthereumTxCallType.DELEGATE_CALL.value
         ).filter(
             Q(_from=address) | Q(to=address)
@@ -357,6 +357,7 @@ class InternalTxManager(models.Manager):
                 default='value',
             )
         ).aggregate(Sum('balance')).get('balance__sum', 0)
+        return balance if balance else 0
 
 
 class InternalTx(models.Model):
