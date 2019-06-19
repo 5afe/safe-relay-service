@@ -10,7 +10,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         ethereum_client = EthereumClientProvider()
         mismatchs = 0
-        for safe_contract in SafeContract.objects.all():
+        for safe_contract in SafeContract.objects.deployed():
             blockchain_balance = ethereum_client.get_balance(safe_contract.address)
             internal_tx_balance = safe_contract.get_balance()
             if blockchain_balance != internal_tx_balance:
