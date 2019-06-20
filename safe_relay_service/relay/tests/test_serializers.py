@@ -6,13 +6,14 @@ from faker import Faker
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.utils import get_eth_address_with_key, get_eth_address_with_invalid_checksum
+from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
+                              get_eth_address_with_key)
 from gnosis.safe.safe_tx import SafeTx
 
 from ..models import SafeContract, SafeFunding
-from ..serializers import (SafeCreationSerializer,
+from ..serializers import (SafeCreation2Serializer, SafeCreationSerializer,
                            SafeFundingResponseSerializer,
-                           SafeRelayMultisigTxSerializer, SafeCreation2Serializer)
+                           SafeRelayMultisigTxSerializer)
 
 faker = Faker()
 

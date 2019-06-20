@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+
 from gnosis.eth import EthereumClientProvider
 
 from ...models import SafeContract
