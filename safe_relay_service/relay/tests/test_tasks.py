@@ -23,11 +23,6 @@ GAS_PRICE = settings.FIXED_GAS_PRICE
 
 
 class TestTasks(RelayTestCaseMixin, TestCase):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
     def test_balance_in_deployer(self):
         safe_creation = self.create_test_safe_in_db()
         safe, deployer, payment = safe_creation.safe.address, safe_creation.deployer, safe_creation.payment

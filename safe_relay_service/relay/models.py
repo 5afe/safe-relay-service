@@ -7,6 +7,7 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.db.models import Case, DecimalField, F, Q, Sum, When
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
+from django.db.models.functions import Coalesce
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -78,7 +79,7 @@ class SafeContract(TimeStampedModel):
     def __str__(self):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
 
-    def get_balance(self) -> Optional[int]:
+    def get_balance(self) -> int:
         return InternalTx.objects.calculate_balance(self.address)
 
     def get_tokens_with_balance(self) -> List[Dict[str, any]]:
@@ -273,7 +274,7 @@ class EthereumTxManager(models.Manager):
         )
 
 
-class EthereumTx(models.Model):
+class EthereumTx(TimeStampedModel):
     objects = EthereumTxManager()
     block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
                               related_name='txs')  # If mined
@@ -324,22 +325,38 @@ class SafeMultisigTx(TimeStampedModel):
 
 class InternalTxManager(models.Manager):
     def balance_for_all_safes(self):
-        # TODO Write test
-        # Exclude `DELEGATE_CALL` from `balance` calculations
-        outgoing_balance = InternalTx.objects.filter(
-            _from=OuterRef('to')
-        ).exclude(call_type=EthereumTxCallType.DELEGATE_CALL.value
-                  ).order_by().values('_from').annotate(
-            total=Sum('value')).values('total')
+        # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
 
-        incoming_balance = InternalTx.objects.filter(
-            to=OuterRef('to')
-        ).exclude(call_type=EthereumTxCallType.DELEGATE_CALL.value
-                  ).order_by().values('to').annotate(
-            total=Sum('value')).values('total')
+        # There must be at least 2 txs (one in and another out for this method to work
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address;
+        # sum
+        # -----
+        # (1 row)
 
-        return InternalTx.objects.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
-                                                   Subquery(outgoing_balance, output_field=DecimalField()))
+        # But Django uses group by
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from";
+        # sum
+        # -----
+        # (0 rows)
+
+        outgoing_balance = self.filter(
+            _from=OuterRef('to'), error=None
+        ).exclude(
+            call_type=EthereumTxCallType.DELEGATE_CALL.value
+        ).order_by().values('_from').annotate(
+            total=Coalesce(Sum('value'), 0)
+        ).values('total')
+
+        incoming_balance = self.filter(
+            to=OuterRef('to'), error=None
+        ).exclude(
+            call_type=EthereumTxCallType.DELEGATE_CALL.value
+        ).order_by().values('to').annotate(
+            total=Coalesce(Sum('value'), 0)
+        ).values('total')
+
+        return self.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
+                                     Subquery(outgoing_balance, output_field=DecimalField()))
 
     def calculate_balance(self, address: str) -> int:
         # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
@@ -347,16 +364,26 @@ class InternalTxManager(models.Manager):
         # return balances_to - balances_from
 
         # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
-        return InternalTx.objects.exclude(
-            call_type=EthereumTxCallType.DELEGATE_CALL.value
-        ).filter(
-            Q(_from=address) | Q(to=address)
-        ).annotate(
-            balance=Case(
-                When(_from=address, then=-F('value')),
-                default='value',
-            )
-        ).aggregate(Sum('balance')).get('balance__sum', 0)
+        # balance = InternalTx.objects.filter(
+        #     error=None  # Exclude errored txs
+        # ).exclude(
+        #     call_type=EthereumTxCallType.DELEGATE_CALL.value  # Exclude delegate calls
+        # ).exclude(
+        #     Q(_from=address) & Q(to=address)  # Exclude txs to the same address
+        # ).filter(
+        #     Q(_from=address) | Q(to=address)
+        # ).annotate(
+        #     balance=Case(
+        #         When(_from=address, then=-F('value')),
+        #         default='value',
+        #     )
+        # ).aggregate(Sum('balance')).get('balance__sum', 0)
+        # return balance if balance else 0
+        internal_tx = self.balance_for_all_safes().filter(to=address).values('balance').first()
+        if not internal_tx:
+            return 0
+        else:
+            return int(internal_tx.get('balance') or 0)
 
 
 class InternalTx(models.Model):

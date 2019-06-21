@@ -10,8 +10,7 @@ from rest_framework.views import APIView
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.safe.serializers import \
-    SafeMultisigEstimateTxSerializerWithGasToken
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.relay.services import TransactionServiceProvider
 
@@ -90,7 +89,7 @@ class SafeCreationView(CreateAPIView):
 
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeMultisigEstimateTxSerializerWithGasToken
+    serializer_class = SafeMultisigEstimateTxSerializer
 
     @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseV2Serializer(),
                                     400: 'Data not valid',
@@ -155,8 +154,8 @@ class SafeSignalView(APIView):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
+                SafeCreation2.objects.get(safe=address)
+            except SafeCreation2.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             deploy_create2_safe_task.delay(address)

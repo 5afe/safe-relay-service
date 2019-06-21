@@ -415,7 +415,7 @@ class EthereumClientMock:
             return blocks[0]
 
 
-class TestInternalTxService(TestCase, SafeTestCaseMixin):
+class TestInternalTxService(SafeTestCaseMixin, TestCase):
     def setUp(self):
         self.ethereum_client_mock = EthereumClientMock()
         self.internal_tx_service = InternalTxService(self.ethereum_client_mock)

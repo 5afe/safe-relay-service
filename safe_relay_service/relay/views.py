@@ -17,9 +17,7 @@ from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe.exceptions import SafeServiceException
-from gnosis.safe.serializers import (
-    SafeMultisigEstimateTxSerializer,
-    SafeMultisigEstimateTxSerializerWithGasToken)
+from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.version import __version__
 
@@ -241,7 +239,7 @@ class SafeSignalView(APIView):
 
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
-    serializer_class = SafeMultisigEstimateTxSerializerWithGasToken
+    serializer_class = SafeMultisigEstimateTxSerializer
 
     @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseSerializer(),
                                     400: 'Data not valid',

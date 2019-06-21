@@ -15,18 +15,12 @@ from gnosis.safe.serializers import (SafeMultisigTxSerializer,
 from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
                                              EthereumTxCallType,
                                              EthereumTxType, InternalTx,
-                                             SafeCreation2, SafeFunding)
+                                             SafeFunding)
 
 logger = logging.getLogger(__name__)
 
 
-class SafeCreationSerializer(serializers.Serializer):
-    s = serializers.IntegerField(min_value=SIGNATURE_S_MIN_VALUE,
-                                 max_value=SIGNATURE_S_MAX_VALUE)
-    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
-    threshold = serializers.IntegerField(min_value=1)
-    payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
-
+class ThresholdValidatorSerializerMixin:
     def validate(self, data):
         super().validate(data)
         owners = data['owners']
@@ -38,22 +32,18 @@ class SafeCreationSerializer(serializers.Serializer):
         return data
 
 
-class SafeCreation2Serializer(serializers.Serializer):
-    salt_nonce = serializers.IntegerField(min_value=0,
-                                          max_value=2**256-1)
+class SafeCreationSerializer(ThresholdValidatorSerializerMixin, serializers.Serializer):
+    s = serializers.IntegerField(min_value=SIGNATURE_S_MIN_VALUE, max_value=SIGNATURE_S_MAX_VALUE)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
 
-    def validate(self, data):
-        super().validate(data)
-        owners = data['owners']
-        threshold = data['threshold']
 
-        if threshold > len(owners):
-            raise ValidationError("Threshold cannot be greater than number of owners")
-
-        return data
+class SafeCreation2Serializer(ThresholdValidatorSerializerMixin, serializers.Serializer):
+    salt_nonce = serializers.IntegerField(min_value=0, max_value=2**256-1)  # Uint256
+    owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
+    threshold = serializers.IntegerField(min_value=1)
+    payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
 
 
 class SafeCreationEstimateSerializer(serializers.Serializer):
@@ -65,7 +55,6 @@ class SafeCreationEstimateV2Serializer(serializers.Serializer):
     number_owners = serializers.IntegerField(min_value=1)
 
 
-# TODO Rename this
 class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 

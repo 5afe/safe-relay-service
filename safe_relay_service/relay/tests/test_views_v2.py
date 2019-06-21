@@ -24,11 +24,7 @@ faker = Faker()
 logger = logging.getLogger(__name__)
 
 
-class TestViewsV2(APITestCase, RelayTestCaseMixin):
-    @classmethod
-    def setUpTestData(cls):
-        cls.prepare_tests()
-
+class TestViewsV2(RelayTestCaseMixin, APITestCase):
     def test_safe_creation_estimate(self):
         url = reverse('v2:safe-creation-estimates')
         number_owners = 4

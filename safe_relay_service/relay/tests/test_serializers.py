@@ -6,11 +6,12 @@ from faker import Faker
 from hexbytes import HexBytes
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.utils import get_eth_address_with_key
+from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
+                              get_eth_address_with_key)
 from gnosis.safe.safe_tx import SafeTx
 
 from ..models import SafeContract, SafeFunding
-from ..serializers import (SafeCreationSerializer,
+from ..serializers import (SafeCreation2Serializer, SafeCreationSerializer,
                            SafeFundingResponseSerializer,
                            SafeRelayMultisigTxSerializer)
 
@@ -18,33 +19,61 @@ faker = Faker()
 
 
 class TestSerializers(TestCase):
+    def test_safe_creation_serializer(self):
+        s = secpk1n // 2
+        owners = [Account.create().address for _ in range(3)]
+        invalid_checksumed_address = get_eth_address_with_invalid_checksum()
 
-    def test_generic_serializer(self):
-        owner1, _ = get_eth_address_with_key()
-        owner2, _ = get_eth_address_with_key()
-        owner3, _ = get_eth_address_with_key()
-        invalid_checksumed_address = '0xb299182d99e65703f0076e4812653aab85fca0f0'
-
-        owners = [owner1, owner2, owner3]
-        data = {'s': secpk1n // 2,
+        data = {'s': s,
                 'owners': owners,
                 'threshold': len(owners)}
         self.assertTrue(SafeCreationSerializer(data=data).is_valid())
 
-        data = {'s': secpk1n // 2,
+        data = {'s': s,
                 'owners': owners,
                 'threshold': len(owners) + 1}
-        self.assertFalse(SafeCreationSerializer(data=data).is_valid())
+        serializer = SafeCreationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('Threshold cannot be greater', str(serializer.errors['non_field_errors']))
 
-        data = {'s': secpk1n // 2,
+        data = {'s': s,
                 'owners': owners + [invalid_checksumed_address],
                 'threshold': len(owners)}
         self.assertFalse(SafeCreationSerializer(data=data).is_valid())
 
-        data = {'s': secpk1n // 2,
+        data = {'s': s,
                 'owners': [],
                 'threshold': len(owners)}
-        self.assertFalse(SafeCreationSerializer(data=data).is_valid())
+        serializer = SafeCreationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+
+    def test_safe_creation2_serializer(self):
+        salt_nonce = 5
+        owners = [Account.create().address for _ in range(3)]
+        invalid_checksumed_address = get_eth_address_with_invalid_checksum()
+
+        data = {'salt_nonce': salt_nonce,
+                'owners': owners,
+                'threshold': len(owners)}
+        self.assertTrue(SafeCreation2Serializer(data=data).is_valid())
+
+        data = {'salt_nonce': salt_nonce,
+                'owners': owners,
+                'threshold': len(owners) + 1}
+        serializer = SafeCreation2Serializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('Threshold cannot be greater', str(serializer.errors['non_field_errors']))
+
+        data = {'salt_nonce': salt_nonce,
+                'owners': owners + [invalid_checksumed_address],
+                'threshold': len(owners)}
+        self.assertFalse(SafeCreation2Serializer(data=data).is_valid())
+
+        data = {'salt_nonce': salt_nonce,
+                'owners': [],
+                'threshold': len(owners)}
+        serializer = SafeCreation2Serializer(data=data)
+        self.assertFalse(serializer.is_valid())
 
     def test_funding_serializer(self):
         owner1, _ = get_eth_address_with_key()

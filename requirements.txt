@@ -2,7 +2,7 @@ Django==2.2.2
 cachetools==3.1.1
 celery==4.3.0
 django-authtools==1.6.0
-django-celery-beat==1.4.0
+django-celery-beat==1.5.0
 django-environ==0.4.5
 django-filter==2.1.0
 django-model-utils==3.1.2
@@ -16,7 +16,7 @@ ethereum==2.3.2
 factory-boy==2.12.0
 faker==1.0.7
 gevent==1.4.0
-gnosis-py==1.3.9
+gnosis-py==1.3.11
 gunicorn==19.9.0
 hexbytes==0.2.0
 jsonschema==2.6.0

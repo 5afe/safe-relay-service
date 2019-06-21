@@ -13,8 +13,8 @@ from ..services.transaction_service import TransactionServiceProvider
 
 class RelayTestCaseMixin(SafeTestCaseMixin):
     @classmethod
-    def prepare_tests(cls):
-        super().prepare_tests()
+    def setUpTestData(cls):
+        super().setUpTestData()
         GasStationProvider.del_singleton()
         SafeCreationServiceProvider.del_singleton()
         TransactionServiceProvider.del_singleton()
