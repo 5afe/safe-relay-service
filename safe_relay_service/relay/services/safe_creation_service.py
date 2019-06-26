@@ -286,13 +286,22 @@ class SafeCreationService:
                                              fixed_creation_cost=fixed_creation_cost)
 
     def estimate_safe_creation_for_all_tokens(self, number_owners: int) -> List[SafeCreationEstimate]:
-        safe_creation_estimates = []
-        for token_address in [NULL_ADDRESS] + [token.address for token in Token.objects.gas_tokens()]:
+        # Estimate for eth, then calculate for the rest of the tokens
+        ether_creation_estimate = self.estimate_safe_creation2(number_owners, NULL_ADDRESS)
+        safe_creation_estimates = [ether_creation_estimate]
+        token_gas_difference = 50000  # 50K gas more expensive than ether
+        for token in Token.objects.gas_tokens():
             try:
-                safe_creation_estimate = self.estimate_safe_creation2(number_owners, token_address)
-                safe_creation_estimates.append(safe_creation_estimate)
+                safe_creation_estimates.append(
+                    SafeCreationEstimate(
+                        gas=ether_creation_estimate.gas + token_gas_difference,
+                        gas_price=ether_creation_estimate.gas_price,
+                        payment=token.calculate_payment(ether_creation_estimate.payment),
+                        payment_token=token.address,
+                    )
+                )
             except CannotGetTokenPriceFromApi:
-                logger.error('Cannot get price for token=%s', token_address)
+                logger.error('Cannot get price for token=%s', token.address)
         return safe_creation_estimates
 
     def retrieve_safe_info(self, address: str) -> SafeInfo:
