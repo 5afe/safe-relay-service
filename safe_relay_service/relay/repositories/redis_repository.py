@@ -40,7 +40,7 @@ class EthereumNonceLock:
         with self.redis.lock(self.redis_lock, timeout=self.timeout):
             tx_nonce = self.redis.incr(self.nonce_key)
             if tx_nonce == 1:
-                tx_nonce = self.ethereum_client.get_nonce_for_account(self.address)
+                tx_nonce = self.ethereum_client.get_nonce_for_account(self.address, block_identifier='pending')
                 self.redis.set(self.nonce_key, tx_nonce)
             return tx_nonce
 
