@@ -3,6 +3,8 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.test import TestCase
 
+from web3 import Web3
+
 from ..models import PriceOracle
 from ..price_oracles import CannotGetTokenPriceFromApi
 from .factories import PriceOracleTickerFactory, TokenFactory
@@ -11,6 +13,25 @@ from .factories import PriceOracleTickerFactory, TokenFactory
 class TestModels(TestCase):
     def test_price_oracles(self):
         self.assertEqual(PriceOracle.objects.count(), 4)
+
+    def test_token_calculate_payment(self):
+        token = TokenFactory(fixed_eth_conversion=0.1)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(10, 'ether'))
+
+        token = TokenFactory(fixed_eth_conversion=1.0)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(1, 'ether'))
+
+        token = TokenFactory(fixed_eth_conversion=2.0)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(0.5, 'ether'))
+
+        token = TokenFactory(fixed_eth_conversion=10.0)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(0.1, 'ether'))
+
+        token = TokenFactory(fixed_eth_conversion=0.6512)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1.23, 'ether')), 1888820638820638720)
+
+        token = TokenFactory(fixed_eth_conversion=1.0, decimals=17)
+        self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(0.1, 'ether'))
 
     def test_token_eth_value(self):
         price_oracle = PriceOracle.objects.get(name='DutchX')

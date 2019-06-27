@@ -78,6 +78,14 @@ class Token(models.Model):
             else:
                 raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
 
+    def calculate_payment(self, eth_payment: int) -> int:
+        """
+        Converts an ether payment to a token payment
+        :param eth_payment: Ether payment (in wei)
+        :return: Token payment equivalent for the ether value
+        """
+        return math.ceil(eth_payment / self.get_eth_value())
+
     def calculate_gas_price(self, gas_price: int, price_margin: float = 1.0) -> int:
         """
         Converts ether gas price to token's gas price

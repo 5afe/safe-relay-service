@@ -339,6 +339,12 @@ class InternalTxManager(models.Manager):
         # -----
         # (0 rows)
 
+        # We would like to translate this query into Django (excluding errors and DELEGATE_CALLs),
+        # but it's not working as Django always try to `GROUP BY` when using `annotate`
+        # SELECT *, (SELECT SUM(CASE WHEN "to"=R.to THEN value ELSE -value END)
+        # FROM relay_internaltx
+        # WHERE "to"=R.to OR _from=R.to) FROM relay_internaltx R;
+
         outgoing_balance = self.filter(
             _from=OuterRef('to'), error=None
         ).exclude(
