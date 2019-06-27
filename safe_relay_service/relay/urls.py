@@ -29,6 +29,7 @@ urlpatterns = [
          name='safe-multisig-tx-estimate'),
     path('safes/<str:address>/transactions/estimates/', views.SafeMultisigTxEstimatesView.as_view(),
          name='safe-multisig-tx-estimates'),
+    path('stats/', views.StatsView.as_view(), name='stats'),
     path('private/api-token-auth/', rest_views.obtain_auth_token, name='api-token-auth'),
     path('private/safes/', views.PrivateSafesView.as_view(), name='private-safes'),
 ]
