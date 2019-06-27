@@ -641,7 +641,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertGreater(int(estimation_ether['gasPrice']), 0)
         self.assertEqual(estimation_ether['gasToken'], NULL_ADDRESS)
         estimation_token = response['estimations'][1]
-        self.assertGreater(estimation_token['baseGas'], estimation_ether['baseGas'])
+        self.assertGreater(int(estimation_token['baseGas']), int(estimation_ether['baseGas']))
         self.assertAlmostEqual(int(estimation_token['gasPrice']), int(estimation_ether['gasPrice']) // 2, delta=1.0)
         self.assertEqual(estimation_token['gasToken'], valid_token.address)
 
