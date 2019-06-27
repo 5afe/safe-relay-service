@@ -435,6 +435,27 @@ class InternalTxsView(SafeListApiView):
                                          ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
+class StatsView(APIView):
+    permission_classes = (AllowAny,)
+    # serializer_class = StatsResponseSerializer
+
+    @swagger_auto_schema(responses={200: SafeResponseSerializer(),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
+    def get(self, request, address, format=None):
+        """
+        Get status of the safe
+        """
+        return Response(status=status.HTTP_200_OK, data={
+            'safes_created': SafeContract.objects.deployed().count(),
+            'relayed_txs': SafeMultisigTx.objects.count(),
+            'relayed_txs_with_payment_token': SafeMultisigTx.objects.values('gas_token').annotate(number=Count('pk'))
+        })
+        # safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
+        # serializer = self.serializer_class(safe_info)
+        # return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+
 class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
