@@ -237,16 +237,20 @@ class TransactionService:
         else:
             safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
 
-        gas_token_estimations = []
-        # Ether (NULL_ADDRESS) and the other tokens
-        for token_address in [NULL_ADDRESS] + [token.address for token in Token.objects.gas_tokens()]:
-            safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, token_address, safe_tx_gas)
+        # Calculate `base_gas` for ether and calculate for tokens using the ether token price
+        ether_safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, NULL_ADDRESS, safe_tx_gas)
+        gas_price = self._estimate_tx_gas_price(NULL_ADDRESS)
+        gas_token_estimations = [TransactionGasTokenEstimation(ether_safe_tx_base_gas, gas_price, NULL_ADDRESS)]
+        token_gas_difference = 50000  # 50K gas more expensive than ether
+        for token in Token.objects.gas_tokens():
             try:
-                gas_price = self._estimate_tx_gas_price(token_address)
-                gas_token_estimation = TransactionGasTokenEstimation(safe_tx_base_gas, gas_price, token_address)
-                gas_token_estimations.append(gas_token_estimation)
+                gas_price = self._estimate_tx_gas_price(token.address)
+                gas_token_estimations.append(
+                    TransactionGasTokenEstimation(ether_safe_tx_base_gas + token_gas_difference,
+                                                  gas_price, token.address)
+                )
             except CannotGetTokenPriceFromApi:
-                logger.error('Cannot get price for token=%s', token_address)
+                logger.error('Cannot get price for token=%s', token.address)
 
         return TransactionEstimationWithNonceAndGasTokens(last_used_nonce, safe_tx_gas, safe_tx_operational_gas,
                                                           gas_token_estimations)
