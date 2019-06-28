@@ -33,6 +33,7 @@ from .serializers import (
     SafeMultisigTxResponseSerializer, SafeRelayMultisigTxSerializer,
     SafeResponseSerializer,
     TransactionEstimationWithNonceAndGasTokensResponseSerializer)
+from .services import StatsServiceProvider
 from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
@@ -442,15 +443,11 @@ class StatsView(APIView):
     @swagger_auto_schema(responses={200: SafeResponseSerializer(),
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid'})
-    def get(self, request, address, format=None):
+    def get(self, request, format=None):
         """
         Get status of the safe
         """
-        return Response(status=status.HTTP_200_OK, data={
-            'safes_created': SafeContract.objects.deployed().count(),
-            'relayed_txs': SafeMultisigTx.objects.count(),
-            'relayed_txs_with_payment_token': SafeMultisigTx.objects.values('gas_token').annotate(number=Count('pk'))
-        })
+        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats())
         # safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
         # serializer = self.serializer_class(safe_info)
         # return Response(status=status.HTTP_200_OK, data=serializer.data)
