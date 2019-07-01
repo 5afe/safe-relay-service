@@ -40,7 +40,7 @@ class StatsService:
             'safes_created': SafeContract.objects.deployed().count(),
             'relayed_txs': {
                 'total': total_multisig_txs,
-                'pending_txs': SafeMultisigTx.objects.exclude(ethereum_tx__block=None).count(),
+                'pending_txs': SafeMultisigTx.objects.pending().count(),
                 'payment_tokens': SafeMultisigTx.objects.values('gas_token').annotate(
                     number=Count('pk'), percentage=Cast(Count('pk') / float(total_multisig_txs) * 100.0, FloatField())),
                 'average_execution_time':
