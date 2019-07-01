@@ -41,13 +41,8 @@ class StatsService:
             'relayed_txs': {
                 'total': total_multisig_txs,
                 'pending_txs': SafeMultisigTx.objects.pending().count(),
-                'payment_tokens': SafeMultisigTx.objects.values('gas_token').annotate(
-                    number=Count('pk'), percentage=Cast(Count('pk') / float(total_multisig_txs) * 100.0, FloatField())),
+                'payment_tokens': SafeMultisigTx.objects.get_tokens_usage(),
                 'average_execution_time':
-                    SafeMultisigTx.objects.all().select_related(
-                        'ethereum_tx', 'ethereum_tx__block'
-                    ).annotate(
-                        interval=Cast(F('ethereum_tx__block__timestamp') - F('created'), output_field=DurationField())
-                    ).aggregate(median=Avg('interval'))['median'],
+                    SafeMultisigTx.objects.get_average_execution_time(),
             }
         }

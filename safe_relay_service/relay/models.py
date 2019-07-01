@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Case, DecimalField, F, Q, Sum, When, DurationField, Avg
+from django.db.models import Case, F, Q, Sum, When, DurationField, Avg, Value, Count
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
 from django.db.models.functions import Coalesce, Cast
 
@@ -56,8 +56,13 @@ class SafeContractQuerySet(models.QuerySet):
         """
         :return: Queryset with the Safes and a `balance` attribute
         """
-        return self.annotate(balance=Subquery(InternalTx.objects.balance_for_all_safes(
-        ).filter(to=OuterRef('address')).values('balance').distinct(), DecimalField()))
+        return self.annotate(
+            balance=Subquery(
+                InternalTx.objects.balance_for_all_safes(
+                ).filter(
+                    to=OuterRef('address')
+                ).values('balance').distinct(),
+                models.DecimalField()))
 
     def deployed(self):
         return self.filter(
@@ -306,12 +311,25 @@ class SafeMultisigTxManager(models.Manager):
                           output_field=DurationField())
         ).aggregate(median=Avg('interval'))['median']
 
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')).values('total')
+        return self.values('gas_token').annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('pk'), percentage=Cast(100.0 * Count('pk') / F('total'),
+                                                models.FloatField()))
+
+
+class SafeMultisigTxQuerySet(models.QuerySet):
     def pending(self):
-        return self.exclude(ethereum_tx__block=None)
+        return self.filter(ethereum_tx__block=None)
 
 
 class SafeMultisigTx(TimeStampedModel):
-    objects = SafeMultisigTxManager()
+    objects = SafeMultisigTxManager.from_queryset(SafeMultisigTxQuerySet)()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
     to = EthereumAddressField(null=True, db_index=True)
@@ -373,8 +391,8 @@ class InternalTxManager(models.Manager):
             total=Coalesce(Sum('value'), 0)
         ).values('total')
 
-        return self.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
-                                     Subquery(outgoing_balance, output_field=DecimalField()))
+        return self.annotate(balance=Subquery(incoming_balance, output_field=models.DecimalField()) -
+                                     Subquery(outgoing_balance, output_field=models.DecimalField()))
 
     def calculate_balance(self, address: str) -> int:
         # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
