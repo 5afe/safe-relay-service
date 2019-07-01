@@ -11,7 +11,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 from ..models import (EthereumEvent, EthereumTxCallType, InternalTx,
                       SafeContract, SafeFunding, SafeMultisigTx)
 from .factories import (EthereumEventFactory, InternalTxFactory,
-                        SafeCreation2Factory, SafeFundingFactory, SafeMultisigTxFactory)
+                        SafeCreation2Factory, SafeFundingFactory,
+                        SafeMultisigTxFactory)
 
 
 class TestSafeContractModel(TestCase):

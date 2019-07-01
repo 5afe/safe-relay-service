@@ -1,12 +1,13 @@
-from datetime import timezone, timedelta, datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Case, F, Q, Sum, When, DurationField, Avg, Value, Count
+from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
+                              Value, When)
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
-from django.db.models.functions import Coalesce, Cast
+from django.db.models.functions import Cast, Coalesce
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
