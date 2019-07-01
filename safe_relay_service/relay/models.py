@@ -120,7 +120,7 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
-class SafeCreation2Manager(models.Manager):
+class SafeCreation2QuerySet(models.QuerySet):
     def deployed_and_checked(self):
         return self.exclude(
             tx_hash=None,
@@ -143,7 +143,7 @@ class SafeCreation2Manager(models.Manager):
 
 
 class SafeCreation2(TimeStampedModel):
-    objects = SafeCreation2Manager()
+    objects = SafeCreation2QuerySet.as_manager()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
@@ -180,7 +180,7 @@ class SafeCreation2(TimeStampedModel):
         return self.gas_estimated * self.gas_price_estimated
 
 
-class SafeFundingManager(models.Manager):
+class SafeFundingQuerySet(models.QuerySet):
     def pending_just_to_deploy(self):
         return self.filter(
             safe_deployed=False
@@ -199,7 +199,7 @@ class SafeFundingManager(models.Manager):
 
 
 class SafeFunding(TimeStampedModel):
-    objects = SafeFundingManager()
+    objects = SafeFundingQuerySet.as_manager()
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
     deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
@@ -452,7 +452,7 @@ class InternalTx(models.Model):
             return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
 
 
-class SafeTxStatusManager(models.Manager):
+class SafeTxStatusQuerySet(models.QuerySet):
     def deployed(self):
         return self.filter(safe__in=SafeContract.objects.deployed())
 
@@ -461,7 +461,7 @@ class SafeTxStatus(models.Model):
     """
     Have information about the last scan for internal txs
     """
-    objects = SafeTxStatusManager()
+    objects = SafeTxStatusQuerySet.as_manager()
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     initial_block_number = models.IntegerField(default=0)  # Block number when Safe creation process was started
     tx_block_number = models.IntegerField(default=0)  # Block number when last internal tx scan ended
@@ -498,6 +498,8 @@ class EthereumEventQuerySet(models.QuerySet):
         return self.erc20_and_721_events(token_address=token_address,
                                          address=address).filter(arguments__has_key='tokenId')
 
+
+class EthereumEventManager(models.Manager):
     def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, any]]:
         """
         :return: List of dictionaries {'token_address': str, 'balance': int}
@@ -547,7 +549,7 @@ class EthereumEventQuerySet(models.QuerySet):
 
 
 class EthereumEvent(models.Model):
-    objects = EthereumEventQuerySet.as_manager()
+    objects = EthereumEventManager.from_queryset(EthereumEventQuerySet)()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='events')
     log_index = models.PositiveIntegerField()
     token_address = EthereumAddressField(db_index=True)

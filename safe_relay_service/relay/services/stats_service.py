@@ -1,9 +1,6 @@
 from logging import getLogger
 from typing import Dict
 
-from django.db.models import Avg, Count, DurationField, F, FloatField
-from django.db.models.functions import Cast
-
 from gnosis.eth import EthereumClient, EthereumClientProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
