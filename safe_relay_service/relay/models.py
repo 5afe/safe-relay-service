@@ -1,13 +1,12 @@
-import datetime
-from datetime import timezone
+from datetime import timezone, timedelta, datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Case, DecimalField, F, Q, Sum, When
+from django.db.models import Case, DecimalField, F, Q, Sum, When, DurationField, Avg
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Cast
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -243,7 +242,7 @@ class EthereumBlockManager(models.Manager):
             number=block['number'],
             gas_limit=block['gasLimit'],
             gas_used=block['gasUsed'],
-            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], timezone.utc),
+            timestamp=datetime.fromtimestamp(block['timestamp'], timezone.utc),
             block_hash=block['hash'],
         )
 
@@ -296,6 +295,19 @@ class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:
         nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
         return nonce_dict['nonce'] if nonce_dict else None
+
+    def get_average_execution_time(self) -> Optional[timedelta]:
+        return self.select_related(
+            'ethereum_tx', 'ethereum_tx__block'
+        ).exclude(
+            ethereum_tx__block=None,
+        ).annotate(
+            interval=Cast(F('ethereum_tx__block__timestamp') - F('created'),
+                          output_field=DurationField())
+        ).aggregate(median=Avg('interval'))['median']
+
+    def pending(self):
+        return self.exclude(ethereum_tx__block=None)
 
 
 class SafeMultisigTx(TimeStampedModel):
