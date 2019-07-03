@@ -76,7 +76,7 @@ class EthereumEventFromToListFilter(admin.SimpleListFilter):
 
 
 @admin.register(EthereumBlock)
-class EthereumEventAdmin(admin.ModelAdmin):
+class EthereumBlockAdmin(admin.ModelAdmin):
     date_hierarchy = 'timestamp'
     list_display = ('number', 'timestamp', 'gas_limit', 'gas_used', 'block_hash')
     search_fields = ['=number']
