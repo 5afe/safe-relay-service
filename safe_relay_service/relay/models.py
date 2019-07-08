@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
-from django.db import models
+from django.db import models, connection
 from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
                               Value, When)
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
@@ -52,6 +52,16 @@ class EthereumTxCallType(Enum):
             return None
 
 
+class SafeContractManager(models.Manager):
+    def get_average_deploy_time(self) -> timedelta:
+        query = 'SELECT AVG(timestamp - relay_safecreation2.created) as AVERAGE_MINING_TIME FROM relay_safecreation2 ' \
+                'INNER JOIN relay_ethereumtx ON relay_safecreation2.tx_hash=relay_ethereumtx.tx_hash ' \
+                'INNER JOIN relay_ethereumblock ON relay_ethereumtx.block_id=relay_ethereumblock.number'
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            return cursor.fetchone()[0]
+
+
 class SafeContractQuerySet(models.QuerySet):
     def with_balance(self):
         """
@@ -77,7 +87,7 @@ class SafeContractQuerySet(models.QuerySet):
 
 
 class SafeContract(TimeStampedModel):
-    objects = SafeContractQuerySet.as_manager()
+    objects = SafeContractManager.from_queryset(SafeContractQuerySet)()
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
@@ -120,6 +130,20 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
+class SafeCreation2Manager(models.Manager):
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
+                                                                                        ).values('total')
+        return self.deployed_and_checked().values('payment_token').annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
+                                                     models.FloatField()))
+
+
 class SafeCreation2QuerySet(models.QuerySet):
     def deployed_and_checked(self):
         return self.exclude(
@@ -143,7 +167,7 @@ class SafeCreation2QuerySet(models.QuerySet):
 
 
 class SafeCreation2(TimeStampedModel):
-    objects = SafeCreation2QuerySet.as_manager()
+    objects = SafeCreation2Manager.from_queryset(SafeCreation2QuerySet)()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
