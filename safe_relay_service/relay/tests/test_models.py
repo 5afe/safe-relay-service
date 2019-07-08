@@ -12,7 +12,7 @@ from ..models import (EthereumEvent, EthereumTxCallType, InternalTx,
                       SafeContract, SafeFunding, SafeMultisigTx)
 from .factories import (EthereumEventFactory, InternalTxFactory,
                         SafeCreation2Factory, SafeFundingFactory,
-                        SafeMultisigTxFactory)
+                        SafeMultisigTxFactory, EthereumTxFactory)
 
 
 class TestSafeContractModel(TestCase):
@@ -60,6 +60,15 @@ class TestSafeContractModel(TestCase):
         safe_creation_2 = SafeCreation2Factory(block_number=2)
         self.assertEqual(SafeContract.objects.deployed().count(), 2)
         self.assertIn(safe_creation_2.safe.address, [s.address for s in SafeContract.objects.deployed()])
+
+    def test_get_average_deploy_time(self):
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time())
+        ethereum_tx = EthereumTxFactory()
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time())
+        interval = timedelta(seconds=10)
+        SafeCreation2Factory(created=ethereum_tx.block.timestamp - interval,
+                             tx_hash=ethereum_tx.tx_hash)
+        self.assertEqual(SafeContract.objects.get_average_deploy_time(), interval)
 
 
 class TestEthereumEventModel(TestCase):
