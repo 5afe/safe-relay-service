@@ -32,11 +32,12 @@ class StatsService:
         pass
 
     def get_relay_stats(self) -> Dict[str, any]:
+        deployed = SafeContract.objects.deployed().count()
         return {
             'safes_created': {
-                'deployed': SafeContract.objects.deployed().count(),
-                'not_deployed': SafeContract.objects.count(),
-                'average_deploy_time': SafeContract.objects.get_average_deploy_time(),
+                'deployed': deployed,
+                'not_deployed': SafeContract.objects.count() - deployed,
+                'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(),
                 'payment_tokens': SafeCreation2.objects.get_tokens_usage(),
                 'funds_stored': {
                     'ether': SafeContract.objects.get_total_balance(),
@@ -45,7 +46,7 @@ class StatsService:
             },
             'relayed_txs': {
                 'total': SafeMultisigTx.objects.count(),
-                'average_execution_time': SafeMultisigTx.objects.get_average_execution_time(),
+                'average_execution_time_seconds': SafeMultisigTx.objects.get_average_execution_time(),
                 'pending_txs': SafeMultisigTx.objects.pending().count(),
                 'payment_tokens': SafeMultisigTx.objects.get_tokens_usage(),
                 'volume': {
