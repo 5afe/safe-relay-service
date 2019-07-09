@@ -28,5 +28,8 @@ script:
 deploy:
   - provider: script
     script: bash scripts/deploy_docker.sh develop
+    on:
+      branch: feature/issue-86
+      
 after_success:
   - coveralls
