@@ -6,7 +6,7 @@ from gnosis.eth import EthereumClient, EthereumClientProvider
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 
-from ..models import SafeContract, SafeMultisigTx, SafeCreation2
+from ..models import SafeContract, SafeCreation2, SafeMultisigTx
 
 logger = getLogger(__name__)
 
@@ -38,13 +38,19 @@ class StatsService:
                 'not_deployed': SafeContract.objects.count(),
                 'average_deploy_time': SafeContract.objects.get_average_deploy_time(),
                 'payment_tokens': SafeCreation2.objects.get_tokens_usage(),
-                'funds_stored': 1,  # Ether and tokens
+                'funds_stored': {
+                    'ether': SafeContract.objects.get_total_balance(),
+                    'tokens': SafeContract.objects.get_total_token_balance(),
+                }
             },
             'relayed_txs': {
                 'total': SafeMultisigTx.objects.count(),
                 'average_execution_time': SafeMultisigTx.objects.get_average_execution_time(),
                 'pending_txs': SafeMultisigTx.objects.pending().count(),
                 'payment_tokens': SafeMultisigTx.objects.get_tokens_usage(),
-                'volume': 1,  # Ether and tokens
+                'volume': {
+                    'ether': SafeContract.objects.get_total_volume(),
+                    'tokens': SafeContract.objects.get_total_token_volume(),
+                }
             }
         }

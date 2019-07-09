@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from enum import Enum
 from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
-from django.db import models, connection
+from django.db import connection, models
 from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
                               Value, When)
 from django.db.models.expressions import OuterRef, RawSQL, Subquery
@@ -16,6 +17,27 @@ from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation
+
+
+def parse_row(row):
+    """
+    Remove Decimal from Raw SQL queries
+    """
+    for r in row:
+        if isinstance(r, Decimal):
+            yield int(r)
+        else:
+            yield r
+
+
+def run_raw_query(query: str):
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        columns = [col[0] for col in cursor.description]
+        return [
+            dict(zip(columns, parse_row(row)))
+            for row in cursor.fetchall()
+        ]
 
 
 class EthereumTxType(Enum):
@@ -61,6 +83,53 @@ class SafeContractManager(models.Manager):
             cursor.execute(query)
             return cursor.fetchone()[0]
 
+    def get_total_balance(self) -> int:
+        return int(self.with_balance().aggregate(total_balance=Sum('balance')).get('total_balance') or 0)
+
+    def get_total_token_balance(self) -> Dict[str, any]:
+        """
+        :return: Dictionary of {token_address: str, balance: decimal}
+        """
+        query = """
+                SELECT token_address, SUM(value) as balance FROM
+                  (SELECT address, token_address, -(arguments->>'value')::decimal AS value 
+                   FROM relay_safecontract JOIN relay_ethereumevent 
+                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
+                   WHERE arguments ? 'value' AND topic='{0}'
+                   UNION SELECT address, token_address, (arguments->>'value')::decimal
+                   FROM relay_safecontract JOIN relay_ethereumevent
+                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'to' 
+                   WHERE arguments ? 'value' AND topic='{0}') AS X 
+                GROUP BY token_address
+                """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+
+        return run_raw_query(query)
+
+    def get_total_volume(self) -> int:
+        query = """
+        SELECT SUM(value) as value FROM relay_safecontract 
+        JOIN relay_internaltx ON address="_from" OR address="to";
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            value = cursor.fetchone()[0]
+            if value is not None:
+                return int(value)
+
+    def get_total_token_volume(self):
+        """
+        :return: Dictionary of {token_address: str, volume: int}
+        """
+        query = """
+        SELECT token_address, SUM((arguments->>'value')::decimal) AS value 
+        FROM relay_safecontract JOIN relay_ethereumevent 
+        ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
+           OR relay_safecontract.address = relay_ethereumevent.arguments->>'to'
+        WHERE arguments ? 'value' AND topic='{0}'
+        GROUP BY token_address""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+
+        return run_raw_query(query)
+
 
 class SafeContractQuerySet(models.QuerySet):
     def with_balance(self):
@@ -74,6 +143,25 @@ class SafeContractQuerySet(models.QuerySet):
                     to=OuterRef('address')
                 ).values('balance').distinct(),
                 models.DecimalField()))
+
+    def with_token_balance(self):
+        """
+        :return: Dictionary of {address: str, token_address: str and balance: int}
+        """
+        query = """
+        SELECT address, token_address, SUM(value) as balance FROM
+          (SELECT address, token_address, -(arguments->>'value')::decimal AS value 
+           FROM relay_safecontract JOIN relay_ethereumevent 
+           ON relay_safecontract.address = relay_ethereumevent.arguments->>'from' 
+           WHERE arguments ? 'value' AND topic='{0}'
+           UNION SELECT address, token_address, (arguments->>'value')::decimal
+           FROM relay_safecontract JOIN relay_ethereumevent
+           ON relay_safecontract.address = relay_ethereumevent.arguments->>'to' 
+           WHERE arguments ? 'value' AND topic='{0}') AS X 
+        GROUP BY address, token_address
+        """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))
+
+        return run_raw_query(query)
 
     def deployed(self):
         return self.filter(
@@ -529,7 +617,7 @@ class EthereumEventManager(models.Manager):
         :return: List of dictionaries {'token_address': str, 'balance': int}
         """
         arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
-        return EthereumEvent.objects.erc20_events(
+        return self.erc20_events(
             address=address
         ).values('token_address').annotate(
             balance=Sum(Case(
