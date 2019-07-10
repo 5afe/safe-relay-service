@@ -1,3 +1,4 @@
+import datetime
 from logging import getLogger
 from typing import Dict
 
@@ -31,14 +32,15 @@ class StatsService:
     def get_gas_price_stats(self) -> Dict[str, any]:
         pass
 
-    def get_relay_stats(self) -> Dict[str, any]:
+    def get_relay_stats(self, from_date: datetime.datetime = None,
+                        to_date: datetime.datetime = None) -> Dict[str, any]:
         deployed = SafeContract.objects.deployed().count()
         return {
             'safes_created': {
                 'deployed': deployed,
                 'not_deployed': SafeContract.objects.count() - deployed,
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(),
-                'payment_tokens': SafeCreation2.objects.get_tokens_usage(),
+                'payment_tokens': SafeContract.objects.get_creation_tokens_usage(),
                 'funds_stored': {
                     'ether': SafeContract.objects.get_total_balance(),
                     'tokens': SafeContract.objects.get_total_token_balance(),
