@@ -25,7 +25,12 @@ def parse_row(row):
     """
     for r in row:
         if isinstance(r, Decimal):
-            yield int(r)
+            f_r = float(r)
+            i_r = int(r)
+            if f_r == i_r:
+                yield i_r
+            else:
+                yield f_r
         else:
             yield r
 
@@ -76,9 +81,12 @@ class EthereumTxCallType(Enum):
 
 class SafeContractManager(models.Manager):
     def get_average_deploy_time(self) -> timedelta:
-        query = 'SELECT AVG(timestamp - relay_safecreation2.created) as AVERAGE_MINING_TIME FROM relay_safecreation2 ' \
-                'INNER JOIN relay_ethereumtx ON relay_safecreation2.tx_hash=relay_ethereumtx.tx_hash ' \
-                'INNER JOIN relay_ethereumblock ON relay_ethereumtx.block_id=relay_ethereumblock.number'
+        query = """
+        SELECT AVG(EB.timestamp - SC.created)
+        FROM (SELECT created, tx_hash FROM relay_safecreation
+              UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
+        JOIN relay_ethereumtx as ET ON SC.tx_hash=ET.tx_hash JOIN relay_ethereumblock as EB ON ET.block_id=EB.number
+        """
         with connection.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchone()[0]
@@ -92,14 +100,14 @@ class SafeContractManager(models.Manager):
         """
         query = """
                 SELECT token_address, SUM(value) as balance FROM
-                  (SELECT address, token_address, -(arguments->>'value')::decimal AS value 
-                   FROM relay_safecontract JOIN relay_ethereumevent 
+                  (SELECT address, token_address, -(arguments->>'value')::decimal AS value
+                   FROM relay_safecontract JOIN relay_ethereumevent
                    ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
                    WHERE arguments ? 'value' AND topic='{0}'
                    UNION SELECT address, token_address, (arguments->>'value')::decimal
                    FROM relay_safecontract JOIN relay_ethereumevent
-                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'to' 
-                   WHERE arguments ? 'value' AND topic='{0}') AS X 
+                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'to'
+                   WHERE arguments ? 'value' AND topic='{0}') AS X
                 GROUP BY token_address
                 """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
@@ -107,7 +115,7 @@ class SafeContractManager(models.Manager):
 
     def get_total_volume(self) -> int:
         query = """
-        SELECT SUM(value) as value FROM relay_safecontract 
+        SELECT SUM(value) as value FROM relay_safecontract
         JOIN relay_internaltx ON address="_from" OR address="to";
         """
         with connection.cursor() as cursor:
@@ -121,12 +129,23 @@ class SafeContractManager(models.Manager):
         :return: Dictionary of {token_address: str, volume: int}
         """
         query = """
-        SELECT token_address, SUM((arguments->>'value')::decimal) AS value 
-        FROM relay_safecontract JOIN relay_ethereumevent 
+        SELECT token_address, SUM((arguments->>'value')::decimal) AS value
+        FROM relay_safecontract JOIN relay_ethereumevent
         ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
            OR relay_safecontract.address = relay_ethereumevent.arguments->>'to'
         WHERE arguments ? 'value' AND topic='{0}'
         GROUP BY token_address""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+
+        return run_raw_query(query)
+
+    def get_creation_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        query = """
+        SELECT DISTINCT payment_token, COUNT(1) OVER(PARTITION BY payment_token) as number,
+                        100.0 * COUNT(1) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
+        FROM (SELECT tx_hash, payment_token FROM relay_safecreation
+              UNION SELECT tx_hash, payment_token FROM relay_safecreation2) sc
+        JOIN relay_ethereumtx et ON sc.tx_hash = et.tx_hash;
+        """
 
         return run_raw_query(query)
 
@@ -150,14 +169,14 @@ class SafeContractQuerySet(models.QuerySet):
         """
         query = """
         SELECT address, token_address, SUM(value) as balance FROM
-          (SELECT address, token_address, -(arguments->>'value')::decimal AS value 
-           FROM relay_safecontract JOIN relay_ethereumevent 
-           ON relay_safecontract.address = relay_ethereumevent.arguments->>'from' 
+          (SELECT address, token_address, -(arguments->>'value')::decimal AS value
+           FROM relay_safecontract JOIN relay_ethereumevent
+           ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
            WHERE arguments ? 'value' AND topic='{0}'
            UNION SELECT address, token_address, (arguments->>'value')::decimal
            FROM relay_safecontract JOIN relay_ethereumevent
-           ON relay_safecontract.address = relay_ethereumevent.arguments->>'to' 
-           WHERE arguments ? 'value' AND topic='{0}') AS X 
+           ON relay_safecontract.address = relay_ethereumevent.arguments->>'to'
+           WHERE arguments ? 'value' AND topic='{0}') AS X
         GROUP BY address, token_address
         """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))
 
@@ -189,7 +208,22 @@ class SafeContract(TimeStampedModel):
         return EthereumEvent.objects.erc20_tokens_with_balance(self.address)
 
 
+class SafeCreationManager(models.Manager):
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
+                                                                                        ).values('total')
+        return self.deployed_and_checked().values('payment_token').annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
+                                                     models.FloatField()))
+
+
 class SafeCreation(TimeStampedModel):
+    objects = SafeCreationManager()
     deployer = EthereumAddressField(primary_key=True)
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     master_copy = EthereumAddressField()
