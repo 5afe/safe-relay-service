@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Dict, List, Optional
@@ -25,19 +25,17 @@ def parse_row(row):
     """
     for r in row:
         if isinstance(r, Decimal):
-            f_r = float(r)
-            i_r = int(r)
-            if f_r == i_r:
-                yield i_r
+            if r.as_integer_ratio()[1] == 1:
+                yield int(r)
             else:
-                yield f_r
+                yield float(r)
         else:
             yield r
 
 
-def run_raw_query(query: str):
+def run_raw_query(query: str, *arguments):
     with connection.cursor() as cursor:
-        cursor.execute(query)
+        cursor.execute(query, arguments)
         columns = [col[0] for col in cursor.description]
         return [
             dict(zip(columns, parse_row(row)))
@@ -80,38 +78,44 @@ class EthereumTxCallType(Enum):
 
 
 class SafeContractManager(models.Manager):
-    def get_average_deploy_time(self) -> timedelta:
+    def get_average_deploy_time(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
         query = """
         SELECT AVG(EB.timestamp - SC.created)
         FROM (SELECT created, tx_hash FROM relay_safecreation
               UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
         JOIN relay_ethereumtx as ET ON SC.tx_hash=ET.tx_hash JOIN relay_ethereumblock as EB ON ET.block_id=EB.number
-        """
+        WHERE SC.created BETWEEN %s AND %s
+        """.format(from_date, to_date)
         with connection.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
 
-    def get_total_balance(self) -> int:
-        return int(self.with_balance().aggregate(total_balance=Sum('balance')).get('total_balance') or 0)
+    def get_total_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+        return int(self.with_balance().filter(
+            created__range=(from_date, to_date)
+        ).aggregate(total_balance=Sum('balance')).get('total_balance') or 0)
 
-    def get_total_token_balance(self) -> Dict[str, any]:
+    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
         """
         :return: Dictionary of {token_address: str, balance: decimal}
         """
         query = """
-                SELECT token_address, SUM(value) as balance FROM
-                  (SELECT address, token_address, -(arguments->>'value')::decimal AS value
+                SELECT token_address, SUM(EE.value) as balance FROM
+                  (SELECT ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
                    FROM relay_safecontract JOIN relay_ethereumevent
                    ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
                    WHERE arguments ? 'value' AND topic='{0}'
-                   UNION SELECT address, token_address, (arguments->>'value')::decimal
+                   UNION SELECT ethereum_tx_id, address, token_address, (arguments->>'value')::decimal
                    FROM relay_safecontract JOIN relay_ethereumevent
                    ON relay_safecontract.address = relay_ethereumevent.arguments->>'to'
-                   WHERE arguments ? 'value' AND topic='{0}') AS X
+                   WHERE arguments ? 'value' AND topic='{0}') AS EE
+                JOIN relay_ethereumtx ET on EE.ethereum_tx_id = ET.tx_hash
+                JOIN relay_ethereumblock EB on ET.block_id = EB.number
+                WHERE EB.timestamp BETWEEN %s AND %s
                 GROUP BY token_address
                 """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
-        return run_raw_query(query)
+        return run_raw_query(query, from_date, to_date)
 
     def get_total_volume(self) -> int:
         query = """
@@ -138,16 +142,18 @@ class SafeContractManager(models.Manager):
 
         return run_raw_query(query)
 
-    def get_creation_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+    def get_creation_tokens_usage(self, from_date: datetime.datetime,
+                                  to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
         query = """
         SELECT DISTINCT payment_token, COUNT(1) OVER(PARTITION BY payment_token) as number,
                         100.0 * COUNT(1) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
-        FROM (SELECT tx_hash, payment_token FROM relay_safecreation
-              UNION SELECT tx_hash, payment_token FROM relay_safecreation2) sc
-        JOIN relay_ethereumtx et ON sc.tx_hash = et.tx_hash;
+        FROM (SELECT tx_hash, payment_token, created FROM relay_safecreation
+              UNION SELECT tx_hash, payment_token, created FROM relay_safecreation2) sc
+        JOIN relay_ethereumtx et ON sc.tx_hash = et.tx_hash
+        WHERE sc.created BETWEEN %s AND %s
         """
 
-        return run_raw_query(query)
+        return run_raw_query(query, from_date, to_date)
 
 
 class SafeContractQuerySet(models.QuerySet):
@@ -188,8 +194,8 @@ class SafeContractQuerySet(models.QuerySet):
         )
 
     def not_deployed(self):
-        return self.filter(
-            Q(safecreation2__block_number=None) & ~Q(safefunding__safe_deployed=True)
+        return self.exclude(
+            ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
         )
 
 
@@ -394,7 +400,7 @@ class EthereumBlockManager(models.Manager):
             number=block['number'],
             gas_limit=block['gasLimit'],
             gas_used=block['gasUsed'],
-            timestamp=datetime.fromtimestamp(block['timestamp'], timezone.utc),
+            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], datetime.timezone.utc),
             block_hash=block['hash'],
         )
 
@@ -448,7 +454,8 @@ class SafeMultisigTxManager(models.Manager):
         nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
         return nonce_dict['nonce'] if nonce_dict else None
 
-    def get_average_execution_time(self) -> Optional[timedelta]:
+    def get_average_execution_time(self, from_date: datetime.datetime,
+                                   to_date: datetime.datetime) -> Optional[datetime.timedelta]:
         return self.select_related(
             'ethereum_tx', 'ethereum_tx__block'
         ).exclude(
@@ -456,6 +463,8 @@ class SafeMultisigTxManager(models.Manager):
         ).annotate(
             interval=Cast(F('ethereum_tx__block__timestamp') - F('created'),
                           output_field=DurationField())
+        ).filter(
+            created__range=(from_date, to_date)
         ).aggregate(median=Avg('interval'))['median']
 
     def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
