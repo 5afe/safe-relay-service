@@ -464,10 +464,10 @@ class StatsHistoryView(APIView):
     # serializer_class = StatsResponseSerializer
 
     @swagger_auto_schema(manual_parameters=[
-        openapi.Parameter('fromDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats from",
-                          type=openapi.TYPE_STRING, format='date-time'),
-        openapi.Parameter('toDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats to",
-                          type=openapi.TYPE_STRING, format='date-time'),
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
     ])
     def get(self, request, format=None):
         """
