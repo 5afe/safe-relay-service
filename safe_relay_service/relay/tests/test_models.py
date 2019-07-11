@@ -1,7 +1,7 @@
 import datetime
-from datetime import timedelta, timezone
 
 from django.test import TestCase
+from django.utils import timezone
 
 from eth_account import Account
 from hexbytes import HexBytes
@@ -64,13 +64,17 @@ class TestSafeContractModel(TestCase):
         self.assertIn(safe_creation_2.safe.address, [s.address for s in SafeContract.objects.deployed()])
 
     def test_get_average_deploy_time(self):
-        self.assertIsNone(SafeContract.objects.get_average_deploy_time())
+        from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
+        to_date = timezone.now()
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
         ethereum_tx = EthereumTxFactory()
-        self.assertIsNone(SafeContract.objects.get_average_deploy_time())
-        interval = timedelta(seconds=10)
-        SafeCreation2Factory(created=ethereum_tx.block.timestamp - interval,
-                             tx_hash=ethereum_tx.tx_hash)
-        self.assertEqual(SafeContract.objects.get_average_deploy_time(), interval)
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
+        interval = datetime.timedelta(seconds=10)
+        safe_creation = SafeCreation2Factory(created=ethereum_tx.block.timestamp - interval,
+                                             tx_hash=ethereum_tx.tx_hash)
+        from_date = safe_creation.created - interval
+        to_date = safe_creation.created + interval
+        self.assertEqual(SafeContract.objects.get_average_deploy_time(from_date, to_date), interval)
 
 
 class TestEthereumEventModel(TestCase):
@@ -126,12 +130,14 @@ class TestSafeMultisigTxModel(TestCase):
         to_date = timezone.now()
         self.assertIsNone(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date))
         safe_multisig_tx = SafeMultisigTxFactory()
-        interval = timedelta(seconds=10)
+        interval = datetime.timedelta(seconds=10)
         safe_multisig_tx.ethereum_tx.block.timestamp = safe_multisig_tx.created + interval
         safe_multisig_tx.ethereum_tx.block.save()
+        from_date = safe_multisig_tx.created - interval
+        to_date = safe_multisig_tx.created + interval
         self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), interval)
         safe_multisig_tx_2 = SafeMultisigTxFactory()
-        interval_2 = timedelta(seconds=5)
+        interval_2 = datetime.timedelta(seconds=5)
         safe_multisig_tx_2.ethereum_tx.block.timestamp = safe_multisig_tx_2.created + interval_2
         safe_multisig_tx_2.ethereum_tx.block.save()
         self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), (interval + interval_2) / 2)
