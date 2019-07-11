@@ -1,9 +1,11 @@
-from datetime import timedelta
+import datetime
+from datetime import timedelta, timezone
 
 from django.test import TestCase
 
 from eth_account import Account
 from hexbytes import HexBytes
+from pytz import utc
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
@@ -120,14 +122,16 @@ class TestInternalTxModel(TestCase):
 
 class TestSafeMultisigTxModel(TestCase):
     def test_get_average_execution_time(self):
-        self.assertIsNone(SafeMultisigTx.objects.get_average_execution_time())
+        from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
+        to_date = timezone.now()
+        self.assertIsNone(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date))
         safe_multisig_tx = SafeMultisigTxFactory()
         interval = timedelta(seconds=10)
         safe_multisig_tx.ethereum_tx.block.timestamp = safe_multisig_tx.created + interval
         safe_multisig_tx.ethereum_tx.block.save()
-        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(), interval)
+        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), interval)
         safe_multisig_tx_2 = SafeMultisigTxFactory()
         interval_2 = timedelta(seconds=5)
         safe_multisig_tx_2.ethereum_tx.block.timestamp = safe_multisig_tx_2.created + interval_2
         safe_multisig_tx_2.ethereum_tx.block.save()
-        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(), (interval + interval_2) / 2)
+        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), (interval + interval_2) / 2)
