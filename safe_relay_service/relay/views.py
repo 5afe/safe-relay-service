@@ -1,9 +1,11 @@
+import datetime
 import logging
 
 from django.conf import settings
 from django.db.models import Q
 
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from rest_framework import filters, status
@@ -440,9 +442,12 @@ class StatsView(APIView):
     permission_classes = (AllowAny,)
     # serializer_class = StatsResponseSerializer
 
-    @swagger_auto_schema(responses={200: SafeResponseSerializer(),
-                                    404: 'Safe not found',
-                                    422: 'Safe address checksum not valid'})
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('fromDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats from",
+                          type=openapi.TYPE_STRING),
+        openapi.Parameter('toDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats to",
+                          type=openapi.TYPE_STRING),
+    ])
     def get(self, request, format=None):
         """
         Get status of the safe
@@ -454,14 +459,15 @@ class StatsHistoryView(APIView):
     permission_classes = (AllowAny,)
     # serializer_class = StatsResponseSerializer
 
-    @swagger_auto_schema(responses={200: SafeResponseSerializer(),
-                                    404: 'Safe not found',
-                                    422: 'Safe address checksum not valid'})
     def get(self, request, format=None):
         """
         Get status of the safe
         """
-        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats())
+        from_date = self.request.query_params.get('fromDate')
+        to_date = self.request.query_params.get('toDate')
+        from_date = datetime.datetime.fromisoformat(from_date) if from_date else from_date
+        to_date = datetime.datetime.fromisoformat(to_date) if to_date else to_date
+        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats(from_date, to_date))
 
 
 class PrivateSafesView(ListAPIView):
