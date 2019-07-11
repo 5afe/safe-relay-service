@@ -450,7 +450,7 @@ class StatsView(APIView):
     ])
     def get(self, request, format=None):
         """
-        Get status of the safe
+        Get stats of the Safe Relay Service
         """
         from_date = self.request.query_params.get('fromDate')
         to_date = self.request.query_params.get('toDate')
@@ -471,7 +471,7 @@ class StatsHistoryView(APIView):
     ])
     def get(self, request, format=None):
         """
-        Get status of the safe
+        Get historic stats of the Safe Relay Service
         """
         from_date = self.request.query_params.get('fromDate')
         to_date = self.request.query_params.get('toDate')
