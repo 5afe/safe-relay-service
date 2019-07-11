@@ -101,17 +101,15 @@ class SafeContractManager(models.Manager):
         """
         query = """
                 SELECT token_address, SUM(EE.value) as balance FROM
-                  (SELECT ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
-                   FROM relay_safecontract JOIN relay_ethereumevent
-                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
+                  (SELECT SC.created, ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
+                   FROM relay_safecontract SC JOIN relay_ethereumevent EV
+                   ON SC.address = EV.arguments->>'from'
                    WHERE arguments ? 'value' AND topic='{0}'
-                   UNION SELECT ethereum_tx_id, address, token_address, (arguments->>'value')::decimal
-                   FROM relay_safecontract JOIN relay_ethereumevent
-                   ON relay_safecontract.address = relay_ethereumevent.arguments->>'to'
+                   UNION SELECT SC.created, ethereum_tx_id, address, token_address, (arguments->>'value')::decimal
+                   FROM relay_safecontract SC JOIN relay_ethereumevent EV
+                   ON SC.address = EV.arguments->>'to'
                    WHERE arguments ? 'value' AND topic='{0}') AS EE
-                JOIN relay_ethereumtx ET on EE.ethereum_tx_id = ET.tx_hash
-                JOIN relay_ethereumblock EB on ET.block_id = EB.number
-                WHERE EB.timestamp BETWEEN %s AND %s
+                WHERE EE.created BETWEEN %s AND %s
                 GROUP BY token_address
                 """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
