@@ -117,30 +117,35 @@ class SafeContractManager(models.Manager):
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_volume(self) -> int:
+    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
         query = """
-        SELECT SUM(value) as value FROM relay_safecontract
-        JOIN relay_internaltx ON address="_from" OR address="to";
-        """
+        SELECT SUM(IT.value) AS value
+        FROM relay_safecontract SC
+        JOIN relay_internaltx IT ON SC.address=IT."_from" OR SC.address=IT."to"
+        JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
+        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+        WHERE IT.call_type != {0} AND error IS NULL AND EB.timestamp BETWEEN %s AND %s
+        """.format(EthereumTxCallType.DELEGATE_CALL.value)
         with connection.cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(query, [from_date, to_date])
             value = cursor.fetchone()[0]
             if value is not None:
                 return int(value)
 
-    def get_total_token_volume(self):
+    def get_total_token_volume(self, from_date: datetime.datetime, to_date: datetime.datetime):
         """
         :return: Dictionary of {token_address: str, volume: int}
         """
         query = """
-        SELECT token_address, SUM((arguments->>'value')::decimal) AS value
-        FROM relay_safecontract JOIN relay_ethereumevent
-        ON relay_safecontract.address = relay_ethereumevent.arguments->>'from'
-           OR relay_safecontract.address = relay_ethereumevent.arguments->>'to'
-        WHERE arguments ? 'value' AND topic='{0}'
+        SELECT EV.token_address, SUM((EV.arguments->>'value')::decimal) AS value
+        FROM relay_safecontract SC
+        JOIN relay_ethereumevent EV ON SC.address = EV.arguments->>'from' OR SC.address = EV.arguments->>'to'
+        JOIN relay_ethereumtx ET ON EV.ethereum_tx_id=ET.tx_hash
+        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+        WHERE arguments ? 'value' AND topic='{0}' AND EB.timestamp BETWEEN %s AND %s
         GROUP BY token_address""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
-        return run_raw_query(query)
+        return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage(self, from_date: datetime.datetime,
                                   to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
@@ -514,13 +519,13 @@ class InternalTxManager(models.Manager):
         # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
 
         # There must be at least 2 txs (one in and another out for this method to work
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address;
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address
         # sum
         # -----
         # (1 row)
 
         # But Django uses group by
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from";
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from"
         # sum
         # -----
         # (0 rows)
