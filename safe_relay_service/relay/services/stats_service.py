@@ -3,8 +3,10 @@ from logging import getLogger
 from typing import Dict
 
 from django.utils import timezone
-from gnosis.eth import EthereumClient, EthereumClientProvider
+
 from pytz import utc
+
+from gnosis.eth import EthereumClient, EthereumClientProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
