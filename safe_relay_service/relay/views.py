@@ -465,9 +465,9 @@ class StatsHistoryView(APIView):
 
     @swagger_auto_schema(manual_parameters=[
         openapi.Parameter('fromDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats from",
-                          type=openapi.TYPE_STRING),
+                          type=openapi.TYPE_STRING, format='date-time'),
         openapi.Parameter('toDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats to",
-                          type=openapi.TYPE_STRING),
+                          type=openapi.TYPE_STRING, format='date-time'),
     ])
     def get(self, request, format=None):
         """
