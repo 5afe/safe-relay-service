@@ -59,10 +59,10 @@ class StatsService:
                 'total': add_time_filter(SafeMultisigTx.objects.all()).count(),
                 'average_execution_time_seconds': SafeMultisigTx.objects.get_average_execution_time(from_date, to_date),
                 'pending_txs': add_time_filter(SafeMultisigTx.objects.pending()).count(),
-                'payment_tokens': SafeMultisigTx.objects.get_tokens_usage(),
+                'payment_tokens': add_time_filter(SafeMultisigTx.objects.get_tokens_usage()),
                 'volume': {
-                    'ether': SafeContract.objects.get_total_volume(),
-                    'tokens': SafeContract.objects.get_total_token_volume(),
+                    'ether': SafeContract.objects.get_total_volume(from_date, to_date),
+                    'tokens': SafeContract.objects.get_total_token_volume(from_date, to_date),
                 }
             }
         }
