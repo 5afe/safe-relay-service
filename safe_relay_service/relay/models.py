@@ -149,7 +149,7 @@ class SafeContractManager(models.Manager):
         """
         #FIXME
         query = """
-        SELECT DISTINCT DATE(EB.timestamp) token_address, SUM(EE.value) OVER(ORDER BY DATE(EB.timestamp)) as balance
+        SELECT DISTINCT DATE(EB.timestamp), token_address, SUM(EE.value) OVER(ORDER BY DATE(EB.timestamp)) as balance
         FROM (SELECT SC.created, ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
               FROM relay_safecontract SC JOIN relay_ethereumevent EV
               ON SC.address = EV.arguments->>'from'
