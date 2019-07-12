@@ -54,8 +54,8 @@ class StatsService:
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage_grouped(from_date, to_date),
                 'funds_stored': {
-                    'ether': SafeContract.objects.get_total_balance(from_date, to_date),
-                    'tokens': SafeContract.objects.get_total_token_balance(from_date, to_date),
+                    'ether': SafeContract.objects.get_total_balance_grouped(from_date, to_date),
+                    'tokens': SafeContract.objects.get_total_token_balance_grouped(from_date, to_date),
                 }
             },
             'relayed_txs': {
@@ -88,8 +88,8 @@ class StatsService:
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage(from_date, to_date),
                 'funds_stored': {
-                    'ether': SafeContract.objects.get_total_balance(from_date, to_date),
-                    'tokens': SafeContract.objects.get_total_token_balance(from_date, to_date),
+                    'ether': SafeContract.objects.get_total_balance(from_date, to_date),  #FIXME
+                    'tokens': SafeContract.objects.get_total_token_balance(from_date, to_date),  #FIXME
                 }
             },
             'relayed_txs': {
