@@ -7,8 +7,8 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import connection, models
 from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
                               Value, When)
-from django.db.models.expressions import OuterRef, RawSQL, Subquery
-from django.db.models.functions import Cast, Coalesce
+from django.db.models.expressions import OuterRef, RawSQL, Subquery, Window
+from django.db.models.functions import Cast, Coalesce, TruncDate
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -85,10 +85,22 @@ class SafeContractManager(models.Manager):
               UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
         JOIN relay_ethereumtx as ET ON SC.tx_hash=ET.tx_hash JOIN relay_ethereumblock as EB ON ET.block_id=EB.number
         WHERE SC.created BETWEEN %s AND %s
-        """.format(from_date, to_date)
+        """
         with connection.cursor() as cursor:
             cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
+
+    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+        query = """
+        SELECT DATE(SC.created) as created_date, AVG(EB.timestamp - SC.created) as average_deploy_time
+        FROM (SELECT created, tx_hash FROM relay_safecreation
+              UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
+        JOIN relay_ethereumtx as ET ON SC.tx_hash=ET.tx_hash JOIN relay_ethereumblock as EB ON ET.block_id=EB.number
+        WHERE SC.created BETWEEN %s AND %s
+        GROUP BY DATE(SC.created)
+        """
+
+        return run_raw_query(query, from_date, to_date)
 
     def get_total_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
         return int(self.with_balance().filter(
@@ -122,13 +134,32 @@ class SafeContractManager(models.Manager):
         JOIN relay_internaltx IT ON SC.address=IT."_from" OR SC.address=IT."to"
         JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
         JOIN relay_ethereumblock EB ON ET.block_id=EB.number
-        WHERE IT.call_type != {0} AND error IS NULL AND EB.timestamp BETWEEN %s AND %s
+        WHERE IT.call_type != {0}
+              AND error IS NULL
+              AND EB.timestamp BETWEEN %s AND %s
         """.format(EthereumTxCallType.DELEGATE_CALL.value)
         with connection.cursor() as cursor:
             cursor.execute(query, [from_date, to_date])
             value = cursor.fetchone()[0]
             if value is not None:
                 return int(value)
+
+    def get_total_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+        query = """
+        SELECT DATE(EB.timestamp) as date,
+               SUM(IT.value) AS value
+        FROM relay_safecontract SC
+        JOIN relay_internaltx IT ON SC.address=IT."_from" OR SC.address=IT."to"
+        JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
+        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+        WHERE IT.call_type != {0}
+              AND error IS NULL
+              AND EB.timestamp BETWEEN %s AND %s
+        GROUP BY DATE(EB.timestamp)
+        ORDER BY DATE(EB.timestamp)
+        """.format(EthereumTxCallType.DELEGATE_CALL.value)
+
+        return run_raw_query(query, from_date, to_date)
 
     def get_total_token_volume(self, from_date: datetime.datetime, to_date: datetime.datetime):
         """
@@ -140,22 +171,58 @@ class SafeContractManager(models.Manager):
         JOIN relay_ethereumevent EV ON SC.address = EV.arguments->>'from' OR SC.address = EV.arguments->>'to'
         JOIN relay_ethereumtx ET ON EV.ethereum_tx_id=ET.tx_hash
         JOIN relay_ethereumblock EB ON ET.block_id=EB.number
-        WHERE arguments ? 'value' AND topic='{0}' AND EB.timestamp BETWEEN %s AND %s
+        WHERE arguments ? 'value'
+              AND topic='{0}'
+              AND EB.timestamp BETWEEN %s AND %s
         GROUP BY token_address""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+
+        return run_raw_query(query, from_date, to_date)
+
+    def get_total_token_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime):
+        """
+        :return: Dictionary of {token_address: str, volume: int}
+        """
+        query = """
+        SELECT DATE(EB.timestamp) as date, EV.token_address, SUM((EV.arguments->>'value')::decimal) AS value
+        FROM relay_safecontract SC
+        JOIN relay_ethereumevent EV ON SC.address = EV.arguments->>'from' OR SC.address = EV.arguments->>'to'
+        JOIN relay_ethereumtx ET ON EV.ethereum_tx_id=ET.tx_hash
+        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+        WHERE arguments ? 'value'
+              AND topic='{0}'
+              AND EB.timestamp BETWEEN %s AND %s
+        GROUP BY DATE(EB.timestamp), token_address
+        ORDER BY DATE(EB.timestamp)""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage(self, from_date: datetime.datetime,
                                   to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
         query = """
-        SELECT DISTINCT payment_token, COUNT(1) OVER(PARTITION BY payment_token) as number,
-                        100.0 * COUNT(1) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
+        SELECT DISTINCT payment_token, COUNT(*) OVER(PARTITION BY payment_token) as number,
+                        100.0 * COUNT(*) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
         FROM (SELECT tx_hash, payment_token, created FROM relay_safecreation
-              UNION SELECT tx_hash, payment_token, created FROM relay_safecreation2) sc
-        JOIN relay_ethereumtx et ON sc.tx_hash = et.tx_hash
-        WHERE sc.created BETWEEN %s AND %s
+              UNION SELECT tx_hash, payment_token, created FROM relay_safecreation2) SC
+        JOIN relay_ethereumtx ET ON SC.tx_hash = ET.tx_hash
+        WHERE SC.created BETWEEN %s AND %s
         """
 
+        return run_raw_query(query, from_date, to_date)
+
+    def get_creation_tokens_usage_grouped(self, from_date: datetime.datetime,
+                                          to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
+        query = """
+        SELECT DISTINCT DATE(SC.created), payment_token,
+                        COUNT(*) OVER(PARTITION BY DATE(SC.created), payment_token) as number,
+                        100.0 * COUNT(*) OVER(PARTITION BY DATE(SC.created), payment_token) /
+                                COUNT(*) OVER(PARTITION BY DATE(SC.created)) as percentage
+        FROM (SELECT tx_hash, payment_token, created FROM relay_safecreation
+              UNION SELECT tx_hash, payment_token, created FROM relay_safecreation2) SC
+        JOIN relay_ethereumtx ET ON SC.tx_hash = ET.tx_hash
+        WHERE SC.created BETWEEN %s AND %s
+        ORDER BY(DATE(SC.created))
+        """
+        # Returns list of {'date': date, 'payment_token': Optional[str], 'number': int, percentage: 'float')
         return run_raw_query(query, from_date, to_date)
 
 
@@ -470,16 +537,55 @@ class SafeMultisigTxManager(models.Manager):
             created__range=(from_date, to_date)
         ).aggregate(median=Avg('interval'))['median']
 
+    def get_average_execution_time_grouped(self, from_date: datetime.datetime,
+                                           to_date: datetime.datetime) -> Optional[datetime.timedelta]:
+        return self.select_related(
+            'ethereum_tx', 'ethereum_tx__block'
+        ).exclude(
+            ethereum_tx__block=None,
+        ).annotate(
+            interval=Cast(F('ethereum_tx__block__timestamp') - F('created'),
+                          output_field=DurationField())
+        ).filter(
+            created__range=(from_date, to_date)
+        ).annotate(
+            created_date=TruncDate('created')
+        ).values(
+            'created_date'
+        ).annotate(
+            median=Avg('interval')
+        ).values('created_date', 'median')
+
     def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
         """
         :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
         """
         total = self.annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')).values('total')
-        return self.values('gas_token').annotate(
+        return self.values(
+            'gas_token'
+        ).annotate(
             total=Subquery(total, output_field=models.IntegerField())
         ).annotate(
-            number=Count('pk'), percentage=Cast(100.0 * Count('pk') / F('total'),
-                                                models.FloatField()))
+            number=Count('pk'), percentage=Cast(100.0 * Count('pk') / F('total'), models.FloatField())
+        )
+
+    def get_tokens_usage_grouped(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        return SafeMultisigTx.objects.annotate(
+            date=TruncDate('created')
+        ).annotate(
+            number=Window(expression=Count('*'),
+                          partition_by=[F('gas_token'), F('date')]),
+            percentage=100.0 * Window(expression=Count('*'),
+                                      partition_by=[F('gas_token'),
+                                                    F('date')]
+                                      ) / Window(expression=Count('*'),
+                                                 partition_by=[F('date')])
+        ).values(
+            'date', 'gas_token', 'number', 'percentage'
+        ).distinct().order_by('date')
 
 
 class SafeMultisigTxQuerySet(models.QuerySet):

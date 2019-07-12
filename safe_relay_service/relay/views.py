@@ -443,10 +443,10 @@ class StatsView(APIView):
     # serializer_class = StatsResponseSerializer
 
     @swagger_auto_schema(manual_parameters=[
-        openapi.Parameter('fromDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats from",
-                          type=openapi.TYPE_STRING),
-        openapi.Parameter('toDate', openapi.IN_QUERY, description="ISO 8601 date to filter stats to",
-                          type=openapi.TYPE_STRING),
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
     ])
     def get(self, request, format=None):
         """
@@ -477,7 +477,8 @@ class StatsHistoryView(APIView):
         to_date = self.request.query_params.get('toDate')
         from_date = parse_datetime(from_date) if from_date else from_date
         to_date = parse_datetime(to_date) if to_date else to_date
-        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats(from_date, to_date))
+        return Response(status=status.HTTP_200_OK,
+                        data=StatsServiceProvider().get_relay_history_stats(from_date, to_date))
 
 
 class PrivateSafesView(ListAPIView):
