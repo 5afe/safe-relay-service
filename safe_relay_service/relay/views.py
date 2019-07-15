@@ -437,7 +437,6 @@ class InternalTxsView(SafeListApiView):
 
 class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
-    pagination_class = DefaultPagination
     permission_classes = (IsAuthenticated,)
     queryset = SafeContract.objects.deployed().with_balance().order_by('created')
     serializer_class = SafeContractSerializer
