@@ -50,7 +50,8 @@ class StatsService:
         return {
             'safes_created': {
                 'deployed': add_time_filter(SafeContract.objects.deployed()).annotate(
-                    created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')),
+                    created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')
+                                                                                       ).order_by('created'),
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage_grouped(from_date, to_date),
                 'funds_stored': {
@@ -60,7 +61,8 @@ class StatsService:
             },
             'relayed_txs': {
                 'total': add_time_filter(SafeMultisigTx.objects.annotate(
-                    created_date=TruncDate('created')).values('created_date').annotate(number=Count('*'))),
+                    created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')
+                                                                                       ).order_by('created')),
                 'average_execution_time_seconds': SafeMultisigTx.objects.get_average_execution_time_grouped(from_date,
                                                                                                             to_date),
                 'payment_tokens': add_time_filter(SafeMultisigTx.objects.get_tokens_usage_grouped()),
