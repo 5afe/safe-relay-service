@@ -108,18 +108,23 @@ class SafeContractManager(models.Manager):
         ).aggregate(total_balance=Sum('balance')).get('total_balance') or 0)
 
     def get_total_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+        """
+        :return: Dictionary of {date: datetime.date, balance: decimal}
+        """
         query = """
-        SELECT DISTINCT DATE(EB.timestamp), SUM(IT.value) OVER(ORDER BY DATE(EB.timestamp))
-        FROM (SELECT value, error, call_type, ethereum_tx_id FROM relay_safecontract
-              JOIN relay_internaltx ON address="to" UNION
-              SELECT -value, error, call_type, ethereum_tx_id FROM relay_safecontract
-              JOIN relay_internaltx ON address="_from") AS IT
-        JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
-        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
-        WHERE IT.error IS NULL
-              AND IT.call_type != 1
-              AND EB.timestamp BETWEEN %s AND %s
-        ORDER BY DATE(EB.timestamp)
+        SELECT * FROM
+        (SELECT DISTINCT DATE(EB.timestamp) AS date, SUM(IT.value) OVER(ORDER BY DATE(EB.timestamp)) as balance
+         FROM (SELECT value, error, call_type, ethereum_tx_id
+               FROM relay_safecontract
+               JOIN relay_internaltx ON address="to" UNION
+               SELECT -value, error, call_type, ethereum_tx_id
+               FROM relay_safecontract
+               JOIN relay_internaltx ON address="_from") AS IT
+         JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
+         JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+         WHERE IT.error IS NULL AND IT.call_type != 1) AS RESULT
+        WHERE RESULT.date BETWEEN %s AND %s
+        ORDER BY RESULT.date
         """
         return run_raw_query(query, from_date, to_date)
 
@@ -145,11 +150,14 @@ class SafeContractManager(models.Manager):
 
     def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
         """
-        :return: Dictionary of {token_address: str, balance: decimal}
+        :return: Dictionary of {date: datetime.date, token_address: str, balance: decimal}
         """
-        #FIXME
         query = """
-        SELECT DISTINCT DATE(EB.timestamp), token_address, SUM(EE.value) OVER(ORDER BY DATE(EB.timestamp)) as balance
+        SELECT *
+        FROM (SELECT DISTINCT
+               DATE(EB.timestamp) as date,
+               token_address,
+               SUM(EE.value) OVER(PARTITION BY token_address ORDER BY DATE(EB.timestamp)) as balance
         FROM (SELECT SC.created, ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
               FROM relay_safecontract SC JOIN relay_ethereumevent EV
               ON SC.address = EV.arguments->>'from'
@@ -159,9 +167,9 @@ class SafeContractManager(models.Manager):
               ON SC.address = EV.arguments->>'to'
               WHERE arguments ? 'value' AND topic='{0}') AS EE
         JOIN relay_ethereumtx ET ON EE.ethereum_tx_id=ET.tx_hash
-        JOIN relay_ethereumblock EB ON ET.block_id=EB.number
-        WHERE EB.timestamp BETWEEN %s AND %s
-        ORDER BY DATE(EB.timestamp)
+        JOIN relay_ethereumblock EB ON ET.block_id=EB.number) AS RESULT
+        WHERE RESULT.date BETWEEN %s AND %s
+        ORDER BY RESULT.date;
        """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date)
