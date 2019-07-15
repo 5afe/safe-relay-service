@@ -98,6 +98,7 @@ class SafeContractManager(models.Manager):
         JOIN relay_ethereumtx as ET ON SC.tx_hash=ET.tx_hash JOIN relay_ethereumblock as EB ON ET.block_id=EB.number
         WHERE SC.created BETWEEN %s AND %s
         GROUP BY DATE(SC.created)
+        ORDER BY DATE(SC.created)
         """
 
         return run_raw_query(query, from_date, to_date)
@@ -601,7 +602,7 @@ class SafeMultisigTxManager(models.Manager):
             'created_date'
         ).annotate(
             median=Avg('interval')
-        ).values('created_date', 'median')
+        ).values('created_date', 'median').order_by('created_date')
 
     def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
         """
