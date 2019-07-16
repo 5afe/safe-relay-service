@@ -1,13 +1,13 @@
 import datetime
-from datetime import timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Case, DecimalField, F, Q, Sum, When
-from django.db.models.expressions import OuterRef, RawSQL, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
+                              Value, When)
+from django.db.models.expressions import OuterRef, RawSQL, Subquery, Window
+from django.db.models.functions import Cast, Coalesce, TruncDate
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -16,6 +16,8 @@ from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation
+
+from .models_raw import SafeContractManagerRaw, SafeContractQuerySetRaw
 
 
 class EthereumTxType(Enum):
@@ -52,27 +54,41 @@ class EthereumTxCallType(Enum):
             return None
 
 
-class SafeContractQuerySet(models.QuerySet):
+class SafeContractManager(SafeContractManagerRaw):
+    def get_total_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+        return int(self.with_balance().filter(
+            created__range=(from_date, to_date)
+        ).aggregate(total_balance=Sum('balance')).get('total_balance') or 0)
+
+
+class SafeContractQuerySet(SafeContractQuerySetRaw):
+    deployed_filter = ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
+
     def with_balance(self):
         """
         :return: Queryset with the Safes and a `balance` attribute
         """
-        return self.annotate(balance=Subquery(InternalTx.objects.balance_for_all_safes(
-        ).filter(to=OuterRef('address')).values('balance').distinct(), DecimalField()))
+        return self.annotate(
+            balance=Subquery(
+                InternalTx.objects.balance_for_all_safes(
+                ).filter(
+                    to=OuterRef('address')
+                ).values('balance').distinct(),
+                models.DecimalField()))
 
     def deployed(self):
         return self.filter(
-            ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
+            self.deployed_filter
         )
 
     def not_deployed(self):
-        return self.filter(
-            Q(safecreation2__block_number=None) & ~Q(safefunding__safe_deployed=True)
+        return self.exclude(
+            self.deployed_filter
         )
 
 
 class SafeContract(TimeStampedModel):
-    objects = SafeContractQuerySet.as_manager()
+    objects = SafeContractManager.from_queryset(SafeContractQuerySet)()
     address = EthereumAddressField(primary_key=True)
     master_copy = EthereumAddressField()
 
@@ -86,7 +102,22 @@ class SafeContract(TimeStampedModel):
         return EthereumEvent.objects.erc20_tokens_with_balance(self.address)
 
 
+class SafeCreationManager(models.Manager):
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
+                                                                                        ).values('total')
+        return self.deployed_and_checked().values('payment_token').annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
+                                                     models.FloatField()))
+
+
 class SafeCreation(TimeStampedModel):
+    objects = SafeCreationManager()
     deployer = EthereumAddressField(primary_key=True)
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE)
     master_copy = EthereumAddressField()
@@ -116,6 +147,20 @@ class SafeCreation(TimeStampedModel):
 
 
 class SafeCreation2Manager(models.Manager):
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
+                                                                                        ).values('total')
+        return self.deployed_and_checked().values('payment_token').annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
+                                                     models.FloatField()))
+
+
+class SafeCreation2QuerySet(models.QuerySet):
     def deployed_and_checked(self):
         return self.exclude(
             tx_hash=None,
@@ -138,7 +183,7 @@ class SafeCreation2Manager(models.Manager):
 
 
 class SafeCreation2(TimeStampedModel):
-    objects = SafeCreation2Manager()
+    objects = SafeCreation2Manager.from_queryset(SafeCreation2QuerySet)()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
@@ -175,7 +220,7 @@ class SafeCreation2(TimeStampedModel):
         return self.gas_estimated * self.gas_price_estimated
 
 
-class SafeFundingManager(models.Manager):
+class SafeFundingQuerySet(models.QuerySet):
     def pending_just_to_deploy(self):
         return self.filter(
             safe_deployed=False
@@ -194,7 +239,7 @@ class SafeFundingManager(models.Manager):
 
 
 class SafeFunding(TimeStampedModel):
-    objects = SafeFundingManager()
+    objects = SafeFundingQuerySet.as_manager()
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     safe_funded = models.BooleanField(default=False)
     deployer_funded = models.BooleanField(default=False, db_index=True)  # Set when deployer_funded_tx_hash is mined
@@ -243,7 +288,7 @@ class EthereumBlockManager(models.Manager):
             number=block['number'],
             gas_limit=block['gasLimit'],
             gas_used=block['gasUsed'],
-            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], timezone.utc),
+            timestamp=datetime.datetime.fromtimestamp(block['timestamp'], datetime.timezone.utc),
             block_hash=block['hash'],
         )
 
@@ -297,9 +342,77 @@ class SafeMultisigTxManager(models.Manager):
         nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
         return nonce_dict['nonce'] if nonce_dict else None
 
+    def get_average_execution_time(self, from_date: datetime.datetime,
+                                   to_date: datetime.datetime) -> Optional[datetime.timedelta]:
+        return self.select_related(
+            'ethereum_tx', 'ethereum_tx__block'
+        ).exclude(
+            ethereum_tx__block=None,
+        ).annotate(
+            interval=Cast(F('ethereum_tx__block__timestamp') - F('created'),
+                          output_field=DurationField())
+        ).filter(
+            created__range=(from_date, to_date)
+        ).aggregate(median=Avg('interval'))['median']
+
+    def get_average_execution_time_grouped(self, from_date: datetime.datetime,
+                                           to_date: datetime.datetime) -> Optional[datetime.timedelta]:
+        return self.select_related(
+            'ethereum_tx', 'ethereum_tx__block'
+        ).exclude(
+            ethereum_tx__block=None,
+        ).annotate(
+            interval=Cast(F('ethereum_tx__block__timestamp') - F('created'),
+                          output_field=DurationField())
+        ).filter(
+            created__range=(from_date, to_date)
+        ).annotate(
+            created_date=TruncDate('created')
+        ).values(
+            'created_date'
+        ).annotate(
+            median=Avg('interval')
+        ).values('created_date', 'median').order_by('created_date')
+
+    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        total = self.annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')).values('total')
+        return self.values(
+            'gas_token'
+        ).annotate(
+            total=Subquery(total, output_field=models.IntegerField())
+        ).annotate(
+            number=Count('pk'), percentage=Cast(100.0 * Count('pk') / F('total'), models.FloatField())
+        )
+
+    def get_tokens_usage_grouped(self) -> Optional[List[Dict[str, any]]]:
+        """
+        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
+        """
+        return SafeMultisigTx.objects.annotate(
+            date=TruncDate('created')
+        ).annotate(
+            number=Window(expression=Count('*'),
+                          partition_by=[F('gas_token'), F('date')]),
+            percentage=100.0 * Window(expression=Count('*'),
+                                      partition_by=[F('gas_token'),
+                                                    F('date')]
+                                      ) / Window(expression=Count('*'),
+                                                 partition_by=[F('date')])
+        ).values(
+            'date', 'gas_token', 'number', 'percentage'
+        ).distinct().order_by('date')
+
+
+class SafeMultisigTxQuerySet(models.QuerySet):
+    def pending(self):
+        return self.filter(ethereum_tx__block=None)
+
 
 class SafeMultisigTx(TimeStampedModel):
-    objects = SafeMultisigTxManager()
+    objects = SafeMultisigTxManager.from_queryset(SafeMultisigTxQuerySet)()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
     to = EthereumAddressField(null=True, db_index=True)
@@ -328,13 +441,13 @@ class InternalTxManager(models.Manager):
         # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
 
         # There must be at least 2 txs (one in and another out for this method to work
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address;
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address
         # sum
         # -----
         # (1 row)
 
         # But Django uses group by
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from";
+        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from"
         # sum
         # -----
         # (0 rows)
@@ -361,8 +474,8 @@ class InternalTxManager(models.Manager):
             total=Coalesce(Sum('value'), 0)
         ).values('total')
 
-        return self.annotate(balance=Subquery(incoming_balance, output_field=DecimalField()) -
-                                     Subquery(outgoing_balance, output_field=DecimalField()))
+        return self.annotate(balance=Subquery(incoming_balance, output_field=models.DecimalField()) -
+                                     Subquery(outgoing_balance, output_field=models.DecimalField()))
 
     def calculate_balance(self, address: str) -> int:
         # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
@@ -421,7 +534,7 @@ class InternalTx(models.Model):
             return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
 
 
-class SafeTxStatusManager(models.Manager):
+class SafeTxStatusQuerySet(models.QuerySet):
     def deployed(self):
         return self.filter(safe__in=SafeContract.objects.deployed())
 
@@ -430,7 +543,7 @@ class SafeTxStatus(models.Model):
     """
     Have information about the last scan for internal txs
     """
-    objects = SafeTxStatusManager()
+    objects = SafeTxStatusQuerySet.as_manager()
     safe = models.OneToOneField(SafeContract, primary_key=True, on_delete=models.CASCADE)
     initial_block_number = models.IntegerField(default=0)  # Block number when Safe creation process was started
     tx_block_number = models.IntegerField(default=0)  # Block number when last internal tx scan ended
@@ -467,12 +580,14 @@ class EthereumEventQuerySet(models.QuerySet):
         return self.erc20_and_721_events(token_address=token_address,
                                          address=address).filter(arguments__has_key='tokenId')
 
+
+class EthereumEventManager(models.Manager):
     def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, any]]:
         """
         :return: List of dictionaries {'token_address': str, 'balance': int}
         """
         arguments_value_field = RawSQL("(arguments->>'value')::numeric", ())
-        return EthereumEvent.objects.erc20_events(
+        return self.erc20_events(
             address=address
         ).values('token_address').annotate(
             balance=Sum(Case(
@@ -516,7 +631,7 @@ class EthereumEventQuerySet(models.QuerySet):
 
 
 class EthereumEvent(models.Model):
-    objects = EthereumEventQuerySet.as_manager()
+    objects = EthereumEventManager.from_queryset(EthereumEventQuerySet)()
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='events')
     log_index = models.PositiveIntegerField()
     token_address = EthereumAddressField(db_index=True)

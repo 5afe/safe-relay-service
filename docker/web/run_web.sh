@@ -2,11 +2,14 @@
 
 set -euo pipefail
 
-echo "==> Migrating Django models ... "
+echo "==> Migrating Django models..."
 python manage.py migrate --noinput
+echo "==> Setup Gas Station..."
 python manage.py setup_gas_station
+echo "==> Setup Safe Relay Task..."
 python manage.py setup_safe_relay
 if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
+    echo "==> Deploy Safe master copy..."
     python manage.py deploy_safe_master_copy
 fi
 

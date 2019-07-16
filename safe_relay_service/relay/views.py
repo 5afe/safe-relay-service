@@ -2,8 +2,10 @@ import logging
 
 from django.conf import settings
 from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from rest_framework import filters, status
@@ -33,6 +35,7 @@ from .serializers import (
     SafeMultisigTxResponseSerializer, SafeRelayMultisigTxSerializer,
     SafeResponseSerializer,
     TransactionEstimationWithNonceAndGasTokensResponseSerializer)
+from .services import StatsServiceProvider
 from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
@@ -433,6 +436,49 @@ class InternalTxsView(SafeListApiView):
                                          Q(_from=address) |
                                          Q(contract_address=address)
                                          ).select_related('ethereum_tx', 'ethereum_tx__block')
+
+
+class StatsView(APIView):
+    permission_classes = (AllowAny,)
+    # serializer_class = StatsResponseSerializer
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
+    ])
+    def get(self, request, format=None):
+        """
+        Get stats of the Safe Relay Service
+        """
+        from_date = self.request.query_params.get('fromDate')
+        to_date = self.request.query_params.get('toDate')
+        from_date = parse_datetime(from_date) if from_date else from_date
+        to_date = parse_datetime(to_date) if to_date else to_date
+        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats(from_date, to_date))
+
+
+class StatsHistoryView(APIView):
+    permission_classes = (AllowAny,)
+    # serializer_class = StatsResponseSerializer
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
+    ])
+    def get(self, request, format=None):
+        """
+        Get historic stats of the Safe Relay Service
+        """
+        from_date = self.request.query_params.get('fromDate')
+        to_date = self.request.query_params.get('toDate')
+        from_date = parse_datetime(from_date) if from_date else from_date
+        to_date = parse_datetime(to_date) if to_date else to_date
+        return Response(status=status.HTTP_200_OK,
+                        data=StatsServiceProvider().get_relay_history_stats(from_date, to_date))
 
 
 class PrivateSafesView(ListAPIView):

@@ -6,4 +6,5 @@ from .notification_service import (NotificationService,
                                    NotificationServiceProvider)
 from .safe_creation_service import (SafeCreationService,
                                     SafeCreationServiceProvider)
+from .stats_service import StatsService, StatsServiceProvider
 from .transaction_service import TransactionService, TransactionServiceProvider
