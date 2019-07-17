@@ -582,6 +582,13 @@ class EthereumEventQuerySet(models.QuerySet):
 
 
 class EthereumEventManager(models.Manager):
+    def erc20_tokens_used_by_address(self, address: str) -> List[str]:
+        """
+        :param address:
+        :return: List of token addresses used by an address
+        """
+        return self.erc20_events(address=address).values_list('token_address', flat=True).distinct()
+
     def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, any]]:
         """
         :return: List of dictionaries {'token_address': str, 'balance': int}

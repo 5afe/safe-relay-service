@@ -1,19 +1,21 @@
 import datetime
 from logging import getLogger
-from typing import Dict
+from typing import Dict, List, Union
 
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
+import requests
 from pytz import utc
+from web3 import Web3
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 
-from ..models import SafeContract, SafeCreation2, SafeMultisigTx
+from ..models import EthereumEvent, SafeContract, SafeMultisigTx
 
 logger = getLogger(__name__)
 
@@ -35,8 +37,32 @@ class StatsService:
         self.ethereum_client = ethereum_client
         self.gas_station = gas_station
 
-    def get_gas_price_stats(self) -> Dict[str, any]:
-        pass
+    def get_balances(self, safe_address: str) -> List[Dict[str, Union[str, int]]]:
+        """
+        :param safe_address:
+        :return: `{'token_address': str, 'value': int}`. For ether, `token_address` is `None`
+        """
+        assert Web3.isChecksumAddress(safe_address), f'Not valid address {safe_address} for getting balances'
+
+        balance_query = {"jsonrpc": "2.0",
+                         "method": "eth_getBalance",
+                         "params": [safe_address, "latest"],
+                         "id": 0}
+        queries = [balance_query]
+        tokens_used = list(EthereumEvent.objects.erc20_tokens_used_by_address(safe_address))
+        for i, token_used in enumerate(tokens_used):
+            queries.append({"jsonrpc": "2.0",
+                            "method": "eth_call",
+                            "params": [{"to": token_used,  # Balance of
+                                        "data": "0x70a08231" + '{:0>64}'.format(safe_address.replace('0x', '').lower())
+                                        }, "latest"],
+                            "id": i + 1})
+        response = requests.post(self.ethereum_client.ethereum_node_url, json=queries)
+        return [
+            {'token_address': token_address,
+             'value': 0 if data['result'] == '0x' else int(data['result'], 16)}
+            for token_address, data in zip([None] + tokens_used, response.json())
+        ]
 
     def get_relay_history_stats(self, from_date: datetime.datetime = None,
                                 to_date: datetime.datetime = None) -> Dict[str, any]:
