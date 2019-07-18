@@ -21,11 +21,18 @@ class Command(BaseCommand):
 
         for token_address in tokens:
             token_address = ethereum_client.w3.toChecksumAddress(token_address)
+            try:
+                token = Token.objects.get(address=token_address)
+                self.stdout.write(self.style.SUCCESS(f'Token {token.name} - {token.symbol} with address '
+                                                     f'{token_address} already exists'))
+                continue
+            except Token.DoesNotExist:
+                pass
             info = ethereum_client.erc20.get_info(token_address)
             if no_prompt:
                 response = 'y'
             else:
-                response = input('Do you want to create a token {} (y/n) '.format(info)).strip().lower()
+                response = input(f'Do you want to create a token {info} (y/n) ').strip().lower()
             if response == 'y':
                 Token.objects.create(address=token_address, name=info.name, symbol=info.symbol, decimals=info.decimals)
-                self.stdout.write(self.style.SUCCESS('Created token %s' % info.name))
+                self.stdout.write(self.style.SUCCESS(f'Created token {info.name}'))
