@@ -1,18 +1,23 @@
+import datetime
+
 from django.test import TestCase
+from django.utils import timezone
 
 from eth_account import Account
 from hexbytes import HexBytes
+from pytz import utc
 from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
 
 from ..models import (EthereumEvent, EthereumTxCallType, InternalTx,
-                      SafeContract, SafeFunding)
-from .factories import (EthereumEventFactory, InternalTxFactory,
-                        SafeCreation2Factory, SafeFundingFactory)
+                      SafeContract, SafeFunding, SafeMultisigTx)
+from .factories import (EthereumEventFactory, EthereumTxFactory,
+                        InternalTxFactory, SafeCreation2Factory,
+                        SafeFundingFactory, SafeMultisigTxFactory)
 
 
-class TestModels(TestCase):
+class TestSafeContractModel(TestCase):
     def test_hex_field(self):
         safe_address = Account.create().address
         safe = SafeContract.objects.create(address=safe_address)
@@ -58,7 +63,22 @@ class TestModels(TestCase):
         self.assertEqual(SafeContract.objects.deployed().count(), 2)
         self.assertIn(safe_creation_2.safe.address, [s.address for s in SafeContract.objects.deployed()])
 
-    def test_ethereum_event_model(self):
+    def test_get_average_deploy_time(self):
+        from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
+        to_date = timezone.now()
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
+        ethereum_tx = EthereumTxFactory()
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
+        interval = datetime.timedelta(seconds=10)
+        safe_creation = SafeCreation2Factory(created=ethereum_tx.block.timestamp - interval,
+                                             tx_hash=ethereum_tx.tx_hash)
+        from_date = safe_creation.created - interval
+        to_date = safe_creation.created + interval
+        self.assertEqual(SafeContract.objects.get_average_deploy_time(from_date, to_date), interval)
+
+
+class TestEthereumEventModel(TestCase):
+    def test_ethereum_event(self):
         self.assertEqual(EthereumEvent.objects.count(), 0)
 
         # Create ERC20 Event
@@ -74,6 +94,8 @@ class TestModels(TestCase):
         self.assertTrue(EthereumEvent.objects.erc20_events().get().is_erc20())
         self.assertTrue(EthereumEvent.objects.erc721_events().get().is_erc721())
 
+
+class TestInternalTxModel(TestCase):
     def test_internal_tx_balance(self):
         address = Account.create().address
         value = Web3.toWei(1, 'ether')
@@ -100,3 +122,22 @@ class TestModels(TestCase):
         # More income
         InternalTxFactory(to=address, value=1)
         self.assertEqual(InternalTx.objects.calculate_balance(address), 2)
+
+
+class TestSafeMultisigTxModel(TestCase):
+    def test_get_average_execution_time(self):
+        from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
+        to_date = timezone.now()
+        self.assertIsNone(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date))
+        safe_multisig_tx = SafeMultisigTxFactory()
+        interval = datetime.timedelta(seconds=10)
+        safe_multisig_tx.ethereum_tx.block.timestamp = safe_multisig_tx.created + interval
+        safe_multisig_tx.ethereum_tx.block.save()
+        from_date = safe_multisig_tx.created - interval
+        to_date = safe_multisig_tx.created + interval
+        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), interval)
+        safe_multisig_tx_2 = SafeMultisigTxFactory()
+        interval_2 = datetime.timedelta(seconds=5)
+        safe_multisig_tx_2.ethereum_tx.block.timestamp = safe_multisig_tx_2.created + interval_2
+        safe_multisig_tx_2.ethereum_tx.block.save()
+        self.assertEqual(SafeMultisigTx.objects.get_average_execution_time(from_date, to_date), (interval + interval_2) / 2)

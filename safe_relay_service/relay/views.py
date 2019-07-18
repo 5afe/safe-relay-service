@@ -2,8 +2,10 @@ import logging
 
 from django.conf import settings
 from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from eth_account.account import Account
 from rest_framework import filters, status
@@ -26,13 +28,14 @@ from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
                      SafeFunding, SafeMultisigTx)
 from .serializers import (
     ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
-    InternalTxWithEthereumTxSerializer, SafeContractSerializer,
-    SafeCreationEstimateResponseSerializer, SafeCreationEstimateSerializer,
-    SafeCreationResponseSerializer, SafeCreationSerializer,
-    SafeFundingResponseSerializer, SafeMultisigEstimateTxResponseSerializer,
-    SafeMultisigTxResponseSerializer, SafeRelayMultisigTxSerializer,
-    SafeResponseSerializer,
+    InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
+    SafeContractSerializer, SafeCreationEstimateResponseSerializer,
+    SafeCreationEstimateSerializer, SafeCreationResponseSerializer,
+    SafeCreationSerializer, SafeFundingResponseSerializer,
+    SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
+    SafeRelayMultisigTxSerializer, SafeResponseSerializer,
     TransactionEstimationWithNonceAndGasTokensResponseSerializer)
+from .services import StatsServiceProvider
 from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
@@ -195,6 +198,33 @@ class SafeView(APIView):
 
             safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
             serializer = self.serializer_class(safe_info)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+
+
+class SafeBalanceView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeBalanceResponseSerializer
+
+    @swagger_auto_schema(responses={200: SafeBalanceResponseSerializer(many=True),
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
+    def get(self, request, address, format=None):
+        """
+        Get status of the safe
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeContract.objects.get(address=address)
+            except SafeContract.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            safe_balances = StatsServiceProvider().get_balances(address)
+            serializer = self.serializer_class(data=safe_balances, many=True)
+            # assert serializer.is_valid(), 'Safe Balance result not valid'
+            serializer.is_valid()
+            logger.error('hola %s', safe_balances)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
@@ -435,9 +465,51 @@ class InternalTxsView(SafeListApiView):
                                          ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
+class StatsView(APIView):
+    permission_classes = (AllowAny,)
+    # serializer_class = StatsResponseSerializer
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
+    ])
+    def get(self, request, format=None):
+        """
+        Get stats of the Safe Relay Service
+        """
+        from_date = self.request.query_params.get('fromDate')
+        to_date = self.request.query_params.get('toDate')
+        from_date = parse_datetime(from_date) if from_date else from_date
+        to_date = parse_datetime(to_date) if to_date else to_date
+        return Response(status=status.HTTP_200_OK, data=StatsServiceProvider().get_relay_stats(from_date, to_date))
+
+
+class StatsHistoryView(APIView):
+    permission_classes = (AllowAny,)
+    # serializer_class = StatsResponseSerializer
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('fromDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats from. If not set, 2018-01-01"),
+        openapi.Parameter('toDate', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date-time',
+                          description="ISO 8601 date to filter stats to. If not set, now"),
+    ])
+    def get(self, request, format=None):
+        """
+        Get historic stats of the Safe Relay Service
+        """
+        from_date = self.request.query_params.get('fromDate')
+        to_date = self.request.query_params.get('toDate')
+        from_date = parse_datetime(from_date) if from_date else from_date
+        to_date = parse_datetime(to_date) if to_date else to_date
+        return Response(status=status.HTTP_200_OK,
+                        data=StatsServiceProvider().get_relay_history_stats(from_date, to_date))
+
+
 class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
-    pagination_class = DefaultPagination
     permission_classes = (IsAuthenticated,)
     queryset = SafeContract.objects.deployed().with_balance().order_by('created')
     serializer_class = SafeContractSerializer

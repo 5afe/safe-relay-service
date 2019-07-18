@@ -88,6 +88,11 @@ class SafeContractSerializer(serializers.Serializer):
     tokens_with_balance = TokensWithBalanceSerializer(source='get_tokens_with_balance', many=True)
 
 
+class SafeBalanceResponseSerializer(serializers.Serializer):
+    token_address = serializers.CharField()
+    value = serializers.CharField()
+
+
 class SafeResponseSerializer(serializers.Serializer):
     address = EthereumAddressField()
     master_copy = EthereumAddressField()
