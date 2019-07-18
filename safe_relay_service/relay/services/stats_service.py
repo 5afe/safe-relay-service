@@ -58,11 +58,14 @@ class StatsService:
                                         }, "latest"],
                             "id": i + 1})
         response = requests.post(self.ethereum_client.ethereum_node_url, json=queries)
-        return [
-            {'token_address': token_address,
-             'value': 0 if data['result'] == '0x' else int(data['result'], 16)}
-            for token_address, data in zip([None] + tokens_used, response.json())
-        ]
+        balances = []
+        for token_address, data in zip([None] + tokens_used, response.json()):
+            value = 0 if data['result'] == '0x' else int(data['result'], 16)
+            if value or not token_address:  # If value 0, ignore unless ether
+                balances.append({
+                    'token_address': token_address,
+                    'value': value})
+        return balances
 
     def get_relay_history_stats(self, from_date: datetime.datetime = None,
                                 to_date: datetime.datetime = None) -> Dict[str, any]:
