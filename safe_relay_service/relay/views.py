@@ -224,7 +224,6 @@ class SafeBalanceView(APIView):
             serializer = self.serializer_class(data=safe_balances, many=True)
             # assert serializer.is_valid(), 'Safe Balance result not valid'
             serializer.is_valid()
-            logger.error('hola %s', safe_balances)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
