@@ -90,7 +90,7 @@ class SafeContractSerializer(serializers.Serializer):
 
 class SafeBalanceResponseSerializer(serializers.Serializer):
     token_address = serializers.CharField()
-    value = serializers.CharField()
+    balance = serializers.CharField()
 
 
 class SafeResponseSerializer(serializers.Serializer):

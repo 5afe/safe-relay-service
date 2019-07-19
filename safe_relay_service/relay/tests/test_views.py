@@ -54,7 +54,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.json()), 1)
         self.assertIsNone(response.json()[0]['tokenAddress'])
-        self.assertEqual(response.json()[0]['value'], str(value))
+        self.assertEqual(response.json()[0]['balance'], str(value))
 
         tokens_value = 12
         erc20 = self.deploy_example_erc20(tokens_value, safe_address)
@@ -65,8 +65,8 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         EthereumEventFactory(token_address=erc20.address, to=safe_address)
         response = self.client.get(reverse('v1:safe-balances', args=(safe_address,)))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertCountEqual(response.json(), [{'tokenAddress': None, 'value': str(value)},
-                                                {'tokenAddress': erc20.address, 'value': str(tokens_value)}])
+        self.assertCountEqual(response.json(), [{'tokenAddress': None, 'balance': str(value)},
+                                                {'tokenAddress': erc20.address, 'balance': str(tokens_value)}])
 
     def test_safe_creation(self):
         s = generate_valid_s()
