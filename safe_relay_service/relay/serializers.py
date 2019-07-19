@@ -17,6 +17,8 @@ from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
                                              EthereumTxType, InternalTx,
                                              SafeFunding)
 
+from .services import StatsServiceProvider
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,8 +86,10 @@ class TokensWithBalanceSerializer(serializers.Serializer):
 class SafeContractSerializer(serializers.Serializer):
     created = serializers.DateTimeField()
     address = EthereumAddressField()
-    balance = serializers.IntegerField(min_value=0, allow_null=True)
-    tokens_with_balance = TokensWithBalanceSerializer(source='get_tokens_with_balance', many=True)
+    tokens_with_balance = serializers.SerializerMethodField()
+
+    def get_tokens_with_balance(self, obj):
+        return StatsServiceProvider().get_balances(obj.address)
 
 
 class SafeBalanceResponseSerializer(serializers.Serializer):
@@ -165,14 +169,14 @@ class InternalTxSerializer(serializers.ModelSerializer):
         result['from'] = _from
         return result
 
+    def get_tx_type(self, obj) -> str:
+        return EthereumTxType(obj.tx_type).name
+
     def get_call_type(self, obj) -> str:
         if obj.call_type is None:
             return None
         else:
             return EthereumTxCallType(obj.call_type).name
-
-    def get_tx_type(self, obj) -> str:
-        return EthereumTxType(obj.tx_type).name
 
 
 class EthereumTxSerializer(serializers.ModelSerializer):

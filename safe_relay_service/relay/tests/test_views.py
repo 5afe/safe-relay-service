@@ -825,9 +825,8 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertEqual(dateparse.parse_datetime(safe_response['created']), safe_contract.created)
 
         # Add balance
-        InternalTxFactory(to=safe_contract.address, value=10)
-        InternalTxFactory(to=safe_contract.address, value=5)
-        InternalTxFactory(_from=safe_contract.address, value=8)
+        ether_balance = 7
+        self.send_ether(safe_contract.address, ether_balance)
         # Balance of safe_contract must be 15 - 8 = 7 now
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -835,24 +834,27 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         results = response.json()['results']
         safe_response = results[0]
         self.assertEqual(safe_response['address'], safe_contract.address)
-        self.assertEqual(safe_response['balance'], 7)
+        print(safe_response)
+        self.assertIsNone(safe_response['tokensWithBalance'][0]['tokenAddress'])
+        self.assertEqual(safe_response['tokensWithBalance'][0]['balance'], ether_balance)
 
         # Add token transfers
-        ethereum_event = EthereumEventFactory(to=safe_contract.address, value=19)
-        EthereumEventFactory(from_=safe_contract.address, token_address=ethereum_event.token_address, value=5)
-        ethereum_event_2 = EthereumEventFactory(to=safe_contract.address, value=4)
-        EthereumEventFactory(from_=safe_contract.address, token_address=ethereum_event_2.token_address, value=5)
+        token_balance = 8
+        example_erc20_1 = self.deploy_example_erc20(token_balance, safe_contract.address)
+        example_erc20_2 = self.deploy_example_erc20(token_balance, safe_contract.address)
+        EthereumEventFactory(to=safe_contract.address, value=19, token_address=example_erc20_1.address)
+        EthereumEventFactory(to=safe_contract.address, value=4, token_address=example_erc20_2.address)
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['count'], 1)
         results = response.json()['results']
         safe_response = results[0]
         self.assertEqual(safe_response['address'], safe_contract.address)
-        self.assertEqual(safe_response['balance'], 7)
-        self.assertEqual(safe_response['tokensWithBalance'][0]['tokenAddress'], ethereum_event.token_address)
-        self.assertEqual(safe_response['tokensWithBalance'][0]['balance'], 14)
-        self.assertEqual(safe_response['tokensWithBalance'][1]['tokenAddress'], ethereum_event_2.token_address)
-        self.assertEqual(safe_response['tokensWithBalance'][1]['balance'], -1)
+        self.assertCountEqual(safe_response['tokensWithBalance'], [
+            {'tokenAddress': None, 'balance': ether_balance},
+            {'tokenAddress': example_erc20_1.address, 'balance': token_balance},
+            {'tokenAddress': example_erc20_2.address, 'balance': token_balance},
+        ])
         self.client.force_authenticate(user=None)
 
     def test_api_token_auth(self):

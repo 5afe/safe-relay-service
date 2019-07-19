@@ -505,5 +505,5 @@ class StatsHistoryView(APIView):
 class PrivateSafesView(ListAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
-    queryset = SafeContract.objects.deployed().with_balance().order_by('created')
+    queryset = SafeContract.objects.deployed().order_by('created')
     serializer_class = SafeContractSerializer
