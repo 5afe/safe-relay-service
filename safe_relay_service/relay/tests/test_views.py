@@ -377,7 +377,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        self.assertTrue('exists' in response.data)
+        self.assertTrue('exists' in response.data['exception'])
 
     def test_safe_multisig_tx_get(self):
         safe = SafeContractFactory()

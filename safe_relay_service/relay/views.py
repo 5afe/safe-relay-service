@@ -397,27 +397,22 @@ class SafeMultisigTxView(SafeListApiView):
                 return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
             else:
                 data = serializer.validated_data
-
-                try:
-                    safe_multisig_tx = TransactionServiceProvider().create_multisig_tx(
-                        safe_address=data['safe'],
-                        to=data['to'],
-                        value=data['value'],
-                        data=data['data'],
-                        operation=data['operation'],
-                        safe_tx_gas=data['safe_tx_gas'],
-                        base_gas=data['data_gas'],
-                        gas_price=data['gas_price'],
-                        gas_token=data['gas_token'],
-                        nonce=data['nonce'],
-                        refund_receiver=data['refund_receiver'],
-                        signatures=data['signatures']
-                    )
-                    response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
-                    return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
-                except SafeMultisigTxExists:
-                    return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                    data='Safe Multisig Tx with that nonce already exists')
+                safe_multisig_tx = TransactionServiceProvider().create_multisig_tx(
+                    safe_address=data['safe'],
+                    to=data['to'],
+                    value=data['value'],
+                    data=data['data'],
+                    operation=data['operation'],
+                    safe_tx_gas=data['safe_tx_gas'],
+                    base_gas=data['data_gas'],
+                    gas_price=data['gas_price'],
+                    gas_token=data['gas_token'],
+                    nonce=data['nonce'],
+                    refund_receiver=data['refund_receiver'],
+                    signatures=data['signatures']
+                )
+                response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
+                return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
 
 class EthereumTxView(SafeListApiView):
