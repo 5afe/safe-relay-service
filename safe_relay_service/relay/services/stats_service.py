@@ -40,7 +40,7 @@ class StatsService:
     def get_balances(self, safe_address: str) -> List[Dict[str, Union[str, int]]]:
         """
         :param safe_address:
-        :return: `{'token_address': str, 'value': int}`. For ether, `token_address` is `None`
+        :return: `{'token_address': str, 'balance': int}`. For ether, `token_address` is `None`
         """
         assert Web3.isChecksumAddress(safe_address), f'Not valid address {safe_address} for getting balances'
 
@@ -64,7 +64,7 @@ class StatsService:
             if value or not token_address:  # If value 0, ignore unless ether
                 balances.append({
                     'token_address': token_address,
-                    'value': value})
+                    'balance': value})
         return balances
 
     def get_relay_history_stats(self, from_date: datetime.datetime = None,

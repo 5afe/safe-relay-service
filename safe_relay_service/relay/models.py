@@ -371,8 +371,8 @@ class SafeMultisigTxManager(models.Manager):
         ).values(
             'created_date'
         ).annotate(
-            median=Avg('interval')
-        ).values('created_date', 'median').order_by('created_date')
+            average_execution_time=Avg('interval')
+        ).values('created_date', 'average_execution_time').order_by('created_date')
 
     def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
         """
