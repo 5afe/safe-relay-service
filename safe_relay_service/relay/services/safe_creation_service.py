@@ -224,15 +224,15 @@ class SafeCreationService:
             safe_balance = self.ethereum_client.get_balance(safe_address)
 
         if safe_balance < safe_creation2.payment:
-            message = 'Not found %d balance for Safe=%s with payment-token=%s. ' \
-                      'Required=%d' % (safe_balance,
+            message = 'Balance=%d for safe=%s with payment-token=%s. Not found ' \
+                      'required=%d' % (safe_balance,
                                        safe_address,
                                        safe_creation2.payment_token,
                                        safe_creation2.payment)
             logger.info(message)
             raise NotEnoughFundingForCreation(message)
 
-        logger.info('Found %d balance for Safe=%s with payment-token=%s. Required=%d', safe_balance,
+        logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
