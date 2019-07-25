@@ -90,7 +90,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                 # Check deployer has no eth. This should never happen
                 balance = ethereum_client.get_balance(deployer_address)
                 if balance:
-                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)!',
+                    logger.error('Deployer=%s for safe=%s has eth already (%d wei)',
                                  deployer_address, safe_address, balance)
                 else:
                     logger.info('Safe=%s. Transferring deployment-cost=%d to deployer=%s',
@@ -137,7 +137,7 @@ def check_deployer_funded_task(self, safe_address: str, retry: bool = True) -> N
             deployer_funded_tx_hash = safe_funding.deployer_funded_tx_hash
 
             if safe_funding.deployer_funded:
-                logger.warning('Tx-hash=%s for safe %s is already checked!', deployer_funded_tx_hash, safe_address)
+                logger.warning('Tx-hash=%s for safe %s is already checked', deployer_funded_tx_hash, safe_address)
                 return
             elif not deployer_funded_tx_hash:
                 logger.error('No deployer_funded_tx_hash for safe=%s', safe_address)
@@ -229,7 +229,7 @@ def deploy_safes_task(retry: bool = True) -> None:
 
                     if ethereum_client.check_tx_with_confirmations(safe_deployed_tx_hash,
                                                                    settings.SAFE_FUNDING_CONFIRMATIONS):
-                        logger.info('Safe=%s was deployed!', safe_funding.safe.address)
+                        logger.info('Safe=%s was deployed', safe_funding.safe.address)
                         safe_funding.safe_deployed = True
                         safe_funding.save()
                         # Send creation notification
