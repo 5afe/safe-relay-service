@@ -1,6 +1,8 @@
 from logging import getLogger
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
+from django.utils import timezone
+
 from eth_account import Account
 from packaging.version import Version
 from redis import Redis
@@ -276,6 +278,7 @@ class TransactionService:
         """
 
         safe_contract = SafeContract.objects.get(address=safe_address)
+        created = timezone.now()
 
         if SafeMultisigTx.objects.filter(safe=safe_address, nonce=nonce).exists():
             raise SafeMultisigTxExists('Tx with nonce=%d for safe=%s already exists in DB' % (nonce, safe_address))
@@ -304,6 +307,7 @@ class TransactionService:
         ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
 
         return SafeMultisigTx.objects.create(
+            created=created,
             safe=safe_contract,
             ethereum_tx=ethereum_tx,
             to=to,
