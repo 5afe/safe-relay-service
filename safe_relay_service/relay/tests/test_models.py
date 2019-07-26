@@ -63,18 +63,18 @@ class TestSafeContractModel(TestCase):
         self.assertEqual(SafeContract.objects.deployed().count(), 2)
         self.assertIn(safe_creation_2.safe.address, [s.address for s in SafeContract.objects.deployed()])
 
-    def test_get_average_deploy_time(self):
+    def test_get_average_deploy_time_total(self):
         from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
         to_date = timezone.now()
-        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time_total(from_date, to_date))
         ethereum_tx = EthereumTxFactory()
-        self.assertIsNone(SafeContract.objects.get_average_deploy_time(from_date, to_date))
+        self.assertIsNone(SafeContract.objects.get_average_deploy_time_total(from_date, to_date))
         interval = datetime.timedelta(seconds=10)
         safe_creation = SafeCreation2Factory(created=ethereum_tx.block.timestamp - interval,
                                              tx_hash=ethereum_tx.tx_hash)
         from_date = safe_creation.created - interval
         to_date = safe_creation.created + interval
-        self.assertEqual(SafeContract.objects.get_average_deploy_time(from_date, to_date), interval)
+        self.assertEqual(SafeContract.objects.get_average_deploy_time_total(from_date, to_date), interval)
 
 
 class TestEthereumEventModel(TestCase):

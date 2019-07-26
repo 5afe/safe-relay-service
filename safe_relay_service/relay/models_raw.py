@@ -34,6 +34,40 @@ def run_raw_query(query: str, *arguments):
 class SafeContractManagerRaw(models.Manager):
     def get_average_deploy_time(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
         query = """
+        SELECT AVG(A.created - B.first_transfer) FROM
+          (SELECT address, timestamp as created
+           FROM relay_safecontract S JOIN relay_internaltx I ON S.address = I.contract_address
+           JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number) A JOIN
+          (SELECT address, MIN(timestamp) as first_transfer
+           FROM relay_safecontract S JOIN relay_internaltx I
+           ON S.address = I.to JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number GROUP BY address) B ON A.address = B.address
+        WHERE A.created BETWEEN  %s AND %s
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(query, [from_date, to_date])
+            return cursor.fetchone()[0]
+
+    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
+        query = """
+        SELECT DATE(A.created) as created_date, AVG(A.created - B.first_transfer) as average_deploy_time FROM
+          (SELECT address, timestamp as created
+           FROM relay_safecontract S JOIN relay_internaltx I ON S.address = I.contract_address
+           JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number) A JOIN
+          (SELECT address, MIN(timestamp) as first_transfer
+           FROM relay_safecontract S JOIN relay_internaltx I
+           ON S.address = I.to JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number GROUP BY address) B ON A.address = B.address
+        WHERE A.created BETWEEN  %s AND %s
+        GROUP BY DATE(A.created)
+        """
+        return run_raw_query(query, from_date, to_date)
+
+    def get_average_deploy_time_total(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+        query = """
         SELECT AVG(EB.timestamp - SC.created)
         FROM (SELECT created, tx_hash FROM relay_safecreation
               UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
@@ -44,7 +78,7 @@ class SafeContractManagerRaw(models.Manager):
             cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
 
-    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+    def get_average_deploy_time_total_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
         query = """
         SELECT DATE(SC.created) as created_date, AVG(EB.timestamp - SC.created) as average_deploy_time
         FROM (SELECT created, tx_hash FROM relay_safecreation
