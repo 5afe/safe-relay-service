@@ -70,7 +70,7 @@ class StatsService:
     def get_relay_history_stats(self, from_date: datetime.datetime = None,
                                 to_date: datetime.datetime = None) -> Dict[str, any]:
 
-        from_date = from_date if from_date else datetime.datetime(2018, 1, 1, tzinfo=utc)
+        from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
 
         def add_time_filter(queryset):
@@ -105,7 +105,7 @@ class StatsService:
     def get_relay_stats(self, from_date: datetime.datetime = None,
                         to_date: datetime.datetime = None) -> Dict[str, any]:
 
-        from_date = from_date if from_date else datetime.datetime(2018, 1, 1, tzinfo=utc)
+        from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
 
         def add_time_filter(queryset):

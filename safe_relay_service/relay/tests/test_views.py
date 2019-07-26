@@ -834,7 +834,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         results = response.json()['results']
         safe_response = results[0]
         self.assertEqual(safe_response['address'], safe_contract.address)
-        print(safe_response)
         self.assertIsNone(safe_response['tokensWithBalance'][0]['tokenAddress'])
         self.assertEqual(safe_response['tokensWithBalance'][0]['balance'], ether_balance)
 
