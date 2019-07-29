@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List
+from typing import Any, List
 
 import requests
 from eth_utils import to_checksum_address
@@ -23,7 +23,7 @@ class TokenRepository:
                     f.write(chunk)
         return local_filename
 
-    def __pull_token_info(self, page_number: int=1) -> List[any]:
+    def __pull_token_info(self, page_number: int=1) -> List[Any]:
         tokens = []
         page = requests.get('https://etherscan.io/tokens?p=' + str(page_number))
         tree = html.fromstring(page.content)
@@ -88,7 +88,7 @@ class TokenRepository:
         """
         return "https://raw.githubusercontent.com/TrustWallet/tokens/master/images/" + token_address.lower() + ".png"
 
-    def get_tokens(self, pages: int = 1) -> List[any]:
+    def get_tokens(self, pages: int = 1) -> List[Any]:
         all_tokens = []
         for page in range(1, pages + 1):
             all_tokens.extend(self.__pull_token_info(page))

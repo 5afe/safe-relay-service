@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 
 from gnosis.eth import EthereumClient
 
@@ -63,7 +63,7 @@ class InternalTxService(TransactionScanService):
         """
         return self._process_traces(self.ethereum_client.parity.trace_transaction(tx_hash))
 
-    def _process_trace(self, trace: Dict[str, any]) -> InternalTx:
+    def _process_trace(self, trace: Dict[str, Any]) -> InternalTx:
         ethereum_tx = self.create_or_update_ethereum_tx(trace['transactionHash'])
         tx_type = EthereumTxType.parse(trace['type'])
         call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
@@ -89,5 +89,5 @@ class InternalTxService(TransactionScanService):
         )
         return internal_tx
 
-    def _process_traces(self, traces: List[Dict[str, any]]) -> List[InternalTx]:
+    def _process_traces(self, traces: List[Dict[str, Any]]) -> List[InternalTx]:
         return [self._process_trace(trace) for trace in traces]

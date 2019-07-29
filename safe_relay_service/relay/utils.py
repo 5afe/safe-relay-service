@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Any, List
 
 from gunicorn import glogging
 
@@ -19,7 +19,7 @@ class CustomGunicornLogger(glogging.Logger):
         logger.addFilter(IgnoreCheckUrl())
 
 
-def chunks(l: List[any], n: int):
+def chunks(l: List[Any], n: int):
     """
     :param l: List
     :param n: Number of elements per chunk

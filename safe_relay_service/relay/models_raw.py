@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import connection, models
 
@@ -118,7 +118,7 @@ class SafeContractManagerRaw(models.Manager):
         """
         return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
+    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
         """
         :return: Dictionary of {token_address: str, balance: decimal}
         """
@@ -138,7 +138,7 @@ class SafeContractManagerRaw(models.Manager):
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
+    def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
         """
         :return: Dictionary of {date: datetime.date, token_address: str, balance: decimal}
         """
@@ -240,7 +240,7 @@ class SafeContractManagerRaw(models.Manager):
         return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage(self, from_date: datetime.datetime,
-                                  to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
+                                  to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT payment_token, COUNT(*) OVER(PARTITION BY payment_token) as number,
                         100.0 * COUNT(*) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
@@ -253,7 +253,7 @@ class SafeContractManagerRaw(models.Manager):
         return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage_grouped(self, from_date: datetime.datetime,
-                                          to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
+                                          to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT DATE(SC.created), payment_token,
                         COUNT(*) OVER(PARTITION BY DATE(SC.created), payment_token) as number,

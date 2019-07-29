@@ -1,6 +1,6 @@
 import datetime
 from logging import getLogger
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -68,7 +68,7 @@ class StatsService:
         return balances
 
     def get_relay_history_stats(self, from_date: datetime.datetime = None,
-                                to_date: datetime.datetime = None) -> Dict[str, any]:
+                                to_date: datetime.datetime = None) -> Dict[str, Any]:
 
         from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
@@ -105,7 +105,7 @@ class StatsService:
         }
 
     def get_relay_stats(self, from_date: datetime.datetime = None,
-                        to_date: datetime.datetime = None) -> Dict[str, any]:
+                        to_date: datetime.datetime = None) -> Dict[str, Any]:
 
         from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
