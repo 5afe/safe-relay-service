@@ -338,7 +338,7 @@ class TransactionService:
                           safe_nonce: int,
                           signatures: bytes,
                           tx_gas=None,
-                          block_identifier='pending') -> Tuple[bytes, bytes, Dict[str, any]]:
+                          block_identifier='latest') -> Tuple[bytes, bytes, Dict[str, any]]:
         """
         This function calls the `send_multisig_tx` of the Safe, but has some limitations to prevent abusing
         the relay
