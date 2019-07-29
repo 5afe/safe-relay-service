@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
@@ -303,7 +303,7 @@ class EthereumBlock(models.Model):
 
 
 class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, Any], tx_hash: bytes, gas_used: Optional[int] = None,
+    def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
                        ethereum_block: Optional[EthereumBlock] = None):
         return super().create(
             block=ethereum_block,

@@ -4,7 +4,6 @@ from typing import Any, List, Optional, Set, Tuple
 
 from django.db.models import Min
 
-from hexbytes import HexBytes
 from web3 import Web3
 
 from gnosis.eth import EthereumClient

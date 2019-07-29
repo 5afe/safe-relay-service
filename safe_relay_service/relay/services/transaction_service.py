@@ -133,7 +133,7 @@ class TransactionService:
         return refund_receiver == NULL_ADDRESS
 
     @staticmethod
-    def _is_valid_gas_token(address: str) -> float:
+    def _is_valid_gas_token(address: Optional[str]) -> float:
         """
         :param address: Token address
         :return: bool if gas token, false otherwise

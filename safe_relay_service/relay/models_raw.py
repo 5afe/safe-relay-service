@@ -168,7 +168,7 @@ class SafeContractManagerRaw(models.Manager):
 
         return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Optional[int]:
         from .models import EthereumTxCallType
         query = """
         SELECT SUM(IT.value) AS value
@@ -185,6 +185,7 @@ class SafeContractManagerRaw(models.Manager):
             value = cursor.fetchone()[0]
             if value is not None:
                 return int(value)
+        return None
 
     def get_total_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
         from .models import EthereumTxCallType
