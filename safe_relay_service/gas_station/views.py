@@ -6,12 +6,18 @@ from django.utils.dateparse import parse_datetime
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .gas_station import GasStationProvider
 from .models import GasPrice
 from .serializers import GasPriceSerializer
+
+
+class DefaultPagination(LimitOffsetPagination):
+    max_limit = 500
+    default_limit = 500
 
 
 class GasStationView(APIView):
@@ -25,6 +31,7 @@ class GasStationView(APIView):
 
 class GasStationHistoryView(ListAPIView):
     serializer_class = GasPriceSerializer
+    pagination_class = DefaultPagination
 
     def get_queryset(self):
         from_date = self.request.query_params.get('fromDate')
