@@ -147,6 +147,8 @@ class GasStation:
                                                 fastest=fastest)
 
             self._store_gas_price_in_cache(gas_price)
+            logger.info(f'Calculated gas price lowest={lowest} safe_low={safe_low} standard={standard} '
+                        f'fast={fast} fastest={fastest}')
             return gas_price
 
     def get_gas_prices(self) -> GasPrice:
