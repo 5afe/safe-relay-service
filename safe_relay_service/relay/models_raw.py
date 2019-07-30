@@ -159,7 +159,8 @@ class SafeContractManagerRaw(models.Manager):
                JOIN relay_ethereumblock EB ON ET.block_id=EB.number
                UNION SELECT DATE(dd), 0, T.token_address
                      FROM generate_series(%s, %s, '1 day'::interval) dd,
-                          (SELECT DISTINCT token_address FROM relay_ethereumevent WHERE topic='{0}') AS T
+                          (SELECT DISTINCT token_address FROM relay_ethereumevent WHERE arguments ? 'value'
+                                                                                        AND topic='{0}' ) AS T
                ) AS PREPARED
         ) AS RESULT
         WHERE RESULT.date BETWEEN %s AND %s
