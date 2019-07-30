@@ -3,7 +3,8 @@ from django.urls import path
 
 from rest_framework.authtoken import views as rest_views
 
-from safe_relay_service.gas_station.views import GasStationView
+from safe_relay_service.gas_station.views import (GasStationHistoryView,
+                                                  GasStationView)
 from safe_relay_service.tokens.views import TokensView, TokenView
 
 from . import views
@@ -15,6 +16,7 @@ timestamp_regex = '\\d{4}[-]?\\d{1,2}[-]?\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}'
 urlpatterns = [
     path('about/', views.AboutView.as_view(), name='about'),
     path('gas-station/', GasStationView.as_view(), name='gas-station'),
+    path('gas-station/history/', GasStationHistoryView.as_view(), name='gas-station-history'),
     path('tokens/', TokensView.as_view(), name='tokens'),
     path('tokens/<str:address>/', TokenView.as_view(), name='tokens'),
     path('safes/', views.SafeCreationView.as_view(), name='safe-creation'),

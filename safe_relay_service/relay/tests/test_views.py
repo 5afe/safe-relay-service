@@ -1,8 +1,9 @@
+import datetime
 import logging
 
 from django.contrib.auth.models import User
 from django.urls import reverse
-from django.utils import dateparse
+from django.utils import dateparse, timezone
 
 from eth_account import Account
 from ethereum.utils import check_checksum
@@ -17,6 +18,7 @@ from gnosis.safe import SafeOperation, SafeTx
 from gnosis.safe.signatures import signatures_to_bytes
 from gnosis.safe.tests.utils import generate_valid_s
 
+from safe_relay_service.gas_station.tests.factories import GasPriceFactory
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation, SafeMultisigTx
@@ -41,6 +43,32 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_gas_station(self):
         response = self.client.get(reverse('v1:gas-station'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_gas_station_history(self):
+        response = self.client.get(reverse('v1:gas-station-history'), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 0)
+
+        first_datetime = timezone.now() - datetime.timedelta(hours=3)
+        second_datetime = timezone.now() - datetime.timedelta(hours=2)
+        third_datetime = timezone.now() - datetime.timedelta(hours=1)
+        for date in (first_datetime, second_datetime, third_datetime):
+            GasPriceFactory(created=date)
+
+        response = self.client.get(reverse('v1:gas-station-history'), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 3)
+
+        iso_format = second_datetime.isoformat().replace('+00:00', 'Z')
+        response = self.client.get(reverse('v1:gas-station-history') + f'?fromDate={iso_format}',
+                                   format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+
+        response = self.client.get(reverse('v1:gas-station-history') + f'?toDate={iso_format}',
+                                   format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
 
     def test_safe_balances(self):
         safe_address = Account.create().address
