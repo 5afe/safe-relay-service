@@ -23,6 +23,12 @@ class DefaultPagination(LimitOffsetPagination):
 class GasStationView(APIView):
     @swagger_auto_schema(responses={200: GasPriceSerializer()})
     def get(self, request, format=None):
+        """
+        Gets current gas prices for the ethereum network (using last 200 blocks)
+        `Lowest` and `fastest` are the lower and the higher gas prices found in those blocks
+        The rest are percentiles on all the gas prices in the last blocks.
+        `safe_low=percentile 30`, `standard=percentile 50` and `fast=percentile 75`
+        """
         gas_station = GasStationProvider()
         gas_prices = gas_station.get_gas_prices()
         serializer = GasPriceSerializer(gas_prices)
