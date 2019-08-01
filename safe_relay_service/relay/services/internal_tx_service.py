@@ -65,29 +65,7 @@ class InternalTxService(TransactionScanService):
 
     def _process_trace(self, trace: Dict[str, Any]) -> InternalTx:
         ethereum_tx = self.create_or_update_ethereum_tx(trace['transactionHash'])
-        tx_type = EthereumTxType.parse(trace['type'])
-        call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
-        trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
-        internal_tx, _ = InternalTx.objects.get_or_create(
-            ethereum_tx=ethereum_tx,
-            trace_address=trace_address_str,
-            defaults={
-                '_from': trace['action'].get('from'),
-                'gas': trace['action'].get('gas', 0),
-                'data': trace['action'].get('input') or trace['action'].get('init'),
-                'to': trace['action'].get('to') or trace['action'].get('address'),
-                'value': trace['action'].get('value') or trace['action'].get('balance', 0),
-                'gas_used': (trace.get('result') or {}).get('gasUsed', 0),
-                'contract_address': (trace.get('result') or {}).get('address'),
-                'code': (trace.get('result') or {}).get('code'),
-                'output': (trace.get('result') or {}).get('output'),
-                'refund_address': trace['action'].get('refundAddress'),
-                'tx_type': tx_type.value,
-                'call_type': call_type.value if call_type else None,
-                'error': trace.get('error'),
-            }
-        )
-        return internal_tx
+        return InternalTx.objects.get_or_create_from_trace(trace, ethereum_tx)
 
     def _process_traces(self, traces: List[Dict[str, Any]]) -> List[InternalTx]:
         return [self._process_trace(trace) for trace in traces]

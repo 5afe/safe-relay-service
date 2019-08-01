@@ -146,20 +146,6 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
-class SafeCreation2Manager(models.Manager):
-    def get_tokens_usage(self) -> Optional[List[Dict[str, Any]]]:
-        """
-        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
-        """
-        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
-                                                                                        ).values('total')
-        return self.deployed_and_checked().values('payment_token').annotate(
-            total=Subquery(total, output_field=models.IntegerField())
-        ).annotate(
-            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
-                                                     models.FloatField()))
-
-
 class SafeCreation2QuerySet(models.QuerySet):
     def deployed_and_checked(self):
         return self.exclude(
@@ -183,7 +169,7 @@ class SafeCreation2QuerySet(models.QuerySet):
 
 
 class SafeCreation2(TimeStampedModel):
-    objects = SafeCreation2Manager.from_queryset(SafeCreation2QuerySet)()
+    objects = SafeCreationManager.from_queryset(SafeCreation2QuerySet)()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
@@ -437,6 +423,31 @@ class SafeMultisigTx(TimeStampedModel):
 
 
 class InternalTxManager(models.Manager):
+    def get_or_create_from_trace(self, trace: Dict[str, Any], ethereum_tx: EthereumTx):
+        tx_type = EthereumTxType.parse(trace['type'])
+        call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
+        trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
+        internal_tx, _ = self.get_or_create(
+            ethereum_tx=ethereum_tx,
+            trace_address=trace_address_str,
+            defaults={
+                '_from': trace['action'].get('from'),
+                'gas': trace['action'].get('gas', 0),
+                'data': trace['action'].get('input') or trace['action'].get('init'),
+                'to': trace['action'].get('to') or trace['action'].get('address'),
+                'value': trace['action'].get('value') or trace['action'].get('balance', 0),
+                'gas_used': (trace.get('result') or {}).get('gasUsed', 0),
+                'contract_address': (trace.get('result') or {}).get('address'),
+                'code': (trace.get('result') or {}).get('code'),
+                'output': (trace.get('result') or {}).get('output'),
+                'refund_address': trace['action'].get('refundAddress'),
+                'tx_type': tx_type.value,
+                'call_type': call_type.value if call_type else None,
+                'error': trace.get('error'),
+            }
+        )
+        return internal_tx
+
     def balance_for_all_safes(self):
         # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
 
