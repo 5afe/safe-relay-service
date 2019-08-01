@@ -153,7 +153,7 @@ class TransactionScanService(ABC):
         return SafeTxStatus.objects.filter(safe_id__in=safe_addresses
                                            ).update(**{self.database_field: to_block_number})
 
-    def get_parameters_for_search(self, safe_addresses: List[str]) -> Optional[Tuple[int, int]]:
+    def get_block_numbers_for_search(self, safe_addresses: List[str]) -> Optional[Tuple[int, int]]:
         """
         :param safe_addresses:
         :return: Minimum common `from_block_number` and `to_block_number` for search of relevant `tx hashes`
@@ -191,7 +191,7 @@ class TransactionScanService(ABC):
         assert all([Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]), \
             'A safe address has invalid checksum: %s' % safe_addresses
 
-        parameters = self.get_parameters_for_search(safe_addresses)
+        parameters = self.get_block_numbers_for_search(safe_addresses)
         if parameters is None:
             return
         from_block_number, to_block_number = parameters
