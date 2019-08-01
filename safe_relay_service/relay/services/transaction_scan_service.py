@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from logging import getLogger
 from typing import Any, List, Optional, Set, Tuple
 
@@ -15,7 +15,7 @@ from ..utils import chunks
 logger = getLogger(__name__)
 
 
-class TransactionScanService:
+class TransactionScanService(ABC):
     def __init__(self, ethereum_client: EthereumClient, confirmations: int = 10,
                  block_process_limit: int = 10000, updated_blocks_behind: int = 100,
                  query_chunk_size: int = 100, safe_creation_threshold: int = 150000):
