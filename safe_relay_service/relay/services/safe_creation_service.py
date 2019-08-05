@@ -40,6 +40,10 @@ class NotEnoughFundingForCreation(SafeCreationServiceException):
     pass
 
 
+class SafeAlreadyExistsException(SafeCreationServiceException):
+    pass
+
+
 class SafeInfo(NamedTuple):
     address: str
     nonce: int
@@ -129,8 +133,10 @@ class SafeCreationService:
                                                        payment_token_eth_value=payment_token_eth_value,
                                                        fixed_creation_cost=self.safe_fixed_creation_cost)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
-                                                    master_copy=safe_creation_tx.master_copy)
+        safe_contract = SafeContract.objects.create(
+            address=safe_creation_tx.safe_address,
+            master_copy=safe_creation_tx.master_copy
+        )
 
         # Enable tx and erc20 tracing
         SafeTxStatus.objects.create(safe=safe_contract,
@@ -181,9 +187,16 @@ class SafeCreationService:
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
 
-        safe_contract = SafeContract.objects.create(address=safe_creation_tx.safe_address,
-                                                    master_copy=safe_creation_tx.master_copy_address)
+        safe_contract, created = SafeContract.objects.get_or_create(
+            address=safe_creation_tx.safe_address,
+            defaults={
+                'master_copy': safe_creation_tx.master_copy_address
+            })
 
+        if not created:
+            raise SafeAlreadyExistsException(f'Safe={safe_contract.address} cannot be created, already exists')
+
+        # Enable tx and erc20 tracing
         SafeTxStatus.objects.create(safe=safe_contract,
                                     initial_block_number=current_block_number,
                                     tx_block_number=current_block_number,
