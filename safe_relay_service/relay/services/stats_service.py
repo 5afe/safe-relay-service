@@ -1,6 +1,6 @@
 import datetime
 from logging import getLogger
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -68,9 +68,9 @@ class StatsService:
         return balances
 
     def get_relay_history_stats(self, from_date: datetime.datetime = None,
-                                to_date: datetime.datetime = None) -> Dict[str, any]:
+                                to_date: datetime.datetime = None) -> Dict[str, Any]:
 
-        from_date = from_date if from_date else datetime.datetime(2018, 1, 1, tzinfo=utc)
+        from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
 
         def add_time_filter(queryset):
@@ -82,6 +82,8 @@ class StatsService:
                     created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')
                                                                                        ).order_by('created_date'),
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
+                'average_deploy_time_total_seconds':
+                    SafeContract.objects.get_average_deploy_time_total_grouped(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage_grouped(from_date, to_date),
                 'funds_stored': {
                     'ether': SafeContract.objects.get_total_balance_grouped(from_date, to_date),
@@ -103,9 +105,9 @@ class StatsService:
         }
 
     def get_relay_stats(self, from_date: datetime.datetime = None,
-                        to_date: datetime.datetime = None) -> Dict[str, any]:
+                        to_date: datetime.datetime = None) -> Dict[str, Any]:
 
-        from_date = from_date if from_date else datetime.datetime(2018, 1, 1, tzinfo=utc)
+        from_date = from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         to_date = to_date if to_date else timezone.now()
 
         def add_time_filter(queryset):
@@ -117,6 +119,8 @@ class StatsService:
                 'deployed': deployed,
                 'not_deployed': add_time_filter(SafeContract.objects.all()).count() - deployed,
                 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
+                'average_deploy_time_total_seconds':
+                    SafeContract.objects.get_average_deploy_time_total(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage(from_date, to_date),
                 'funds_stored': {
                     'ether': SafeContract.objects.get_total_balance(from_date, to_date),  #FIXME

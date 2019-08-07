@@ -1,5 +1,8 @@
 from logging import getLogger
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
+
+from django.db import IntegrityError
+from django.utils import timezone
 
 from eth_account import Account
 from packaging.version import Version
@@ -131,7 +134,7 @@ class TransactionService:
         return refund_receiver == NULL_ADDRESS
 
     @staticmethod
-    def _is_valid_gas_token(address: str) -> float:
+    def _is_valid_gas_token(address: Optional[str]) -> float:
         """
         :param address: Token address
         :return: bool if gas token, false otherwise
@@ -276,9 +279,10 @@ class TransactionService:
         """
 
         safe_contract = SafeContract.objects.get(address=safe_address)
+        created = timezone.now()
 
-        if SafeMultisigTx.objects.filter(safe=safe_address, nonce=nonce).exists():
-            raise SafeMultisigTxExists('Tx with nonce=%d for safe=%s already exists in DB' % (nonce, safe_address))
+        if SafeMultisigTx.objects.filter(safe=safe_contract, nonce=nonce).exists():
+            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB')
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = signatures_to_bytes(signature_pairs)
@@ -303,22 +307,27 @@ class TransactionService:
 
         ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
 
-        return SafeMultisigTx.objects.create(
-            safe=safe_contract,
-            ethereum_tx=ethereum_tx,
-            to=to,
-            value=value,
-            data=data,
-            operation=operation,
-            safe_tx_gas=safe_tx_gas,
-            data_gas=base_gas,
-            gas_price=gas_price,
-            gas_token=None if gas_token == NULL_ADDRESS else gas_token,
-            refund_receiver=refund_receiver,
-            nonce=nonce,
-            signatures=signatures_packed,
-            safe_tx_hash=safe_tx_hash,
-        )
+        # Fix race conditions for tx being created at the same time
+        try:
+            return SafeMultisigTx.objects.create(
+                created=created,
+                safe=safe_contract,
+                ethereum_tx=ethereum_tx,
+                to=to,
+                value=value,
+                data=data,
+                operation=operation,
+                safe_tx_gas=safe_tx_gas,
+                data_gas=base_gas,
+                gas_price=gas_price,
+                gas_token=None if gas_token == NULL_ADDRESS else gas_token,
+                refund_receiver=refund_receiver,
+                nonce=nonce,
+                signatures=signatures_packed,
+                safe_tx_hash=safe_tx_hash,
+            )
+        except IntegrityError as exc:
+            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB') from exc
 
     def _send_multisig_tx(self,
                           safe_address: str,
@@ -334,7 +343,7 @@ class TransactionService:
                           safe_nonce: int,
                           signatures: bytes,
                           tx_gas=None,
-                          block_identifier='pending') -> Tuple[bytes, bytes, Dict[str, any]]:
+                          block_identifier='latest') -> Tuple[bytes, bytes, Dict[str, Any]]:
         """
         This function calls the `send_multisig_tx` of the Safe, but has some limitations to prevent abusing
         the relay

@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
@@ -98,12 +98,12 @@ class SafeContract(TimeStampedModel):
     def get_balance(self) -> int:
         return InternalTx.objects.calculate_balance(self.address)
 
-    def get_tokens_with_balance(self) -> List[Dict[str, any]]:
+    def get_tokens_with_balance(self) -> List[Dict[str, Any]]:
         return EthereumEvent.objects.erc20_tokens_with_balance(self.address)
 
 
 class SafeCreationManager(models.Manager):
-    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+    def get_tokens_usage(self) -> Optional[List[Dict[str, Any]]]:
         """
         :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
         """
@@ -146,20 +146,6 @@ class SafeCreation(TimeStampedModel):
         return self.gas * self.gas_price
 
 
-class SafeCreation2Manager(models.Manager):
-    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
-        """
-        :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
-        """
-        total = self.deployed_and_checked().annotate(_x=Value(1)).values('_x').annotate(total=Count('_x')
-                                                                                        ).values('total')
-        return self.deployed_and_checked().values('payment_token').annotate(
-            total=Subquery(total, output_field=models.IntegerField())
-        ).annotate(
-            number=Count('safe_id'), percentage=Cast(100.0 * Count('pk') / F('total'),
-                                                     models.FloatField()))
-
-
 class SafeCreation2QuerySet(models.QuerySet):
     def deployed_and_checked(self):
         return self.exclude(
@@ -183,7 +169,7 @@ class SafeCreation2QuerySet(models.QuerySet):
 
 
 class SafeCreation2(TimeStampedModel):
-    objects = SafeCreation2Manager.from_queryset(SafeCreation2QuerySet)()
+    objects = SafeCreationManager.from_queryset(SafeCreation2QuerySet)()
     safe = models.OneToOneField(SafeContract, on_delete=models.CASCADE, primary_key=True)
     master_copy = EthereumAddressField()
     proxy_factory = EthereumAddressField()
@@ -283,7 +269,7 @@ class SafeFunding(TimeStampedModel):
 
 
 class EthereumBlockManager(models.Manager):
-    def create_from_block(self, block: Dict[str, any]) -> 'EthereumBlock':
+    def create_from_block(self, block: Dict[str, Any]) -> 'EthereumBlock':
         return super().create(
             number=block['number'],
             gas_limit=block['gasLimit'],
@@ -303,7 +289,7 @@ class EthereumBlock(models.Model):
 
 
 class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, any], tx_hash: bytes, gas_used: Optional[int] = None,
+    def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
                        ethereum_block: Optional[EthereumBlock] = None):
         return super().create(
             block=ethereum_block,
@@ -374,7 +360,7 @@ class SafeMultisigTxManager(models.Manager):
             average_execution_time=Avg('interval')
         ).values('created_date', 'average_execution_time').order_by('created_date')
 
-    def get_tokens_usage(self) -> Optional[List[Dict[str, any]]]:
+    def get_tokens_usage(self) -> Optional[List[Dict[str, Any]]]:
         """
         :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
         """
@@ -387,7 +373,7 @@ class SafeMultisigTxManager(models.Manager):
             number=Count('pk'), percentage=Cast(100.0 * Count('pk') / F('total'), models.FloatField())
         )
 
-    def get_tokens_usage_grouped(self) -> Optional[List[Dict[str, any]]]:
+    def get_tokens_usage_grouped(self) -> Optional[List[Dict[str, Any]]]:
         """
         :return: List of Dict 'gas_token', 'total', 'number', 'percentage'
         """
@@ -437,6 +423,31 @@ class SafeMultisigTx(TimeStampedModel):
 
 
 class InternalTxManager(models.Manager):
+    def get_or_create_from_trace(self, trace: Dict[str, Any], ethereum_tx: EthereumTx):
+        tx_type = EthereumTxType.parse(trace['type'])
+        call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
+        trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
+        internal_tx, _ = self.get_or_create(
+            ethereum_tx=ethereum_tx,
+            trace_address=trace_address_str,
+            defaults={
+                '_from': trace['action'].get('from'),
+                'gas': trace['action'].get('gas', 0),
+                'data': trace['action'].get('input') or trace['action'].get('init'),
+                'to': trace['action'].get('to') or trace['action'].get('address'),
+                'value': trace['action'].get('value') or trace['action'].get('balance', 0),
+                'gas_used': (trace.get('result') or {}).get('gasUsed', 0),
+                'contract_address': (trace.get('result') or {}).get('address'),
+                'code': (trace.get('result') or {}).get('code'),
+                'output': (trace.get('result') or {}).get('output'),
+                'refund_address': trace['action'].get('refundAddress'),
+                'tx_type': tx_type.value,
+                'call_type': call_type.value if call_type else None,
+                'error': trace.get('error'),
+            }
+        )
+        return internal_tx
+
     def balance_for_all_safes(self):
         # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
 
@@ -589,7 +600,7 @@ class EthereumEventManager(models.Manager):
         """
         return self.erc20_events(address=address).values_list('token_address', flat=True).distinct()
 
-    def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, any]]:
+    def erc20_tokens_with_balance(self, address: str) -> List[Dict[str, Any]]:
         """
         :return: List of dictionaries {'token_address': str, 'balance': int}
         """
@@ -603,14 +614,14 @@ class EthereumEventManager(models.Manager):
             ))
         ).order_by('-balance').values('token_address', 'balance')
 
-    def get_or_create_erc20_or_721_event(self, decoded_event: Dict[str, any]):
+    def get_or_create_erc20_or_721_event(self, decoded_event: Dict[str, Any]):
         if 'value' in decoded_event['args']:
             return self.get_or_create_erc20_event(decoded_event)
         elif 'tokenId' in decoded_event['args']:
             return self.get_or_create_erc721_event(decoded_event)
         raise ValueError('Invalid ERC20 or ERC721 event %s' % decoded_event)
 
-    def get_or_create_erc20_event(self, decoded_event: Dict[str, any]):
+    def get_or_create_erc20_event(self, decoded_event: Dict[str, Any]):
         return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
                                   log_index=decoded_event['logIndex'],
                                   defaults={
@@ -623,7 +634,7 @@ class EthereumEventManager(models.Manager):
                                       }
                                   })
 
-    def get_or_create_erc721_event(self, decoded_event: Dict[str, any]):
+    def get_or_create_erc721_event(self, decoded_event: Dict[str, Any]):
         return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
                                   log_index=decoded_event['logIndex'],
                                   defaults={

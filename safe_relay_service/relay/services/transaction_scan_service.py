@@ -1,10 +1,9 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from logging import getLogger
 from typing import Any, List, Optional, Set, Tuple
 
 from django.db.models import Min
 
-from hexbytes import HexBytes
 from web3 import Web3
 
 from gnosis.eth import EthereumClient
@@ -16,7 +15,7 @@ from ..utils import chunks
 logger = getLogger(__name__)
 
 
-class TransactionScanService:
+class TransactionScanService(ABC):
     def __init__(self, ethereum_client: EthereumClient, confirmations: int = 10,
                  block_process_limit: int = 10000, updated_blocks_behind: int = 100,
                  query_chunk_size: int = 100, safe_creation_threshold: int = 150000):
@@ -154,7 +153,7 @@ class TransactionScanService:
         return SafeTxStatus.objects.filter(safe_id__in=safe_addresses
                                            ).update(**{self.database_field: to_block_number})
 
-    def get_parameters_for_search(self, safe_addresses: List[str]) -> Optional[Tuple[int, int]]:
+    def get_block_numbers_for_search(self, safe_addresses: List[str]) -> Optional[Tuple[int, int]]:
         """
         :param safe_addresses:
         :return: Minimum common `from_block_number` and `to_block_number` for search of relevant `tx hashes`
@@ -192,7 +191,7 @@ class TransactionScanService:
         assert all([Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]), \
             'A safe address has invalid checksum: %s' % safe_addresses
 
-        parameters = self.get_parameters_for_search(safe_addresses)
+        parameters = self.get_block_numbers_for_search(safe_addresses)
         if parameters is None:
             return
         from_block_number, to_block_number = parameters

@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from django.core.management.base import BaseCommand
@@ -175,7 +175,7 @@ class Command(BaseCommand):
         assert r.ok, "Error sending signal that safe is funded %s" % r.content
         return safe_address
 
-    def check_safe_deployed(self, safe_address, owners, master_copy_address) -> Dict[str, any]:
+    def check_safe_deployed(self, safe_address, owners, master_copy_address) -> Dict[str, Any]:
         while True:
             if self.w3.eth.getCode(safe_address):
                 break

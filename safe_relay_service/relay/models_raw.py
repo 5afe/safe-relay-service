@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import connection, models
 
@@ -34,6 +34,40 @@ def run_raw_query(query: str, *arguments):
 class SafeContractManagerRaw(models.Manager):
     def get_average_deploy_time(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
         query = """
+        SELECT AVG(A.created - B.first_transfer) FROM
+          (SELECT address, timestamp as created
+           FROM relay_safecontract S JOIN relay_internaltx I ON S.address = I.contract_address
+           JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number) A JOIN
+          (SELECT address, MIN(timestamp) as first_transfer
+           FROM relay_safecontract S JOIN relay_internaltx I
+           ON S.address = I.to JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number GROUP BY address) B ON A.address = B.address
+        WHERE A.created BETWEEN  %s AND %s
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(query, [from_date, to_date])
+            return cursor.fetchone()[0]
+
+    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
+        query = """
+        SELECT DATE(A.created) as created_date, AVG(A.created - B.first_transfer) as average_deploy_time FROM
+          (SELECT address, timestamp as created
+           FROM relay_safecontract S JOIN relay_internaltx I ON S.address = I.contract_address
+           JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number) A JOIN
+          (SELECT address, MIN(timestamp) as first_transfer
+           FROM relay_safecontract S JOIN relay_internaltx I
+           ON S.address = I.to JOIN relay_ethereumtx E ON I.ethereum_tx_id = E.tx_hash
+           JOIN relay_ethereumblock B ON E.block_id = B.number GROUP BY address) B ON A.address = B.address
+        WHERE A.created BETWEEN  %s AND %s
+        GROUP BY DATE(A.created)
+        """
+        return run_raw_query(query, from_date, to_date)
+
+    def get_average_deploy_time_total(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+        query = """
         SELECT AVG(EB.timestamp - SC.created)
         FROM (SELECT created, tx_hash FROM relay_safecreation
               UNION SELECT created, tx_hash FROM relay_safecreation2) AS SC
@@ -44,7 +78,7 @@ class SafeContractManagerRaw(models.Manager):
             cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
 
-    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+    def get_average_deploy_time_total_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
         query = """
         SELECT DATE(SC.created) as created_date, AVG(EB.timestamp - SC.created) as average_deploy_time
         FROM (SELECT created, tx_hash FROM relay_safecreation
@@ -63,22 +97,28 @@ class SafeContractManagerRaw(models.Manager):
         """
         query = """
         SELECT * FROM
-        (SELECT DISTINCT DATE(EB.timestamp) AS date, SUM(IT.value) OVER(ORDER BY DATE(EB.timestamp)) as balance
-         FROM (SELECT value, error, call_type, ethereum_tx_id
-               FROM relay_safecontract
-               JOIN relay_internaltx ON address="to" UNION
-               SELECT -value, error, call_type, ethereum_tx_id
-               FROM relay_safecontract
-               JOIN relay_internaltx ON address="_from") AS IT
-         JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
-         JOIN relay_ethereumblock EB ON ET.block_id=EB.number
-         WHERE IT.error IS NULL AND IT.call_type != 1) AS RESULT
+        (SELECT DISTINCT date, SUM(value) OVER(ORDER BY date) as balance
+         FROM (SELECT DATE(EB.timestamp) as date, IT.value as value FROM
+                (SELECT value, error, call_type, ethereum_tx_id
+                 FROM relay_safecontract
+                 JOIN relay_internaltx ON address="to" UNION
+                 SELECT -value, error, call_type, ethereum_tx_id
+                 FROM relay_safecontract
+                 JOIN relay_internaltx ON address="_from"
+                ) AS IT
+                JOIN relay_ethereumtx ET ON IT.ethereum_tx_id=ET.tx_hash
+                JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+                WHERE IT.error IS NULL AND IT.call_type != 1
+               UNION SELECT DATE(dd), 0
+                     FROM generate_series(%s, %s, '1 day'::interval) dd
+              ) AS PREPARED
+        ) AS RESULT
         WHERE RESULT.date BETWEEN %s AND %s
         ORDER BY RESULT.date
         """
-        return run_raw_query(query, from_date, to_date)
+        return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
+    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
         """
         :return: Dictionary of {token_address: str, balance: decimal}
         """
@@ -98,33 +138,38 @@ class SafeContractManagerRaw(models.Manager):
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, any]:
+    def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
         """
         :return: Dictionary of {date: datetime.date, token_address: str, balance: decimal}
         """
         query = """
-        SELECT *
-        FROM (SELECT DISTINCT
-               DATE(EB.timestamp) as date,
-               token_address,
-               SUM(EE.value) OVER(PARTITION BY token_address ORDER BY DATE(EB.timestamp)) as balance
-        FROM (SELECT SC.created, ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
-              FROM relay_safecontract SC JOIN relay_ethereumevent EV
-              ON SC.address = EV.arguments->>'from'
-              WHERE arguments ? 'value' AND topic='{0}'
-              UNION SELECT SC.created, ethereum_tx_id, address, token_address, (arguments->>'value')::decimal
-              FROM relay_safecontract SC JOIN relay_ethereumevent EV
-              ON SC.address = EV.arguments->>'to'
-              WHERE arguments ? 'value' AND topic='{0}') AS EE
-        JOIN relay_ethereumtx ET ON EE.ethereum_tx_id=ET.tx_hash
-        JOIN relay_ethereumblock EB ON ET.block_id=EB.number) AS RESULT
+        SELECT * FROM
+        (SELECT DISTINCT date, token_address, SUM(value) OVER(PARTITION BY token_address ORDER BY date) as balance
+         FROM (SELECT DATE(EB.timestamp) as date, EE.value as value, EE.token_address as token_address FROM
+               (SELECT SC.created, ethereum_tx_id, address, token_address, -(arguments->>'value')::decimal AS value
+                FROM relay_safecontract SC JOIN relay_ethereumevent EV
+                ON SC.address = EV.arguments->>'from'
+                WHERE arguments ? 'value' AND topic='{0}'
+                UNION SELECT SC.created, ethereum_tx_id, address, token_address, (arguments->>'value')::decimal
+                FROM relay_safecontract SC JOIN relay_ethereumevent EV
+                ON SC.address = EV.arguments->>'to'
+                WHERE arguments ? 'value' AND topic='{0}'
+               ) AS EE
+               JOIN relay_ethereumtx ET ON EE.ethereum_tx_id=ET.tx_hash
+               JOIN relay_ethereumblock EB ON ET.block_id=EB.number
+               UNION SELECT DATE(dd), 0, T.token_address
+                     FROM generate_series(%s, %s, '1 day'::interval) dd,
+                          (SELECT DISTINCT token_address FROM relay_ethereumevent WHERE arguments ? 'value'
+                                                                                        AND topic='{0}' ) AS T
+               ) AS PREPARED
+        ) AS RESULT
         WHERE RESULT.date BETWEEN %s AND %s
         ORDER BY RESULT.date;
        """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
 
-        return run_raw_query(query, from_date, to_date)
+        return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Optional[int]:
         from .models import EthereumTxCallType
         query = """
         SELECT SUM(IT.value) AS value
@@ -141,6 +186,7 @@ class SafeContractManagerRaw(models.Manager):
             value = cursor.fetchone()[0]
             if value is not None:
                 return int(value)
+        return None
 
     def get_total_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
         from .models import EthereumTxCallType
@@ -196,7 +242,7 @@ class SafeContractManagerRaw(models.Manager):
         return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage(self, from_date: datetime.datetime,
-                                  to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
+                                  to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT payment_token, COUNT(*) OVER(PARTITION BY payment_token) as number,
                         100.0 * COUNT(*) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
@@ -209,7 +255,7 @@ class SafeContractManagerRaw(models.Manager):
         return run_raw_query(query, from_date, to_date)
 
     def get_creation_tokens_usage_grouped(self, from_date: datetime.datetime,
-                                          to_date: datetime.datetime) -> Optional[List[Dict[str, any]]]:
+                                          to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT DATE(SC.created), payment_token,
                         COUNT(*) OVER(PARTITION BY DATE(SC.created), payment_token) as number,

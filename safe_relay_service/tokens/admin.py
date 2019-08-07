@@ -11,7 +11,7 @@ class PriceOracleAdmin(admin.ModelAdmin):
 
 
 @admin.register(PriceOracleTicker)
-class PriceOracleTicker(admin.ModelAdmin):
+class PriceOracleTickerAdmin(admin.ModelAdmin):
     list_display = ('token_symbol', 'price_oracle_name', 'ticker', 'inverse', 'price')
     list_filter = (('token', admin.RelatedOnlyFieldListFilter), 'inverse')
     list_select_related = ('price_oracle', 'token')

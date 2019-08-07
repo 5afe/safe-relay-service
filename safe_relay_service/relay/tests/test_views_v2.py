@@ -86,6 +86,11 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         # Payment includes deployment gas + gas to send eth to the deployer
         self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost())
 
+        # Test exception when same Safe is created
+        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('SafeAlreadyExistsException', response.json()['exception'])
+
         data = {
             'salt_nonce': -1,
             'owners': owners,

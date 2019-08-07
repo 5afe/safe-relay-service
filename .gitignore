@@ -57,6 +57,7 @@ typings/
 .coverage
 .vagrant
 .idea/
+.mypy_cache
 *.pyc
 *~
 
