@@ -10,7 +10,7 @@ echo "==> Setup Safe Relay Task..."
 python manage.py setup_safe_relay
 if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
     echo "==> Deploy Safe master copy..."
-    python manage.py deploy_safe_master_copy
+    python manage.py deploy_safe_contracts
 fi
 
 echo "==> Collecting statics ... "
