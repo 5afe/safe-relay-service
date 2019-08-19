@@ -38,7 +38,7 @@ class TestModels(TestCase):
         token = TokenFactory(fixed_eth_conversion=None)
         with self.assertRaises(CannotGetTokenPriceFromApi):
             token.get_eth_value()
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xd26114cd6EE289AccF82350c8d8487fedB8A0C07-WETH')
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
         price = token.get_eth_value()
         self.assertIsInstance(price, float)
         self.assertGreater(price, .0)
@@ -58,11 +58,11 @@ class TestModels(TestCase):
         price_oracle = PriceOracle.objects.get(name='DutchX')
 
         token = TokenFactory(fixed_eth_conversion=None)
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xd26114cd6EE289AccF82350c8d8487fedB8A0C07-WETH')
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
         price = token.get_eth_value()
 
         token = TokenFactory(fixed_eth_conversion=None)
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xd26114cd6EE289AccF82350c8d8487fedB8A0C07-WETH', inverse=True)
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH', inverse=True)
         price_inverted = token.get_eth_value()
 
         self.assertAlmostEqual(1 / price, price_inverted, delta=10.0)
