@@ -10,7 +10,13 @@ python manage.py setup_gas_station
 echo "==> $(date +%H:%M:%S) ==> Setting up service... "
 python manage.py setup_service
 
+if [ "${DEPLOY_PROXY_FACTORY_ON_INIT:-0}" = 1 ]; then
+    echo "==> Deploy proxy factory..."
+    python manage.py deploy_proxy_factory
+fi
+
 echo "==> $(date +%H:%M:%S) ==> Collecting statics... "
+
 DOCKER_SHARED_DIR=/nginx
 rm -rf $DOCKER_SHARED_DIR/*
 # STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput &
