@@ -8,6 +8,8 @@ ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
+COPY requirements-dev.txt ./
+COPY requirements-test.txt ./
 COPY requirements.txt ./
 RUN set -ex \
 	&& buildDeps=" \
@@ -18,7 +20,7 @@ RUN set -ex \
 		" \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \
-    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -r requirements-dev.txt \
     && apt-get purge -y --auto-remove $buildDeps \
     && rm -rf /var/lib/apt/lists/* \
     && find /usr/local \

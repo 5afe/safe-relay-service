@@ -4,11 +4,13 @@ FROM python:3.8-alpine
 ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
+COPY requirements-dev.txt ./
+COPY requirements-test.txt ./
 COPY requirements.txt ./
 
 # Signal handling for PID1 https://github.com/krallin/tini
-RUN apk add --update --no-cache tini libpq && \
-    apk add --no-cache --virtual .build-dependencies postgresql-dev alpine-sdk libffi-dev && \
+RUN apk add --update --no-cache tini libpq postgresql-client && \
+    apk add --no-cache --virtual .build-dependencies postgresql-dev alpine-sdk libffi-dev autoconf automake libtool gmp-dev linux-headers && \
     pip install --no-cache-dir -r requirements.txt && \
     apk del .build-dependencies && \
     find /usr/local \
