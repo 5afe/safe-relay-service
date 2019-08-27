@@ -180,13 +180,11 @@ class SafeCreationService:
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
-        logger.debug('Building safe create2 tx with gas price %d', gas_price)
         safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
                                                       self.proxy_factory.address, salt_nonce, owners, threshold,
                                                       gas_price, payment_token,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
-
         safe_contract, created = SafeContract.objects.get_or_create(
             address=safe_creation_tx.safe_address,
             defaults={
