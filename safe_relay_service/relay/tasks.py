@@ -261,8 +261,19 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     try:
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             try:
+                try:
+                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
+                    print(safe_creation)
+                    FundingServiceProvider().send_eth_to(safe_address,
+                                   safe_creation.wei_estimated_deploy_cost(),
+                                   gas_price=safe_creation.gas_price_estimated,
+                                   retry=False)
+                except SafeCreation.DoesNotExist:
+                    print('safe does not exist')
+                    pass
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
             except NotEnoughFundingForCreation:
+                print('not enough funding')
                 if retry:
                     raise self.retry(countdown=30)
     except LockError:
