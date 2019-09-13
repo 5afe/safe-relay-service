@@ -25,10 +25,10 @@ class TestCommands(TestCase):
         call_command('deploy_pending_safes', stdout=buf)
         self.assertIn('All safes are deployed', buf.getvalue())
 
-    def test_deploy_safe_master_copy(self):
+    def test_deploy_safe_contracts(self):
         buf = StringIO()
-        call_command('deploy_safe_master_copy', stdout=buf)
-        self.assertIn('Master copy has been deployed on', buf.getvalue())
+        call_command('deploy_safe_contracts', stdout=buf)
+        self.assertEqual(buf.getvalue().count('Contract has been deployed on'), 3)
 
     def test_setup_internal_txs(self):
         buf = StringIO()

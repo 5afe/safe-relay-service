@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-celery -A safe_relay_service.taskapp worker -l INFO
+exec celery -A safe_relay_service.taskapp worker -l INFO
