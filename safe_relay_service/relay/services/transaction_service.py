@@ -18,6 +18,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
+from safe_relay_service.relay.circles import Circles
 
 from ..models import EthereumTx, SafeContract, SafeMultisigTx
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
@@ -143,7 +144,10 @@ class TransactionService:
         if address == NULL_ADDRESS:
             return True
         try:
-            Token.objects.get(address=address, gas=True)
+            #HERE
+            is_token = Circles().is_circles_token(address)
+            logger.info(is_token)
+            #Token.objects.get(address=address, gas=True)
             return True
         except Token.DoesNotExist:
             logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % address)
