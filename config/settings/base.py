@@ -330,3 +330,10 @@ TOKEN_LOGO_EXTENSION = env('TOKEN_LOGO_EXTENSION', default='.png')
 
 # Notifications
 SLACK_API_WEBHOOK = env('SLACK_API_WEBHOOK', default=None)
+
+INTERNAL_TXS_BLOCK_PROCESS_LIMIT = env('INTERNAL_TXS_BLOCK_PROCESS_LIMIT', default=100000)
+
+# Circles
+# ------------------------------------------------------------------------------
+CIRCLES_HUB_ADDRESS = env('CIRCLES_HUB_ADDRESS', default='0x' + '0' * 39 + '1')
+
