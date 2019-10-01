@@ -25,9 +25,6 @@ class Circles:
     def is_circles_token(self, address):
         call_args = {
             'to': settings.CIRCLES_HUB_ADDRESS,
-            'value': 0,
-            'gas': 0,
-            'gasPrice': 0,
             'data': '0xa18b506b' + self.pack_address(address)
         }
         return self.ethereum_client.w3.eth.call(call_args)
