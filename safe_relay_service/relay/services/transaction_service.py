@@ -356,7 +356,9 @@ class TransactionService:
         # Make sure refund receiver is set to 0x0 so that the contract refunds the gas costs to tx.origin
         if not self._check_refund_receiver(refund_receiver):
             raise InvalidRefundReceiver(refund_receiver)
-
+        
+        if not self._is_valid_gas_token(gas_token):
+            raise InvalidGasToken(gas_token)
         self._check_safe_gas_price(gas_token, gas_price)
 
         # Make sure proxy contract is ours
