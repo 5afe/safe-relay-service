@@ -61,6 +61,7 @@ DJANGO_APPS = [
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     # 'django.contrib.humanize', # Handy template tags
 
 ]
@@ -81,6 +82,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -192,6 +194,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_ignore_result
 CELERY_TASK_IGNORE_RESULT = True
+
+# Django CORS
+# ------------------------------------------------------------------------------
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Django REST Framework
 # ------------------------------------------------------------------------------
