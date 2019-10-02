@@ -3,6 +3,7 @@ cachetools==3.1.1
 celery==4.3.0
 django-authtools==1.7.0
 django-celery-beat==1.5.0
+django-cors-headers==3.1.1
 django-environ==0.4.5
 django-filter==2.1.0
 django-model-utils==3.2.0
