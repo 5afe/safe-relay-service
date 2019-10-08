@@ -195,8 +195,7 @@ class TransactionService:
     def _estimate_tx_gas_price(self, base_gas_price: int, gas_token: Optional[str] = None) -> int:
         if gas_token and gas_token != NULL_ADDRESS:
             try:
-                gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                estimated_gas_price = gas_token_model.calculate_gas_price(base_gas_price)
+                return Circles().estimate_gas_price()
             except Token.DoesNotExist:
                 raise InvalidGasToken('Gas token %s not found' % gas_token)
         else:
