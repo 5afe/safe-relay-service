@@ -297,16 +297,18 @@ class TransactionService:
         :raises: TransactionServiceException: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
         """
 
+        logger.info('create_multisig_tx called for safe=%s and nonce=%s', safe_address, nonce)
         safe_contract, _ = SafeContract.objects.get_or_create(address=safe_address,
                                                               defaults={'master_copy': NULL_ADDRESS})
         created = timezone.now()
 
         if SafeMultisigTx.objects.filter(safe=safe_contract, nonce=nonce).exists():
-            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB')
+            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB. Skipping TX.')
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = signatures_to_bytes(signature_pairs)
 
+        logger.info('create_multisig_tx executing tx for safe=%s and nonce=%s', safe_address, nonce)
         try:
             tx_hash, safe_tx_hash, tx = self._send_multisig_tx(
                 safe_address,
@@ -347,7 +349,7 @@ class TransactionService:
                 safe_tx_hash=safe_tx_hash,
             )
         except IntegrityError as exc:
-            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB') from exc
+            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB. TX was sent') from exc
 
     def _send_multisig_tx(self,
                           safe_address: str,
@@ -409,8 +411,13 @@ class TransactionService:
                                        "safe-tx-gas=%d and base-gas=%d" %
                                        (safe_tx_gas_estimation, safe_base_gas_estimation, safe_tx_gas, base_gas))
 
-        # We use fast tx gas price, if not txs could be stuck
-        tx_gas_price = self._get_configured_gas_price()
+        # Use user provided gasPrice for TX if more than our stardard gas price
+        standard_gas = self._get_configured_gas_price()
+        if gas_price > standard_gas :
+            tx_gas_price = gas_price
+        else:
+            tx_gas_price = standard_gas
+
         tx_sender_private_key = self.tx_sender_account.key
         tx_sender_address = Account.from_key(tx_sender_private_key).address
 
@@ -435,8 +442,10 @@ class TransactionService:
 
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 
+        logger.info('_send_multisig_tx about to execute tx for safe=%s and nonce=%s', safe_address, safe_nonce)
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                timeout=60 * 2) as tx_nonce:
+            logger.info('_send_multisig_tx executing tx for safe=%s and nonce=%s', safe_address, safe_nonce)
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
             return tx_hash, safe_tx.safe_tx_hash, tx

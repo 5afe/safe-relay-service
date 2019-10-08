@@ -161,7 +161,7 @@ class SafeCreation2(TimeStampedModel):
     salt_nonce = Uint256Field()
     owners = ArrayField(EthereumAddressField())
     threshold = Uint256Field()
-    # to = EthereumAddressField(null=True)  # Contract address for optional delegate call
+    to = EthereumAddressField(null=True)  # Contract address for optional delegate call
     # data = models.BinaryField(null=True)  # Data payload for optional delegate call
     payment_token = EthereumAddressField(null=True)
     payment = Uint256Field()
@@ -171,6 +171,7 @@ class SafeCreation2(TimeStampedModel):
     gas_price_estimated = Uint256Field()
     tx_hash = Sha3HashField(unique=True, null=True, default=None)
     block_number = models.IntegerField(null=True, default=None)  # If mined
+    callback = EthereumAddressField(null=True)  # Contract address for optional proxy creation callback
 
     class Meta:
         verbose_name_plural = "Safe creation2s"

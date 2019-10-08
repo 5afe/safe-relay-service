@@ -40,7 +40,7 @@ USE_TZ = True
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
-    'default': env.db('DATABASE_URL'),
+    'default': env.db('DATABASE_URL', default='psql://postgres@db:5432/postgres'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -65,6 +65,7 @@ DJANGO_APPS = [
 
 ]
 THIRD_PARTY_APPS = [
+    'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
     'drf_yasg',
@@ -81,6 +82,8 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -89,6 +92,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ORIGIN_ALLOW_ALL = True
 
 # STATIC
 # ------------------------------------------------------------------------------
@@ -330,3 +335,11 @@ TOKEN_LOGO_EXTENSION = env('TOKEN_LOGO_EXTENSION', default='.png')
 
 # Notifications
 SLACK_API_WEBHOOK = env('SLACK_API_WEBHOOK', default=None)
+
+SAFE_AUTO_FUND = env.bool('SAFE_AUTO_FUND', default=False)
+SAFE_AUTO_APPROVE_TOKEN = env.bool('SAFE_AUTO_APPROVE_TOKEN', default=False)
+
+SAFE_DEFAULT_TOKEN_ADDRESS = env('SAFE_DEFAULT_TOKEN_ADDRESS', default='')
+SAFE_DEFAULT_TOKEN_NAME = env('SAFE_DEFAULT_TOKEN_NAME', default='DAI')
+SAFE_DEFAULT_TOKEN_SYMBOL = env('SAFE_DEFAULT_TOKEN_SYMBOL', default='DAI')
+SAFE_DEFAULT_TOKEN_DECIMALS = env.int('SAFE_DEFAULT_TOKEN_DECIMALS', default=2)
