@@ -7,4 +7,4 @@ RUN apk add --no-cache \
     && npm config set unsafe-perm true && npm install -g ganache-cli@6.6.0 \
     && apk del --no-cache .build-deps
 
-CMD ["ganache-cli", "-d", "--defaultBalanceEther", "10000", "-a", "10", "--noVMErrorsOnRPCResponse", "--gasLimit", "10000000", "--host", "0.0.0.0"]
+CMD ["ganache-cli", "-d", "--defaultBalanceEther", "10000000", "-a", "10", "--noVMErrorsOnRPCResponse", "--gasLimit", "10000000000", "--host", "0.0.0.0", "--networkId", "105"]
