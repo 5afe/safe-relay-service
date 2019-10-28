@@ -97,10 +97,11 @@ class SafeCreationService:
 
         try:
             token = Token.objects.get(address=address, gas=True)
-            return token.get_eth_value()
         except Token.DoesNotExist:
-            logger.warning('Cannot get value of token in eth: Gas token %s not valid' % address)
-            raise InvalidPaymentToken(address)
+            # Add the token for development purposes.
+            token = Token.objects.create(address=address, name="Cash", symbol="cash", decimals=2, fixed_eth_conversion=1, gas=True)
+
+        return token.get_eth_value()
 
     def _get_configured_gas_price(self) -> int:
         """

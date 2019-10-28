@@ -10,12 +10,12 @@ RUN chmod +x /tini
 
 COPY requirements.txt ./
 RUN set -ex \
-	&& buildDeps=" \
-		build-essential \
-		libssl-dev \
-		libgmp-dev \
-		pkg-config \
-		" \
+  && buildDeps=" \
+    build-essential \
+    libssl-dev \
+    libgmp-dev \
+    pkg-config \
+    " \
     && apt-get update \
     && apt-get install -y --no-install-recommends $buildDeps \
     && pip install --no-cache-dir -r requirements.txt \
