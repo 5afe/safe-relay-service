@@ -1,0 +1,34 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: Docker@1
+  displayName: docker login
+  inputs:
+    command: login
+    containerRegistryType: Container Registry
+    dockerRegistryEndpoint: dockerhub-augurproject
+
+- bash: |
+    set -exuo pipefail
+    docker-compose build
+    docker images
+  displayName: 'docker compose build'
+
+- task: Docker@1
+  displayName: docker logout
+  inputs:
+    command: logout
+    containerRegistryType: Container Registry
+    dockerRegistryEndpoint: dockerhub-augurproject
+
+
+
