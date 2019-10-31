@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from eth_account import Account
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.safe import Safe, ProxyFactory
+from gnosis.safe import ProxyFactory, Safe
 
 
 class Command(BaseCommand):
