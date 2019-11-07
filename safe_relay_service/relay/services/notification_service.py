@@ -51,6 +51,7 @@ class NotificationService:
         message = {
             "type": "safeCreation",
             "safe": safe_address,
+            "owners": owners,
         }
         return self.send_notification(message, owners)
 
