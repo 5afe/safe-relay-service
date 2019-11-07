@@ -51,7 +51,7 @@ class NotificationService:
         message = {
             "type": "safeCreation",
             "safe": safe_address,
-            "owners": owners,
+            "owners": ','.join(owners),  # Firebase just allows strings
         }
         return self.send_notification(message, owners)
 
