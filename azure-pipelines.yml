@@ -21,6 +21,12 @@ steps:
     set -exuo pipefail
     docker-compose build
     docker images
+    docker tag s_scheduler:latest augurproject/safe-relay-service_scheduler:latest
+    docker tag s_web:latest augurproject/safe-relay-service_web:latest
+    docker tag s_worker:latest augurproject/safe-relay-service_worker:latest
+    docker push augurproject/safe-relay-service_scheduler:latest
+    docker push augurproject/safe-relay-service_web:latest
+    docker push augurproject/safe-relay-service_worker:latest
   displayName: 'docker compose build'
 
 - task: Docker@1
