@@ -20,7 +20,7 @@ factory-boy==2.12.0
 faker==1.0.7
 flake8
 gevent==1.4.0
-gnosis-py==1.6.2
+git+git://github.com/AugurProject/gnosis-py.git#gnosis-py
 gunicorn==19.9.0
 hexbytes==0.2.0
 ipdb

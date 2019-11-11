@@ -39,6 +39,7 @@ class SafeCreationSerializer(ThresholdValidatorSerializerMixin, serializers.Seri
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+    data = serializers.CharField(default=b'')
 
 
 class SafeCreation2Serializer(ThresholdValidatorSerializerMixin, serializers.Serializer):
@@ -46,6 +47,7 @@ class SafeCreation2Serializer(ThresholdValidatorSerializerMixin, serializers.Ser
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
+    setup_data = serializers.CharField(default=None, allow_null=True, allow_blank=True)
 
 
 class SafeCreationEstimateSerializer(serializers.Serializer):
@@ -165,6 +167,7 @@ class SafeCreationResponseSerializer(serializers.Serializer):
     payment = serializers.CharField()
     payment_token = EthereumAddressField(allow_null=True, allow_zero_address=True)
     safe = EthereumAddressField()
+    setup_data = serializers.CharField()
     deployer = EthereumAddressField()
     funder = EthereumAddressField()
 

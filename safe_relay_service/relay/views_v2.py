@@ -63,12 +63,14 @@ class SafeCreationView(CreateAPIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            salt_nonce, owners, threshold, payment_token = (serializer.data['salt_nonce'], serializer.data['owners'],
+            salt_nonce, owners, threshold, payment_token, setup_data = (serializer.data['salt_nonce'], serializer.data['owners'],
                                                             serializer.data['threshold'],
-                                                            serializer.data['payment_token'])
+                                                            serializer.data['payment_token'],
+                                                            serializer.data['setup_data'])
 
             safe_creation_service = SafeCreationServiceProvider()
-            safe_creation = safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
+            safe_creation = safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token,
+                                                                  setup_data)
             safe_creation_response_data = SafeCreation2ResponseSerializer(data={
                 'safe': safe_creation.safe.address,
                 'master_copy': safe_creation.master_copy,

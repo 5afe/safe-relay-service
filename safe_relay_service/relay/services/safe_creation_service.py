@@ -166,13 +166,14 @@ class SafeCreationService:
         )
 
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
-                        payment_token: Optional[str]) -> SafeCreation2:
+                        payment_token: Optional[str], setup_data: Optional[str]) -> SafeCreation2:
         """
         Prepare creation tx for a new safe using CREATE2 method
         :param salt_nonce: Random value for solidity `create2` salt
         :param owners: Owners of the new Safe
         :param threshold: Minimum number of users required to operate the Safe
         :param payment_token: Address of the payment token, otherwise `ether` is used
+        :param setup_data: Data used for safe creation delegate call.
         :rtype: SafeCreation2
         :raises: InvalidPaymentToken
         """
@@ -186,7 +187,8 @@ class SafeCreationService:
                                                       self.proxy_factory.address, salt_nonce, owners, threshold,
                                                       gas_price, payment_token,
                                                       payment_token_eth_value=payment_token_eth_value,
-                                                      fixed_creation_cost=self.safe_fixed_creation_cost)
+                                                      fixed_creation_cost=self.safe_fixed_creation_cost,
+                                                      setup_data=HexBytes(setup_data))
 
         safe_contract, created = SafeContract.objects.get_or_create(
             address=safe_creation_tx.safe_address,
