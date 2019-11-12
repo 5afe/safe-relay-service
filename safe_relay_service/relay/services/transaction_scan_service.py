@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 class TransactionScanService(ABC):
     def __init__(self, ethereum_client: EthereumClient, confirmations: int = 10,
-                 block_process_limit: int = 10000, updated_blocks_behind: int = 100,
+                 block_process_limit: int = 10000, updated_blocks_behind: int = 300,
                  query_chunk_size: int = 100, safe_creation_threshold: int = 150000):
         """
         :param ethereum_client:
