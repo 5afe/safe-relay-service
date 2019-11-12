@@ -166,7 +166,7 @@ class SafeCreationService:
         )
 
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
-                        payment_token: Optional[str], setup_data: Optional[str]) -> SafeCreation2:
+                        payment_token: Optional[str], setup_data: Optional[str], to: Optional[str]) -> SafeCreation2:
         """
         Prepare creation tx for a new safe using CREATE2 method
         :param salt_nonce: Random value for solidity `create2` salt
@@ -188,7 +188,8 @@ class SafeCreationService:
                                                       gas_price, payment_token,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost,
-                                                      setup_data=HexBytes(setup_data))
+                                                      setup_data=HexBytes(setup_data),
+                                                      to=to)
 
         safe_contract, created = SafeContract.objects.get_or_create(
             address=safe_creation_tx.safe_address,
@@ -212,7 +213,7 @@ class SafeCreationService:
             salt_nonce=salt_nonce,
             owners=owners,
             threshold=threshold,
-            # to  # Contract address for optional delegate call
+            to=to,  # Contract address for optional delegate call
             # data # Data payload for optional delegate call
             payment_token=None if safe_creation_tx.payment_token == NULL_ADDRESS else safe_creation_tx.payment_token,
             payment=safe_creation_tx.payment,

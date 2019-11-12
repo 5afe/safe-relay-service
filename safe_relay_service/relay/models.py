@@ -176,7 +176,7 @@ class SafeCreation2(TimeStampedModel):
     salt_nonce = Uint256Field()
     owners = ArrayField(EthereumAddressField())
     threshold = Uint256Field()
-    # to = EthereumAddressField(null=True)  # Contract address for optional delegate call
+    to = EthereumAddressField(null=True)  # Contract address for optional delegate call
     # data = models.BinaryField(null=True)  # Data payload for optional delegate call
     payment_token = EthereumAddressField(null=True)
     payment = Uint256Field()
