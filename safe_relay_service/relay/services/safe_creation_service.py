@@ -189,7 +189,8 @@ class SafeCreationService:
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost,
                                                       setup_data=HexBytes(setup_data),
-                                                      to=to)
+                                                      to=to,
+                                                      )
 
         safe_contract, created = SafeContract.objects.get_or_create(
             address=safe_creation_tx.safe_address,
