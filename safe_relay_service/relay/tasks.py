@@ -14,6 +14,7 @@ from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.relay.models import (SafeContract, SafeCreation,
                                              SafeCreation2, SafeFunding)
+from safe_relay_service.relay.circles import Circles
 
 from .repositories.redis_repository import RedisRepository
 from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
@@ -261,6 +262,14 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     try:
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             try:
+                try:
+                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
+                    total_gas_cost = safe_creation.wei_estimated_deploy_cost() + Circles().estimate_signup_gas()
+                    FundingServiceProvider().send_eth_to(safe_address,
+                                   total_gas_cost,
+                                   gas=220000)
+                except SafeCreation.DoesNotExist:
+                    pass
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
             except NotEnoughFundingForCreation:
                 if retry:

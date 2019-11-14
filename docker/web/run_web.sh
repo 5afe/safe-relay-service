@@ -13,6 +13,11 @@ if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
     python manage.py deploy_safe_master_copy
 fi
 
+if [ "${DEPLOY_PROXY_FACTORY_ON_INIT:-0}" = 1 ]; then
+    echo "==> Deploy proxy factory..."
+    python manage.py deploy_proxy_factory
+fi
+
 echo "==> Collecting statics ... "
 DOCKER_SHARED_DIR=/nginx
 rm -rf $DOCKER_SHARED_DIR/*
