@@ -190,6 +190,8 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
 CELERY_RESULT_SERIALIZER = 'json'
+# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_ignore_result
+CELERY_TASK_IGNORE_RESULT = True
 
 # Django REST Framework
 # ------------------------------------------------------------------------------
