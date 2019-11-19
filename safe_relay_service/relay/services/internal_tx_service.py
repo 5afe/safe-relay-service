@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Set
 
 from gnosis.eth import EthereumClient
 
-from ..models import EthereumTxCallType, EthereumTxType, InternalTx
+from ..models import InternalTx
 from .transaction_scan_service import TransactionScanService
 
 logger = getLogger(__name__)

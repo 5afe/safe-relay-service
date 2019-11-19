@@ -300,7 +300,8 @@ def check_create2_deployed_safes_task() -> None:
                         safe_creation2.save()
                         deploy_create2_safe_task.delay(safe_address, retry=False)
 
-            for safe_creation2 in SafeCreation2.objects.not_deployed():
+            for safe_creation2 in SafeCreation2.objects.not_deployed().filter(
+                    created__gte=timezone.now() - timedelta(days=10)):
                 deploy_create2_safe_task.delay(safe_creation2.safe.address, retry=False)
     except LockError:
         pass

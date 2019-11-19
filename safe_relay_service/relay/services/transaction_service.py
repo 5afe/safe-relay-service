@@ -411,7 +411,7 @@ class TransactionService:
 
         if safe_tx.signers != safe_tx.sorted_signers:
             raise SignaturesNotSorted('Safe-tx-hash=%s - Signatures are not sorted by owner: %s' %
-                                      (safe_tx.safe_tx_hash, safe_tx.signers))
+                                      (safe_tx.safe_tx_hash.hex(), safe_tx.signers))
 
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 

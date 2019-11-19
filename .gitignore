@@ -71,5 +71,6 @@ typings/
 .vscode
 
 venv/
+.venv
 config/settings/dev.py
 db.sqlite3
