@@ -78,7 +78,7 @@ class SafeCreationV1_1_0ServiceProvider:
             cls.instance = SafeCreationService(GasStationProvider(),
                                                EthereumClientProvider(),
                                                RedisRepository().redis,
-                                               settings.SAFE_OLD_CONTRACT_ADDRESS,
+                                               settings.SAFE_V1_0_0_CONTRACT_ADDRESS,
                                                settings.SAFE_OLD_PROXY_FACTORY_ADDRESS,
                                                settings.SAFE_DEFAULT_CALLBACK_HANDLER,
                                                settings.SAFE_FUNDER_PRIVATE_KEY,

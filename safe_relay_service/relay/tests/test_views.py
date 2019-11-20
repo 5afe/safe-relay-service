@@ -373,7 +373,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        my_safe_address = self.create_test_safe_in_db().safe.address
+        my_safe_address = self.create2_test_safe_in_db().safe.address
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
                                     format='json')
@@ -486,23 +486,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertGreater(int(estimation_token['baseGas']), int(estimation_ether['baseGas']))
         self.assertAlmostEqual(int(estimation_token['gasPrice']), int(estimation_ether['gasPrice']) // 2, delta=1.0)
         self.assertEqual(estimation_token['gasToken'], valid_token.address)
-
-    def test_get_safe_signal(self):
-        safe_address, _ = get_eth_address_with_key()
-
-        response = self.client.get(reverse('v1:safe-signal', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        invalid_address = get_eth_address_with_invalid_checksum()
-
-        response = self.client.get(reverse('v1:safe-signal', args=(invalid_address,)))
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        my_safe_address = self.create_test_safe_in_db().safe.address
-        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
-                                    data={},
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_all_txs(self):
         safe_address = Account().create().address
