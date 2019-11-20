@@ -99,7 +99,7 @@ class SafeCreationService:
             token = Token.objects.get(address=address, gas=True)
         except Token.DoesNotExist:
             # Add the token for development purposes.
-            token = Token.objects.create(address=address, name="Cash", symbol="cash", decimals=2, fixed_eth_conversion=1, gas=True)
+            token = Token.objects.create(address=address, name="Cash", symbol="cash", decimals=2, fixed_eth_conversion=0.006, gas=True)
 
         return token.get_eth_value()
 
