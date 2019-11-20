@@ -296,11 +296,20 @@ SAFE_FUNDER_PRIVATE_KEY = env('SAFE_FUNDER_PRIVATE_KEY', default=None)
 SAFE_FUNDER_MAX_ETH = env.int('SAFE_FUNDER_MAX_ETH', default=0.1)
 SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  # Set to at least 3
 # Master Copy Address of Safe Contract
-SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
-SAFE_OLD_CONTRACT_ADDRESS = env('SAFE_OLD_CONTRACT_ADDRESS', default='0x' + '0' * 39 + '1')
+SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0xaE32496491b53841efb51829d6f886387708F99B')
+SAFE_OLD_CONTRACT_ADDRESS = env('SAFE_OLD_CONTRACT_ADDRESS', default='0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A')
 SAFE_VALID_CONTRACT_ADDRESSES = set(env.list('SAFE_VALID_CONTRACT_ADDRESSES',
-                                             default=[])) | {SAFE_CONTRACT_ADDRESS, SAFE_OLD_CONTRACT_ADDRESS}
-SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x' + '0' * 39 + '2')
+                                             default=['0xaE32496491b53841efb51829d6f886387708F99B',
+                                                      '0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A'
+                                                      '0x8942595A2dC5181Df0465AF0D7be08c8f23C93af',
+                                                      '0xAC6072986E985aaBE7804695EC2d8970Cf7541A2'])
+                                    ) | {SAFE_CONTRACT_ADDRESS, SAFE_OLD_CONTRACT_ADDRESS}
+SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x50e55Af101C777bA7A1d560a774A82eF002ced9F')
+SAFE_OLD_PROXY_FACTORY_ADDRESS = env('SAFE_OLD_PROXY_FACTORY_ADDRESS',
+                                     default='0x12302fE9c02ff50939BaAaaf415fc226C078613C')
+SAFE_DEFAULT_CALLBACK_HANDLER = env('SAFE_DEFAULT_CALLBACK_HANDLER',
+                                     default='0x40A930851BD2e590Bd5A5C981b436de25742E980')
+
 # If FIXED_GAS_PRICE is None, GasStation will be used
 FIXED_GAS_PRICE = env.int('FIXED_GAS_PRICE', default=None)
 SAFE_TX_SENDER_PRIVATE_KEY = env('SAFE_TX_SENDER_PRIVATE_KEY', default=None)
