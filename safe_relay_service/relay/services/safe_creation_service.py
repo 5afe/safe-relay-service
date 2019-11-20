@@ -230,11 +230,23 @@ class SafeCreationService:
         :param safe_address:
         :return: tx_hash
         """
+
+
         safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if safe_creation2.tx_hash:
             logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
             return safe_creation2
+
+        # Send funds from deployers address to the contract.
+        # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
+        try:
+            self.ethereum_client.erc20.send_tokens(safe_address,
+                safe_creation2.payment * 2, self.funder_account.privateKey)
+        except:
+            message = 'Cannot seed wallet with funds. Please faucet %s' % (self.funder_account.address)
+            logger.info(message)
+
 
         if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
             safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
