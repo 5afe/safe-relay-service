@@ -9,6 +9,9 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
+variables:
+- group: aws-credentials
+
 steps:
 - task: Docker@1
   displayName: docker login
@@ -36,5 +39,20 @@ steps:
     containerRegistryType: Container Registry
     dockerRegistryEndpoint: dockerhub-augurproject
 
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.6'
 
+- bash: |
+    set -euo pipefail
+    python3 -m venv venv && \
+    source venv/bin/activate && \
+    python3 -m pip install --no-cache-dir awscli
+    aws --region=us-east-1 ecs update-service  --service gnosis-web --cluster kovan-v2-ecs --force-new-deployment
+    aws --region=us-east-1 ecs update-service  --service gnosis-scheduler --cluster kovan-v2-ecs --force-new-deployment
+    aws --region=us-east-1 ecs update-service  --service gnosis-worker --cluster kovan-v2-ecs --force-new-deployment
+  displayName: 'push build to S3'
+  env:
+    AWS_ACCESS_KEY_ID: $(AWS_KEY_ID)
+    AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
 
