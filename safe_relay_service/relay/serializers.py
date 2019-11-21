@@ -100,6 +100,7 @@ class SafeBalanceResponseSerializer(serializers.Serializer):
 class SafeResponseSerializer(serializers.Serializer):
     address = EthereumAddressField()
     master_copy = EthereumAddressField()
+    fallback_handler = EthereumAddressField()
     nonce = serializers.IntegerField(min_value=0)
     threshold = serializers.IntegerField(min_value=1)
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)

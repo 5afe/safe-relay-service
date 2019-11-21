@@ -51,6 +51,7 @@ class SafeInfo(NamedTuple):
     owners: List[str]
     master_copy: str
     version: str
+    fallback_handler: str
 
 
 class SafeCreationServiceProvider:
@@ -275,4 +276,5 @@ class SafeCreationService:
         owners = safe.retrieve_owners()
         master_copy = safe.retrieve_master_copy_address()
         version = safe.retrieve_version()
-        return SafeInfo(address, nonce, threshold, owners, master_copy, version)
+        fallback_handler = safe.retrieve_fallback_handler()
+        return SafeInfo(address, nonce, threshold, owners, master_copy, version, fallback_handler)
