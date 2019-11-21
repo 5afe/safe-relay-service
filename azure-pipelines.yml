@@ -51,7 +51,7 @@ steps:
     aws --region=us-east-1 ecs update-service  --service gnosis-web --cluster kovan-v2-ecs --force-new-deployment
     aws --region=us-east-1 ecs update-service  --service gnosis-scheduler --cluster kovan-v2-ecs --force-new-deployment
     aws --region=us-east-1 ecs update-service  --service gnosis-worker --cluster kovan-v2-ecs --force-new-deployment
-  displayName: 'push build to S3'
+  displayName: 'push build to aws'
   env:
     AWS_ACCESS_KEY_ID: $(AWS_KEY_ID)
     AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
