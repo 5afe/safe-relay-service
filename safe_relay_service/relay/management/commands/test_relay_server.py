@@ -87,7 +87,7 @@ class Command(BaseCommand):
         if create2:
             master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
         else:
-            master_copy_address = about_json['settings']['SAFE_OLD_CONTRACT_ADDRESS']
+            master_copy_address = about_json['settings']['SAFE_V1_0_0_CONTRACT_ADDRESS']
 
         accounts = [Account.create() for _ in range(3)]
         for account in accounts:

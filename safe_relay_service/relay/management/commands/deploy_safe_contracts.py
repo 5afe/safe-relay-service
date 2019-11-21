@@ -24,7 +24,7 @@ class Command(BaseCommand):
 
         master_copies_with_deploy_fn = {
             settings.SAFE_CONTRACT_ADDRESS: Safe.deploy_master_contract,
-            settings.SAFE_OLD_CONTRACT_ADDRESS: Safe.deploy_old_master_contract,
+            settings.SAFE_V1_0_0_CONTRACT_ADDRESS: Safe.deploy_old_master_contract,
             settings.SAFE_PROXY_FACTORY_ADDRESS: ProxyFactory.deploy_proxy_factory_contract,
         }
 
