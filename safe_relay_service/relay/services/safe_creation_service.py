@@ -17,7 +17,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
-from ..models import (EthereumTx, SafeContract, SafeCreation, SafeCreation2,
+from ..models import (EthereumTx, SafeContract, SafeCreation2,
                       SafeTxStatus)
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
@@ -72,14 +72,14 @@ class SafeCreationServiceProvider:
             del cls.instance
 
 
-class SafeCreationV1_1_0ServiceProvider:
+class SafeCreationV1_0_0ServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = SafeCreationService(GasStationProvider(),
                                                EthereumClientProvider(),
                                                RedisRepository().redis,
                                                settings.SAFE_V1_0_0_CONTRACT_ADDRESS,
-                                               settings.SAFE_OLD_PROXY_FACTORY_ADDRESS,
+                                               settings.SAFE_PROXY_FACTORY_V1_0_0_ADDRESS,
                                                settings.SAFE_DEFAULT_CALLBACK_HANDLER,
                                                settings.SAFE_FUNDER_PRIVATE_KEY,
                                                settings.SAFE_FIXED_CREATION_COST)

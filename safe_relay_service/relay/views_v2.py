@@ -21,7 +21,7 @@ from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreationEstimateV2Serializer,
                           SafeFunding2ResponseSerializer,
                           SafeMultisigEstimateTxResponseV2Serializer)
-from .services.safe_creation_service import SafeCreationV1_1_0ServiceProvider
+from .services.safe_creation_service import SafeCreationV1_0_0ServiceProvider
 from .tasks import deploy_create2_safe_task
 
 logger = getLogger(__name__)
@@ -41,7 +41,7 @@ class SafeCreationEstimateView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             number_owners = serializer.data['number_owners']
-            safe_creation_estimates = SafeCreationV1_1_0ServiceProvider().estimate_safe_creation_for_all_tokens(number_owners)
+            safe_creation_estimates = SafeCreationV1_0_0ServiceProvider().estimate_safe_creation_for_all_tokens(number_owners)
             safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(safe_creation_estimates,
                                                                                           many=True)
             return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
@@ -66,7 +66,7 @@ class SafeCreationView(CreateAPIView):
                                                             serializer.data['threshold'],
                                                             serializer.data['payment_token'])
 
-            safe_creation_service = SafeCreationV1_1_0ServiceProvider()
+            safe_creation_service = SafeCreationV1_0_0ServiceProvider()
             safe_creation = safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
             safe_creation_response_data = SafeCreation2ResponseSerializer(data={
                 'safe': safe_creation.safe.address,
