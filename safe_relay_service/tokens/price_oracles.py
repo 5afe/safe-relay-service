@@ -1,11 +1,14 @@
 import logging
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 import requests
 from cachetools import TTLCache, cached
+
 from gnosis.eth import EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.contracts import get_uniswap_exchange_contract, get_uniswap_factory_contract
+from gnosis.eth.contracts import (get_uniswap_exchange_contract,
+                                  get_uniswap_factory_contract)
 
 logger = logging.getLogger(__name__)
 
@@ -117,16 +120,18 @@ def get_price_oracle(name) -> PriceOracle:
 
 
 class Uniswap(PriceOracle):
+    def __init__(self, uniswap_exchange_address: str):
+        self.uniswap_exchange_address = uniswap_exchange_address
+
     @cached(cache=TTLCache(maxsize=1024, ttl=60))
-    def get_price(self, ticker) -> float:
+    def get_price(self, ticker: str) -> float:
         """
         :param ticker: Address of the token
         :return: price
         """
-        uniswap_exchange_address = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36'
         ethereum_client = EthereumClientProvider()
-        uniswap_factory = get_uniswap_factory_contract(ethereum_client.w3, uniswap_exchange_address)
-        uniswap_exchange_address = uniswap_factory.functions.getExchange(ticker)
+        uniswap_factory = get_uniswap_factory_contract(ethereum_client.w3, self.uniswap_exchange_address)
+        uniswap_exchange_address = uniswap_factory.functions.getExchange(ticker).call()
         if uniswap_exchange_address == NULL_ADDRESS:
             error_message = f'Cannot get price from uniswap-factory={uniswap_exchange_address} for token={ticker}'
             logger.warning(error_message)
@@ -134,10 +139,15 @@ class Uniswap(PriceOracle):
 
         uniswap_exchange = get_uniswap_exchange_contract(ethereum_client.w3, uniswap_exchange_address)
         value = ethereum_client.w3.toWei(1, 'ether')
-        return uniswap_exchange.functions.getTokenToEthInputPrice(value).call() / value
+        price = uniswap_exchange.functions.getTokenToEthInputPrice(value).call() / value
+        if price <= 0.:
+            error_message = f'price={price} <= 0 from uniswap-factory={uniswap_exchange_address} for token={ticker}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message)
+        return price
 
 
-def get_price_oracle(name) -> PriceOracle:
+def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
     oracles = {
         'binance': Binance,
         'dutchx': DutchX,
@@ -148,6 +158,6 @@ def get_price_oracle(name) -> PriceOracle:
 
     oracle = oracles.get(name.lower())
     if oracle:
-        return oracle()
+        return oracle(**configuration)
     else:
         raise NotImplementedError("Oracle '%s' not found" % name)

@@ -12,7 +12,7 @@ from .factories import PriceOracleTickerFactory, TokenFactory
 
 class TestModels(TestCase):
     def test_price_oracles(self):
-        self.assertEqual(PriceOracle.objects.count(), 4)
+        self.assertEqual(PriceOracle.objects.count(), 5)
 
     def test_token_calculate_payment(self):
         token = TokenFactory(fixed_eth_conversion=0.1)
