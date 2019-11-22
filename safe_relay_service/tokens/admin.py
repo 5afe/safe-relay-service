@@ -6,7 +6,7 @@ from .price_oracles import CannotGetTokenPriceFromApi
 
 @admin.register(PriceOracle)
 class PriceOracleAdmin(admin.ModelAdmin):
-    list_display = ('name', )
+    list_display = ('name', 'configuration')
     ordering = ('name',)
 
 
