@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 
 import requests
 from cachetools import TTLCache, cached
+from gnosis.eth import EthereumClientProvider
+from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.eth.contracts import get_uniswap_exchange_contract, get_uniswap_factory_contract
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +107,43 @@ def get_price_oracle(name) -> PriceOracle:
         'dutchx': DutchX,
         'huobi': Huobi,
         'kraken': Kraken,
+    }
+
+    oracle = oracles.get(name.lower())
+    if oracle:
+        return oracle()
+    else:
+        raise NotImplementedError("Oracle '%s' not found" % name)
+
+
+class Uniswap(PriceOracle):
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        uniswap_exchange_address = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36'
+        ethereum_client = EthereumClientProvider()
+        uniswap_factory = get_uniswap_factory_contract(ethereum_client.w3, uniswap_exchange_address)
+        uniswap_exchange_address = uniswap_factory.functions.getExchange(ticker)
+        if uniswap_exchange_address == NULL_ADDRESS:
+            error_message = f'Cannot get price from uniswap-factory={uniswap_exchange_address} for token={ticker}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message)
+
+        uniswap_exchange = get_uniswap_exchange_contract(ethereum_client.w3, uniswap_exchange_address)
+        value = ethereum_client.w3.toWei(1, 'ether')
+        return uniswap_exchange.functions.getTokenToEthInputPrice(value).call() / value
+
+
+def get_price_oracle(name) -> PriceOracle:
+    oracles = {
+        'binance': Binance,
+        'dutchx': DutchX,
+        'huobi': Huobi,
+        'kraken': Kraken,
+        'uniswap': Uniswap,
     }
 
     oracle = oracles.get(name.lower())
