@@ -17,8 +17,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
-from ..models import (EthereumTx, SafeContract, SafeCreation2,
-                      SafeTxStatus)
+from ..models import EthereumTx, SafeContract, SafeCreation2, SafeTxStatus
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)

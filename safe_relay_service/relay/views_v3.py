@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from gnosis.eth.constants import NULL_ADDRESS
+
 from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreation2Serializer,
                           SafeCreationEstimateResponseSerializer,

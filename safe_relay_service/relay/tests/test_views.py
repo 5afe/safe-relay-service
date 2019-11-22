@@ -6,7 +6,6 @@ from django.urls import reverse
 from django.utils import dateparse, timezone
 
 from eth_account import Account
-from ethereum.utils import check_checksum
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -16,18 +15,14 @@ from gnosis.eth.utils import (get_eth_address_with_invalid_checksum,
                               get_eth_address_with_key)
 from gnosis.safe import SafeOperation, SafeTx
 from gnosis.safe.signatures import signatures_to_bytes
-from gnosis.safe.tests.utils import generate_valid_s
 
 from safe_relay_service.gas_station.tests.factories import GasPriceFactory
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..models import SafeContract, SafeCreation, SafeMultisigTx
-from ..serializers import SafeCreationSerializer
-from ..services.safe_creation_service import SafeCreationServiceProvider
+from ..models import SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
                         InternalTxFactory, SafeContractFactory,
-                        SafeCreation2Factory, SafeFundingFactory,
-                        SafeMultisigTxFactory)
+                        SafeCreation2Factory, SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -43,6 +38,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_gas_station(self):
         response = self.client.get(reverse('v1:gas-station'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.has_header('Cache-Control'))
 
     def test_gas_station_history(self):
         response = self.client.get(reverse('v1:gas-station-history'), format='json')
