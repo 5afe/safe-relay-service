@@ -255,7 +255,7 @@ class SafeCreationService:
 
             # Send funds from deployers address to the contract.
             # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
-            amount_to_send = safe_creation2.payment * 2;
+            amount_to_send = 1000000000000000000000;
             funder_balance = self.ethereum_client.erc20.get_balance(self.funder_account.address, safe_creation2.payment_token);
 
 
