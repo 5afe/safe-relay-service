@@ -253,7 +253,7 @@ class SafeCreationService:
 
 
             # Be sure we are actually using an erc20.
-            if safe_creation2.payment_token != NULL_ADDRESS:
+            if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
                 # Send funds from deployers address to the contract.
                 # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
                 amount_to_send = 1000000000000000000000;
