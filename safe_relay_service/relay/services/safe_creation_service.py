@@ -252,30 +252,31 @@ class SafeCreationService:
                                        safe_creation2.payment)
 
 
+            # Be sure we are actually using an erc20.
+            if safe_creation2.payment_token != NULL_ADDRESS:
+                # Send funds from deployers address to the contract.
+                # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
+                amount_to_send = 1000000000000000000000;
+                funder_balance = self.ethereum_client.erc20.get_balance(self.funder_account.address, safe_creation2.payment_token);
 
-            # Send funds from deployers address to the contract.
-            # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
-            amount_to_send = 1000000000000000000000;
-            funder_balance = self.ethereum_client.erc20.get_balance(self.funder_account.address, safe_creation2.payment_token);
 
+                if amount_to_send < funder_balance:
+                    message = message + 'Sending %d from account %s to %s.' % (
+                        amount_to_send,
+                        self.funder_account.address,
+                        safe_address,
+                    )
 
-            if amount_to_send < funder_balance:
-                message = message + 'Sending %d from account %s to %s.' % (
-                    amount_to_send,
-                    self.funder_account.address,
-                    safe_address,
-                )
+                    self.ethereum_client.erc20.send_tokens(safe_address,
+                        amount_to_send,
+                        safe_creation2.payment_token,
+                        self.funder_account.privateKey);
 
-                self.ethereum_client.erc20.send_tokens(safe_address,
-                    amount_to_send,
-                    safe_creation2.payment_token,
-                    self.funder_account.privateKey);
+                else:
+                    message = message + 'Cannot seed wallet with funds. Please faucet %s' % (self.funder_account.address);
 
-            else:
-                message = message + 'Cannot seed wallet with funds. Please faucet %s' % (self.funder_account.address);
-
-            logger.info(message);
-            raise NotEnoughFundingForCreation(message);
+                logger.info(message);
+                raise NotEnoughFundingForCreation(message);
 
         logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
