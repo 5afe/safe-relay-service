@@ -188,7 +188,7 @@ class SafeCreationService:
                                                       gas_price, payment_token,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost,
-                                                      setup_data=HexBytes(setup_data),
+                                                      setup_data=HexBytes(setup_data if setup_data else '0x'),
                                                       to=to,
                                                       )
 
@@ -282,6 +282,8 @@ class SafeCreationService:
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
+
+        logger.info(setup_data)
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
