@@ -104,21 +104,6 @@ class Kraken(PriceOracle):
             return float(result[new_ticker]['c'][0])
 
 
-def get_price_oracle(name) -> PriceOracle:
-    oracles = {
-        'binance': Binance,
-        'dutchx': DutchX,
-        'huobi': Huobi,
-        'kraken': Kraken,
-    }
-
-    oracle = oracles.get(name.lower())
-    if oracle:
-        return oracle()
-    else:
-        raise NotImplementedError("Oracle '%s' not found" % name)
-
-
 class Uniswap(PriceOracle):
     def __init__(self, uniswap_exchange_address: str):
         self.uniswap_exchange_address = uniswap_exchange_address
