@@ -7,7 +7,7 @@ from cachetools import TTLCache, cached
 
 from gnosis.eth import EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.contracts import (get_uniswap_exchange_contract,
+from gnosis.eth.contracts import (get_uniswap_exchange_contract, get_kyber_network_proxy_contract,
                                   get_uniswap_factory_contract)
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,38 @@ class Uniswap(PriceOracle):
             logger.warning(error_message)
             raise CannotGetTokenPriceFromApi(error_message)
         return price
+
+
+class Kyber(PriceOracle):
+    def __init__(self, kyber_network_proxy_address: str, weth_token_address: str):
+        self.kyber_network_proxy_address = kyber_network_proxy_address
+        self.weth_token_address = weth_token_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        kyber_network_proxy_contract = get_kyber_network_proxy_contract(ethereum_client.w3,
+                                                                        self.kyber_network_proxy_address)
+        try:
+            expected_rate, _ = kyber_network_proxy_contract.functions.getExpectedRate(ticker,
+                                                                                      self.weth_token_address,
+                                                                                      int(1e18)).call()
+            price = expected_rate / 1e18
+            if price <= 0.:
+                error_message = f'price={price} <= 0 from kyber-network-proxy={self.kyber_network_proxy_address} ' \
+                                f'for token={ticker} to weth={self.weth_token_address}'
+                logger.warning(error_message)
+                raise CannotGetTokenPriceFromApi(error_message)
+            return price
+        except ValueError:
+            error_message = f'Cannot get price from kyber-network-proxy={self.kyber_network_proxy_address} ' \
+                            f'for token={ticker} to weth={self.weth_token_address}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message)
 
 
 def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
