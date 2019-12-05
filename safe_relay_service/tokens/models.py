@@ -4,6 +4,7 @@ from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 from gnosis.eth.django.models import EthereumAddressField
@@ -16,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 class PriceOracle(models.Model):
     name = models.CharField(max_length=50, unique=True)
+    configuration = JSONField(null=False, default=dict)
 
     def __str__(self):
-        return self.name
+        return f'{self.name} configuration={self.configuration}'
 
 
 class PriceOracleTicker(models.Model):
@@ -32,7 +34,7 @@ class PriceOracleTicker(models.Model):
 
     def _price(self) -> Optional[float]:
         try:
-            price = get_price_oracle(self.price_oracle.name).get_price(self.ticker)
+            price = get_price_oracle(self.price_oracle.name, self.price_oracle.configuration).get_price(self.ticker)
             if price and self.inverse:  # Avoid 1 / 0
                 price = 1 / price
         except ExchangeApiException:

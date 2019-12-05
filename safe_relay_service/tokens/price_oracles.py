@@ -1,8 +1,14 @@
 import logging
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 import requests
 from cachetools import TTLCache, cached
+
+from gnosis.eth import EthereumClientProvider
+from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.eth.contracts import (get_uniswap_exchange_contract, get_kyber_network_proxy_contract,
+                                  get_uniswap_factory_contract)
 
 logger = logging.getLogger(__name__)
 
@@ -109,5 +115,82 @@ def get_price_oracle(name) -> PriceOracle:
     oracle = oracles.get(name.lower())
     if oracle:
         return oracle()
+    else:
+        raise NotImplementedError("Oracle '%s' not found" % name)
+
+
+class Uniswap(PriceOracle):
+    def __init__(self, uniswap_exchange_address: str):
+        self.uniswap_exchange_address = uniswap_exchange_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        uniswap_factory = get_uniswap_factory_contract(ethereum_client.w3, self.uniswap_exchange_address)
+        uniswap_exchange_address = uniswap_factory.functions.getExchange(ticker).call()
+        if uniswap_exchange_address == NULL_ADDRESS:
+            error_message = f'Cannot get price from uniswap-factory={uniswap_exchange_address} for token={ticker}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message)
+
+        uniswap_exchange = get_uniswap_exchange_contract(ethereum_client.w3, uniswap_exchange_address)
+        value = ethereum_client.w3.toWei(1, 'ether')
+        price = uniswap_exchange.functions.getTokenToEthInputPrice(value).call() / value
+        if price <= 0.:
+            error_message = f'price={price} <= 0 from uniswap-factory={uniswap_exchange_address} for token={ticker}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message)
+        return price
+
+
+class Kyber(PriceOracle):
+    def __init__(self, kyber_network_proxy_address: str, weth_token_address: str):
+        self.kyber_network_proxy_address = kyber_network_proxy_address
+        self.weth_token_address = weth_token_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        kyber_network_proxy_contract = get_kyber_network_proxy_contract(ethereum_client.w3,
+                                                                        self.kyber_network_proxy_address)
+        try:
+            expected_rate, _ = kyber_network_proxy_contract.functions.getExpectedRate(ticker,
+                                                                                      self.weth_token_address,
+                                                                                      int(1e18)).call()
+            price = expected_rate / 1e18
+            if price <= 0.:
+                error_message = f'price={price} <= 0 from kyber-network-proxy={self.kyber_network_proxy_address} ' \
+                                f'for token={ticker} to weth={self.weth_token_address}'
+                logger.warning(error_message)
+                raise CannotGetTokenPriceFromApi(error_message)
+            return price
+        except ValueError as e:
+            error_message = f'Cannot get price from kyber-network-proxy={self.kyber_network_proxy_address} ' \
+                            f'for token={ticker} to weth={self.weth_token_address}'
+            logger.warning(error_message)
+            raise CannotGetTokenPriceFromApi(error_message) from e
+
+
+def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
+    oracles = {
+        'binance': Binance,
+        'dutchx': DutchX,
+        'huobi': Huobi,
+        'kraken': Kraken,
+        'kyber': Kyber,
+        'uniswap': Uniswap,
+    }
+
+    oracle = oracles.get(name.lower())
+    if oracle:
+        return oracle(**configuration)
     else:
         raise NotImplementedError("Oracle '%s' not found" % name)
