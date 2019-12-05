@@ -172,11 +172,11 @@ class Kyber(PriceOracle):
                 logger.warning(error_message)
                 raise CannotGetTokenPriceFromApi(error_message)
             return price
-        except ValueError:
+        except ValueError as e:
             error_message = f'Cannot get price from kyber-network-proxy={self.kyber_network_proxy_address} ' \
                             f'for token={ticker} to weth={self.weth_token_address}'
             logger.warning(error_message)
-            raise CannotGetTokenPriceFromApi(error_message)
+            raise CannotGetTokenPriceFromApi(error_message) from e
 
 
 def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
@@ -185,6 +185,7 @@ def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOrac
         'dutchx': DutchX,
         'huobi': Huobi,
         'kraken': Kraken,
+        'kyber': Kyber,
         'uniswap': Uniswap,
     }
 
