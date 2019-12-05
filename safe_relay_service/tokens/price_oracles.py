@@ -6,9 +6,9 @@ import requests
 from cachetools import TTLCache, cached
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.contracts import (get_uniswap_exchange_contract, get_kyber_network_proxy_contract,
-                                  get_uniswap_factory_contract)
+from gnosis.eth.oracles import Kyber as KyberOracle
+from gnosis.eth.oracles import OracleException
+from gnosis.eth.oracles import Uniswap as UniswapOracle
 
 logger = logging.getLogger(__name__)
 
@@ -115,21 +115,11 @@ class Uniswap(PriceOracle):
         :return: price
         """
         ethereum_client = EthereumClientProvider()
-        uniswap_factory = get_uniswap_factory_contract(ethereum_client.w3, self.uniswap_exchange_address)
-        uniswap_exchange_address = uniswap_factory.functions.getExchange(ticker).call()
-        if uniswap_exchange_address == NULL_ADDRESS:
-            error_message = f'Cannot get price from uniswap-factory={uniswap_exchange_address} for token={ticker}'
-            logger.warning(error_message)
-            raise CannotGetTokenPriceFromApi(error_message)
-
-        uniswap_exchange = get_uniswap_exchange_contract(ethereum_client.w3, uniswap_exchange_address)
-        value = ethereum_client.w3.toWei(1, 'ether')
-        price = uniswap_exchange.functions.getTokenToEthInputPrice(value).call() / value
-        if price <= 0.:
-            error_message = f'price={price} <= 0 from uniswap-factory={uniswap_exchange_address} for token={ticker}'
-            logger.warning(error_message)
-            raise CannotGetTokenPriceFromApi(error_message)
-        return price
+        uniswap = UniswapOracle(ethereum_client.w3, self.uniswap_exchange_address)
+        try:
+            return uniswap.get_price(ticker)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
 
 
 class Kyber(PriceOracle):
@@ -144,24 +134,11 @@ class Kyber(PriceOracle):
         :return: price
         """
         ethereum_client = EthereumClientProvider()
-        kyber_network_proxy_contract = get_kyber_network_proxy_contract(ethereum_client.w3,
-                                                                        self.kyber_network_proxy_address)
+        kyber = KyberOracle(ethereum_client.w3, self.kyber_network_proxy_address)
         try:
-            expected_rate, _ = kyber_network_proxy_contract.functions.getExpectedRate(ticker,
-                                                                                      self.weth_token_address,
-                                                                                      int(1e18)).call()
-            price = expected_rate / 1e18
-            if price <= 0.:
-                error_message = f'price={price} <= 0 from kyber-network-proxy={self.kyber_network_proxy_address} ' \
-                                f'for token={ticker} to weth={self.weth_token_address}'
-                logger.warning(error_message)
-                raise CannotGetTokenPriceFromApi(error_message)
-            return price
-        except ValueError as e:
-            error_message = f'Cannot get price from kyber-network-proxy={self.kyber_network_proxy_address} ' \
-                            f'for token={ticker} to weth={self.weth_token_address}'
-            logger.warning(error_message)
-            raise CannotGetTokenPriceFromApi(error_message) from e
+            return kyber.get_price(ticker, self.weth_token_address)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
 
 
 def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
