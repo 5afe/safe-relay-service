@@ -146,7 +146,7 @@ class TransactionService:
             Token.objects.get(address=address, gas=True)
             return True
         except Token.DoesNotExist:
-            logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % address)
+            logger.warning('Cannot retrieve gas token from db: Gas token %s not valid', address)
             return False
 
     def _check_safe_gas_price(self, gas_token: Optional[str], safe_gas_price: int) -> bool:
@@ -173,7 +173,7 @@ class TransactionService:
                 # We use gas station tx gas price. We cannot use internal tx's because is calculated
                 # based on the gas token
             except Token.DoesNotExist:
-                logger.warning('Cannot retrieve gas token from db: Gas token %s not valid' % gas_token)
+                logger.warning('Cannot retrieve gas token from db: Gas token %s not valid', gas_token)
                 raise InvalidGasToken('Gas token %s not valid' % gas_token)
         else:
             if safe_gas_price < minimum_accepted_gas_price:

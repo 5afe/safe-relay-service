@@ -43,7 +43,7 @@ class Binance(PriceOracle):
         response = requests.get(url)
         api_json = response.json()
         if not response.ok:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(api_json.get('msg'))
         return float(api_json['price'])
 
@@ -65,7 +65,7 @@ class DutchX(PriceOracle):
         response = requests.get(url)
         api_json = response.json()
         if not response.ok or api_json is None:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(api_json)
         return float(api_json)
 
@@ -82,7 +82,7 @@ class Huobi(PriceOracle):
         api_json = response.json()
         error = api_json.get('err-msg')
         if not response.ok or error:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(error)
         return float(api_json['tick']['close'])
 
@@ -96,7 +96,7 @@ class Kraken(PriceOracle):
         api_json = response.json()
         error = api_json.get('error')
         if not response.ok or error:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(str(api_json['error']))
 
         result = api_json['result']
