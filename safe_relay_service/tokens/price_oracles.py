@@ -6,9 +6,7 @@ import requests
 from cachetools import TTLCache, cached
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.eth.oracles import Kyber as KyberOracle
-from gnosis.eth.oracles import OracleException
-from gnosis.eth.oracles import Uniswap as UniswapOracle
+from gnosis.eth.oracles import KyberOracle, OracleException, UniswapOracle
 
 logger = logging.getLogger(__name__)
 
