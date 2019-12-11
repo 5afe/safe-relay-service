@@ -8,7 +8,7 @@ from ethereum.utils import (check_checksum)
 logger = getLogger(__name__)
 
 class Circles:
-    magic_signup_gas = 3376826000000000
+    magic_signup_gas = 3999092000000000
     gas_price = 1
     ethereum_client = EthereumClientProvider()
 
