@@ -1,7 +1,9 @@
+from datetime import timedelta
 from logging import getLogger
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from django.db import IntegrityError
+from django.db.models import Q
 from django.utils import timezone
 
 from eth_account import Account
@@ -420,3 +422,14 @@ class TransactionService:
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
             return tx_hash, safe_tx.tx_hash, tx
+
+    def get_pending_multisig_transactions(self, older_than: int) -> List[SafeMultisigTx]:
+        """
+        Get multisig txs that have not been mined after X seconds
+        :param older_than: Time in seconds for a tx to be considered pending, if 0 all will be returned
+        """
+        return SafeMultisigTx.objects.filter(
+            Q(ethereum_tx__block=None) | Q(ethereum_tx=None)
+        ).filter(
+            created__lte=timezone.now() - timedelta(seconds=older_than),
+        )

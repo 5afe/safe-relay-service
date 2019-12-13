@@ -8,12 +8,13 @@ from django.utils import timezone
 from ..models import SafeContract, SafeFunding
 from ..services import Erc20EventsServiceProvider, InternalTxServiceProvider
 from ..tasks import (check_balance_of_accounts_task,
-                     check_deployer_funded_task, deploy_create2_safe_task,
-                     deploy_safes_task, find_erc_20_721_transfers_task,
-                     find_internal_txs_task, fund_deployer_task)
+                     check_deployer_funded_task, check_pending_transactions,
+                     deploy_create2_safe_task, deploy_safes_task,
+                     find_erc_20_721_transfers_task, find_internal_txs_task,
+                     fund_deployer_task)
 from .factories import (SafeContractFactory, SafeCreation2Factory,
                         SafeCreationFactory, SafeFundingFactory,
-                        SafeTxStatusFactory)
+                        SafeMultisigTxFactory, SafeTxStatusFactory)
 from .relay_test_case import RelayTestCaseMixin
 from .test_internal_tx_service import EthereumClientMock
 
@@ -81,3 +82,15 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         SafeTxStatusFactory(safe=safe)
         self.assertEqual(find_erc_20_721_transfers_task.delay().get(), 1)
         Erc20EventsServiceProvider.del_singleton()
+
+    def test_check_pending_transactions(self):
+        not_mined_alert_minutes = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
+        self.assertEqual(check_pending_transactions.delay().get(), 0)
+
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=not_mined_alert_minutes - 1),
+                              ethereum_tx__block=None)
+        self.assertEqual(check_pending_transactions.delay().get(), 0)
+
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=not_mined_alert_minutes + 1),
+                              ethereum_tx__block=None)
+        self.assertEqual(check_pending_transactions.delay().get(), 1)
