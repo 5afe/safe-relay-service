@@ -1,4 +1,4 @@
-Django==2.2.7
+Django==2.2.8
 cachetools==3.1.1
 celery==4.3.0
 django-authtools==1.7.0
@@ -16,8 +16,8 @@ ethereum==2.3.2
 factory-boy==2.12.0
 faker==1.0.7
 gevent==1.4.0
-gnosis-py==1.6.3
-gunicorn==20.0.0
+gnosis-py==1.8.0
+gunicorn==20.0.4
 hexbytes==0.2.0
 lxml==4.4.1
 numpy==1.17.4

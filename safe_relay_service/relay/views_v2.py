@@ -3,7 +3,7 @@ from logging import getLogger
 from drf_yasg.utils import swagger_auto_schema
 from hexbytes import HexBytes
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,9 +20,8 @@ from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateV2Serializer,
                           SafeFunding2ResponseSerializer,
-                          SafeMultisigEstimateTxResponseSerializer,
                           SafeMultisigEstimateTxResponseV2Serializer)
-from .services.safe_creation_service import SafeCreationServiceProvider
+from .services.safe_creation_service import SafeCreationV1_0_0ServiceProvider
 from .tasks import deploy_create2_safe_task
 
 logger = getLogger(__name__)
@@ -42,7 +41,7 @@ class SafeCreationEstimateView(CreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             number_owners = serializer.data['number_owners']
-            safe_creation_estimates = SafeCreationServiceProvider().estimate_safe_creation_for_all_tokens(number_owners)
+            safe_creation_estimates = SafeCreationV1_0_0ServiceProvider().estimate_safe_creation_for_all_tokens(number_owners)
             safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(safe_creation_estimates,
                                                                                           many=True)
             return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
@@ -67,7 +66,7 @@ class SafeCreationView(CreateAPIView):
                                                             serializer.data['threshold'],
                                                             serializer.data['payment_token'])
 
-            safe_creation_service = SafeCreationServiceProvider()
+            safe_creation_service = SafeCreationV1_0_0ServiceProvider()
             safe_creation = safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
             safe_creation_response_data = SafeCreation2ResponseSerializer(data={
                 'safe': safe_creation.safe.address,

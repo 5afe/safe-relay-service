@@ -1,8 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 import requests
 from cachetools import TTLCache, cached
+
+from gnosis.eth import EthereumClientProvider
+from gnosis.eth.oracles import KyberOracle, OracleException, UniswapOracle
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +41,7 @@ class Binance(PriceOracle):
         response = requests.get(url)
         api_json = response.json()
         if not response.ok:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(api_json.get('msg'))
         return float(api_json['price'])
 
@@ -59,7 +63,7 @@ class DutchX(PriceOracle):
         response = requests.get(url)
         api_json = response.json()
         if not response.ok or api_json is None:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(api_json)
         return float(api_json)
 
@@ -76,7 +80,7 @@ class Huobi(PriceOracle):
         api_json = response.json()
         error = api_json.get('err-msg')
         if not response.ok or error:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(error)
         return float(api_json['tick']['close'])
 
@@ -90,7 +94,7 @@ class Kraken(PriceOracle):
         api_json = response.json()
         error = api_json.get('error')
         if not response.ok or error:
-            logger.warning('Cannot get price from url=%s' % url)
+            logger.warning('Cannot get price from url=%s', url)
             raise CannotGetTokenPriceFromApi(str(api_json['error']))
 
         result = api_json['result']
@@ -98,16 +102,55 @@ class Kraken(PriceOracle):
             return float(result[new_ticker]['c'][0])
 
 
-def get_price_oracle(name) -> PriceOracle:
+class Uniswap(PriceOracle):
+    def __init__(self, uniswap_exchange_address: str):
+        self.uniswap_exchange_address = uniswap_exchange_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        uniswap = UniswapOracle(ethereum_client.w3, self.uniswap_exchange_address)
+        try:
+            return uniswap.get_price(ticker)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
+
+
+class Kyber(PriceOracle):
+    def __init__(self, kyber_network_proxy_address: str, weth_token_address: str):
+        self.kyber_network_proxy_address = kyber_network_proxy_address
+        self.weth_token_address = weth_token_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        kyber = KyberOracle(ethereum_client.w3, self.kyber_network_proxy_address)
+        try:
+            return kyber.get_price(ticker, self.weth_token_address)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
+
+
+def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
     oracles = {
         'binance': Binance,
         'dutchx': DutchX,
         'huobi': Huobi,
         'kraken': Kraken,
+        'kyber': Kyber,
+        'uniswap': Uniswap,
     }
 
     oracle = oracles.get(name.lower())
     if oracle:
-        return oracle()
+        return oracle(**configuration)
     else:
         raise NotImplementedError("Oracle '%s' not found" % name)

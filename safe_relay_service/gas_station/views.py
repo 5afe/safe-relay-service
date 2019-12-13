@@ -32,7 +32,7 @@ class GasStationView(APIView):
         gas_station = GasStationProvider()
         gas_prices = gas_station.get_gas_prices()
         serializer = GasPriceSerializer(gas_prices)
-        return Response(serializer.data)
+        return Response(serializer.data, headers={'Cache-Control': f'max-age={60 * 4}'})
 
 
 class GasStationHistoryView(ListAPIView):

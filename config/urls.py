@@ -29,6 +29,7 @@ urlpatterns = [
     url(settings.ADMIN_URL, admin.site.urls),
     url(r'^api/v1/', include('safe_relay_service.relay.urls', namespace='v1')),
     url(r'^api/v2/', include('safe_relay_service.relay.urls_v2', namespace='v2')),
+    url(r'^api/v3/', include('safe_relay_service.relay.urls_v3', namespace='v3')),
     url(r'^check/', lambda request: HttpResponse("Ok"), name='check'),
 ]
 

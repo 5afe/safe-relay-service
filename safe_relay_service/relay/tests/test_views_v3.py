@@ -9,14 +9,12 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from gnosis.eth.constants import NULL_ADDRESS
-from gnosis.eth.utils import get_eth_address_with_invalid_checksum
 from gnosis.safe.tests.utils import generate_salt_nonce
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeCreation2
-from ..services.safe_creation_service import SafeCreationV1_0_0ServiceProvider
-from .factories import SafeContractFactory
+from ..services.safe_creation_service import SafeCreationServiceProvider
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -24,9 +22,9 @@ faker = Faker()
 logger = logging.getLogger(__name__)
 
 
-class TestViewsV2(RelayTestCaseMixin, APITestCase):
+class TestViewsV3(RelayTestCaseMixin, APITestCase):
     def test_safe_creation_estimate(self):
-        url = reverse('v2:safe-creation-estimates')
+        url = reverse('v3:safe-creation-estimates')
         number_owners = 4
         data = {
             'numberOwners': number_owners
@@ -66,7 +64,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
             'owners': owners,
             'threshold': len(owners)
         }
-        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        response = self.client.post(reverse('v3:safe-creation'), data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json['safe']
@@ -87,7 +85,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost())
 
         # Test exception when same Safe is created
-        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        response = self.client.post(reverse('v3:safe-creation'), data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertIn('SafeAlreadyExistsException', response.json()['exception'])
 
@@ -96,7 +94,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
             'owners': owners,
             'threshold': 2
         }
-        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        response = self.client.post(reverse('v3:safe-creation'), data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     def test_safe_creation_with_fixed_cost(self):
@@ -108,11 +106,11 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
             'threshold': len(owners)
         }
 
-        fixed_creation_cost = 123
+        fixed_creation_cost = 456
         with self.settings(SAFE_FIXED_CREATION_COST=fixed_creation_cost):
-            SafeCreationV1_0_0ServiceProvider.del_singleton()
-            response = self.client.post(reverse('v2:safe-creation'), data, format='json')
-            SafeCreationV1_0_0ServiceProvider.del_singleton()
+            SafeCreationServiceProvider.del_singleton()
+            response = self.client.post(reverse('v3:safe-creation'), data, format='json')
+            SafeCreationServiceProvider.del_singleton()
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
@@ -136,7 +134,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
             'paymentToken': payment_token,
         }
 
-        response = self.client.post(reverse('v2:safe-creation'), data=data, format='json')
+        response = self.client.post(reverse('v3:safe-creation'), data=data, format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         response_json = response.json()
         self.assertIn('InvalidPaymentToken', response_json['exception'])
@@ -144,7 +142,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
 
         fixed_eth_conversion = 0.1
         token_model = TokenFactory(address=payment_token, fixed_eth_conversion=fixed_eth_conversion)
-        response = self.client.post(reverse('v2:safe-creation'), data, format='json')
+        response = self.client.post(reverse('v3:safe-creation'), data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json['safe']
@@ -164,90 +162,3 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(safe_creation.payment_token, payment_token)
         # Payment includes deployment gas + gas to send eth to the deployer
         self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost() * (1 / fixed_eth_conversion))
-
-    def test_safe_multisig_tx_estimate_v2(self):
-        my_safe_address = get_eth_address_with_invalid_checksum()
-        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
-                                    data={},
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        my_safe_address = Account.create().address
-        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
-                                    data={},
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        initial_funding = self.w3.toWei(0.0001, 'ether')
-        to = Account.create().address
-        data = {
-            'to': to,
-            'value': initial_funding // 2,
-            'data': '0x',
-            'operation': 1
-        }
-
-        safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
-        my_safe_address = safe_creation.safe_address
-        SafeContractFactory(address=my_safe_address)
-
-        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
-                                    data=data,
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        response = response.json()
-        for field in ('safeTxGas', 'dataGas', 'gasPrice'):
-            self.assertTrue(isinstance(response[field], str))
-            self.assertGreater(int(response[field]), 0)
-
-        self.assertIsNone(response['lastUsedNonce'])
-        self.assertEqual(response['gasToken'], NULL_ADDRESS)
-
-        to = Account.create().address
-        data = {
-            'to': to,
-            'value': initial_funding // 2,
-            'data': None,
-            'operation': 0
-        }
-        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
-                                    data=data,
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_safe_signal_v2(self):
-        safe_address = Account.create().address
-
-        response = self.client.get(reverse('v2:safe-signal', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        response = self.client.put(reverse('v2:safe-signal', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        invalid_address = get_eth_address_with_invalid_checksum()
-
-        response = self.client.get(reverse('v2:safe-signal', args=(invalid_address,)))
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-        # We need ether or task will be hanged because of problems with retries emulating celery tasks during testing
-        safe_creation2 = self.create2_test_safe_in_db()
-        self.assertIsNone(safe_creation2.tx_hash)
-        self.assertIsNone(safe_creation2.block_number)
-        my_safe_address = safe_creation2.safe.address
-
-        response = self.client.get(reverse('v2:safe-signal', args=(my_safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsNone(response.json()['txHash'])
-        self.assertIsNone(response.json()['blockNumber'])
-
-        self.send_ether(my_safe_address, safe_creation2.payment)
-        response = self.client.put(reverse('v2:safe-signal', args=(my_safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
-        self.assertTrue(self.ethereum_client.is_contract(my_safe_address))
-        safe_creation2.refresh_from_db()
-        self.assertIsNotNone(safe_creation2.tx_hash)
-
-        response = self.client.get(reverse('v2:safe-signal', args=(my_safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()['txHash'], safe_creation2.tx_hash)
-        self.assertEqual(response.json()['blockNumber'], safe_creation2.block_number)
