@@ -370,3 +370,24 @@ def find_erc_20_721_transfers_task() -> int:
     except LockError:
         pass
     return number_safes
+
+
+@app.shared_task(soft_time_limit=60)
+def check_pending_transactions() -> int:
+    """
+    Find txs that have not been mined after a while
+    :return: Number of pending transactions
+    """
+    number_txs = 0
+    try:
+        redis = RedisRepository().redis
+        with redis.lock('tasks:check_pending_transactions', blocking_timeout=1, timeout=60):
+            tx_not_mined_alert = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
+            txs = TransactionServiceProvider().get_pending_multisig_transactions(older_than=tx_not_mined_alert * 60)
+            for tx in txs:
+                logger.error('Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after a while, created=%s',
+                             tx.ethereum_tx_id, tx.safe_tx_hash, tx.created)
+                number_txs += 1
+    except LockError:
+        pass
+    return number_txs

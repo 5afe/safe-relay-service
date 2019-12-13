@@ -41,9 +41,9 @@ class TestCommands(TestCase):
         call_command('setup_internal_txs', stdout=buf)
         self.assertIn('Generated 1 SafeTxStatus', buf.getvalue())
 
-    def test_setup_safe_relay(self):
-        from ..management.commands.setup_safe_relay import Command
+    def test_setup_service(self):
+        from ..management.commands.setup_service import Command
         number_tasks = len(Command.tasks)
         self.assertEqual(PeriodicTask.objects.all().count(), 0)
-        call_command('setup_safe_relay')
+        call_command('setup_service')
         self.assertEqual(PeriodicTask.objects.all().count(), number_tasks)

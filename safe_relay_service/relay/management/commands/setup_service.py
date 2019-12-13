@@ -21,7 +21,7 @@ class CeleryTaskConfiguration(NamedTuple):
 
 
 class Command(BaseCommand):
-    help = 'Setup Safe relay required tasks'
+    help = 'Setup service required tasks'
     tasks = [CeleryTaskConfiguration('safe_relay_service.relay.tasks.deploy_safes_task',
                                      'Deploy Safes', 20, IntervalSchedule.SECONDS),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_balance_of_accounts_task',
@@ -32,6 +32,8 @@ class Command(BaseCommand):
                                      'Process Internal Txs for Safes', 2, IntervalSchedule.MINUTES),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_erc_20_721_transfers_task',
                                      'Process ERC20/721 transfers for Safes', 2, IntervalSchedule.MINUTES),
+             CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_pending_transactions',
+                                     'Check transactions not mined after a while', 10, IntervalSchedule.MINUTES),
              ]
 
     def handle(self, *args, **options):
