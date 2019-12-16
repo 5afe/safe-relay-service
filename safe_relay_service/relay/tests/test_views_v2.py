@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.urls import reverse
 
 from eth_account import Account
@@ -10,6 +11,7 @@ from rest_framework.test import APITestCase
 
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.utils import get_eth_address_with_invalid_checksum
+from gnosis.safe import Safe
 from gnosis.safe.tests.utils import generate_salt_nonce
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
@@ -78,6 +80,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertGreater(int(response_json['gasEstimated']), 0)
         self.assertGreater(int(response_json['gasPriceEstimated']), 0)
         self.assertGreater(len(response_json['setupData']), 2)
+        self.assertEqual(response_json['masterCopy'], settings.SAFE_V1_0_0_CONTRACT_ADDRESS)
 
         self.assertTrue(SafeContract.objects.filter(address=safe_address))
         self.assertTrue(SafeCreation2.objects.filter(owners__contains=[owners[0]]))
@@ -85,6 +88,14 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(safe_creation.payment_token, None)
         # Payment includes deployment gas + gas to send eth to the deployer
         self.assertEqual(safe_creation.payment, safe_creation.wei_estimated_deploy_cost())
+
+        # Deploy the Safe to check it
+        self.send_ether(safe_address, int(response_json['payment']))
+        safe_creation2 = SafeCreationV1_0_0ServiceProvider().deploy_create2_safe_tx(safe_address)
+        self.ethereum_client.get_transaction_receipt(safe_creation2.tx_hash, timeout=20)
+        safe = Safe(safe_address, self.ethereum_client)
+        self.assertEqual(safe.retrieve_master_copy_address(), response_json['masterCopy'])
+        self.assertEqual(safe.retrieve_owners(), owners)
 
         # Test exception when same Safe is created
         response = self.client.post(reverse('v2:safe-creation'), data, format='json')

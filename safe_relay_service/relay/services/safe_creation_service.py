@@ -189,7 +189,7 @@ class SafeCreationService:
         :param safe_address:
         :return: tx_hash
         """
-        safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
+        safe_creation2: SafeCreation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if safe_creation2.tx_hash:
             logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
@@ -216,13 +216,14 @@ class SafeCreationService:
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
-            ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
-                                                                                   self.safe_contract_address,
-                                                                                   setup_data,
-                                                                                   safe_creation2.salt_nonce,
-                                                                                   safe_creation2.gas_estimated,
-                                                                                   safe_creation2.gas_price_estimated,
-                                                                                   nonce=tx_nonce)
+            proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
+            ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
+                                                                              safe_creation2.master_copy,
+                                                                              setup_data,
+                                                                              safe_creation2.salt_nonce,
+                                                                              safe_creation2.gas_estimated,
+                                                                              safe_creation2.gas_price_estimated,
+                                                                              nonce=tx_nonce)
             EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
             safe_creation2.save()
