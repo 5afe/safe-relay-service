@@ -387,8 +387,8 @@ class TransactionService:
         safe_base_gas_estimation = safe.estimate_tx_base_gas(to, value, data, operation, gas_token,
                                                              safe_tx_gas_estimation)
         if safe_tx_gas < safe_tx_gas_estimation or base_gas < safe_base_gas_estimation:
-            raise InvalidGasEstimation("Gas should be at least equal to safe-tx-gas=%d and data-gas=%d. Current is "
-                                       "safe-tx-gas=%d and data-gas=%d" %
+            raise InvalidGasEstimation("Gas should be at least equal to safe-tx-gas=%d and base-gas=%d. Current is "
+                                       "safe-tx-gas=%d and base-gas=%d" %
                                        (safe_tx_gas_estimation, safe_base_gas_estimation, safe_tx_gas, base_gas))
 
         # We use fast tx gas price, if not txs could be stuck
