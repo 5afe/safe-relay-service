@@ -24,7 +24,7 @@ def send_eth(w3, account, to, value, nonce=None):
                                                                             'pending'),
     }
 
-    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.key)
     return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
 
 
@@ -33,7 +33,7 @@ def send_token(w3, account, to, amount_to_send, token_address, nonce=None):
     nonce = nonce if nonce is not None else w3.eth.getTransactionCount(account.address, 'pending')
     tx = erc20_contract.functions.transfer(to, amount_to_send).buildTransaction({'from': account.address,
                                                                                  'nonce': nonce})
-    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.privateKey)
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=account.key)
     return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
 
 
@@ -76,7 +76,7 @@ class Command(BaseCommand):
         multiple_txs = options['multiple_txs']
 
         self.w3 = Web3(HTTPProvider(options['node_url']))
-        self.main_account = Account.privateKeyToAccount(options['private_key'])
+        self.main_account = Account.from_key(options['private_key'])
         self.main_account_nonce = self.w3.eth.getTransactionCount(self.main_account.address, 'pending')
         main_account_balance = self.w3.eth.getBalance(self.main_account.address)
         self.stdout.write(self.style.SUCCESS('Using %s as main account with balance=%d' % (self.main_account.address,
@@ -92,7 +92,7 @@ class Command(BaseCommand):
         accounts = [Account.create() for _ in range(3)]
         for account in accounts:
             self.stdout.write(self.style.SUCCESS('Created account=%s with key=%s' % (account.address,
-                                                                                     account.privateKey.hex())))
+                                                                                     account.key.hex())))
         accounts.append(self.main_account)
         accounts.sort(key=lambda acc: acc.address.lower())
         owners = [account.address for account in accounts]

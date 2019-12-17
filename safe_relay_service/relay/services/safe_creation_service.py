@@ -101,7 +101,7 @@ class SafeCreationService:
         self.safe_contract_address = safe_contract_address
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.default_callback_handler = default_callback_handler
-        self.funder_account = Account.privateKeyToAccount(safe_funder_private_key)
+        self.funder_account = Account.from_key(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
 
     def _get_token_eth_value_or_raise(self, address: str) -> float:

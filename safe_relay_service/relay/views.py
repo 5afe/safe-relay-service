@@ -77,9 +77,9 @@ class AboutView(APIView):
     renderer_classes = (JSONRenderer,)
 
     def get(self, request, format=None):
-        safe_funder_public_key = Account.privateKeyToAccount(settings.SAFE_FUNDER_PRIVATE_KEY).address \
+        safe_funder_public_key = Account.from_key(settings.SAFE_FUNDER_PRIVATE_KEY).address \
             if settings.SAFE_FUNDER_PRIVATE_KEY else None
-        safe_sender_public_key = Account.privateKeyToAccount(settings.SAFE_TX_SENDER_PRIVATE_KEY).address \
+        safe_sender_public_key = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address \
             if settings.SAFE_TX_SENDER_PRIVATE_KEY else None
         content = {
             'name': 'Safe Relay Service',

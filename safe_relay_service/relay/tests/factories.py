@@ -43,7 +43,7 @@ class SafeCreationFactory(factory.DjangoModelFactory):
     owners = factory.LazyFunction(lambda: [Account.create().address, Account.create().address])
     threshold = 2
     payment = factory.fuzzy.FuzzyInteger(100, 1000)
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(n))
+    tx_hash = factory.Sequence(lambda n: Web3.keccak(n))
     gas = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price = factory.fuzzy.FuzzyInteger(Web3.toWei(1, 'gwei'), Web3.toWei(20, 'gwei'))
     payment_token = None
@@ -74,7 +74,7 @@ class SafeCreation2Factory(factory.DjangoModelFactory):
     setup_data = factory.Sequence(lambda n: HexBytes('%x' % (n + 1000)))
     gas_estimated = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price_estimated = factory.fuzzy.FuzzyInteger(Web3.toWei(1, 'gwei'), Web3.toWei(20, 'gwei'))
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='safe-creation-2-%d' % n))
+    tx_hash = factory.Sequence(lambda n: Web3.keccak(text='safe-creation-2-%d' % n))
     block_number = None
 
 
@@ -93,7 +93,7 @@ class EthereumBlockFactory(factory.DjangoModelFactory):
     gas_limit = factory.fuzzy.FuzzyInteger(100000000, 200000000)
     gas_used = factory.fuzzy.FuzzyInteger(100000, 500000)
     timestamp = factory.LazyFunction(timezone.now)
-    block_hash = factory.Sequence(lambda n: Web3.sha3(text='block%d' % n))
+    block_hash = factory.Sequence(lambda n: Web3.keccak(text='block%d' % n))
 
 
 class EthereumTxFactory(factory.DjangoModelFactory):
@@ -101,7 +101,7 @@ class EthereumTxFactory(factory.DjangoModelFactory):
         model = EthereumTx
 
     block = factory.SubFactory(EthereumBlockFactory)
-    tx_hash = factory.Sequence(lambda n: Web3.sha3(text='ethereum_tx_hash%d' % n))
+    tx_hash = factory.Sequence(lambda n: Web3.keccak(text='ethereum_tx_hash%d' % n))
     _from = factory.LazyFunction(lambda: Account.create().address)
     gas = factory.fuzzy.FuzzyInteger(1000, 5000)
     gas_price = factory.fuzzy.FuzzyInteger(1, 100)
@@ -127,7 +127,7 @@ class SafeMultisigTxFactory(factory.DjangoModelFactory):
     gas_token = None
     refund_receiver = factory.LazyFunction(lambda: Account.create().address)
     nonce = factory.Sequence(lambda n: n)
-    safe_tx_hash = factory.Sequence(lambda n: Web3.sha3(text='safe_tx_hash%d' % n))
+    safe_tx_hash = factory.Sequence(lambda n: Web3.keccak(text='safe_tx_hash%d' % n))
 
 
 class InternalTxFactory(factory.DjangoModelFactory):

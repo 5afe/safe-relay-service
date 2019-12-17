@@ -324,7 +324,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         ).safe_tx_hash
 
         signatures = [w3.eth.account.signHash(multisig_tx_hash, private_key)
-                      for private_key in [owner_account.privateKey]]
+                      for private_key in [owner_account.key]]
         signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
 
         data = {

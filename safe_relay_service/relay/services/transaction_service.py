@@ -124,7 +124,7 @@ class TransactionService:
         self.redis = redis
         self.safe_valid_contract_addresses = safe_valid_contract_addresses
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
-        self.tx_sender_account = Account.privateKeyToAccount(tx_sender_private_key)
+        self.tx_sender_account = Account.from_key(tx_sender_private_key)
 
     @staticmethod
     def _check_refund_receiver(refund_receiver: str) -> bool:
@@ -393,8 +393,8 @@ class TransactionService:
 
         # We use fast tx gas price, if not txs could be stuck
         tx_gas_price = self._get_configured_gas_price()
-        tx_sender_private_key = self.tx_sender_account.privateKey
-        tx_sender_address = Account.privateKeyToAccount(tx_sender_private_key).address
+        tx_sender_private_key = self.tx_sender_account.key
+        tx_sender_address = Account.from_key(tx_sender_private_key).address
 
         safe_tx = safe.build_multisig_tx(
             to,
