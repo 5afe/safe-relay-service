@@ -29,8 +29,7 @@ from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
 from .serializers import (
     ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
     InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
-    SafeContractSerializer, SafeCreationEstimateResponseSerializer,
-    SafeCreationEstimateSerializer, SafeCreationResponseSerializer,
+    SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
     SafeRelayMultisigTxSerializer, SafeResponseSerializer,
@@ -39,8 +38,7 @@ from .services import StatsServiceProvider
 from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
-from .services.transaction_service import (SafeMultisigTxExists,
-                                           TransactionServiceException,
+from .services.transaction_service import (TransactionServiceException,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
 
