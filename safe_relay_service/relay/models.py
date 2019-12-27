@@ -186,6 +186,7 @@ class SafeCreation2(TimeStampedModel):
     gas_price_estimated = Uint256Field()
     tx_hash = Sha3HashField(unique=True, null=True, default=None)
     block_number = models.IntegerField(null=True, default=None)  # If mined
+    callback = EthereumAddressField(null=True)  # Contract address for optional proxy creation callback
 
     class Meta:
         verbose_name_plural = "Safe creation2s"

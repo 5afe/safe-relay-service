@@ -166,7 +166,8 @@ class SafeCreationService:
         )
 
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
-                        payment_token: Optional[str], setup_data: Optional[str], to: Optional[str]) -> SafeCreation2:
+                        payment_token: Optional[str], setup_data: Optional[str], to: Optional[str],
+                        callback: Optional[str]) -> SafeCreation2:
         """
         Prepare creation tx for a new safe using CREATE2 method
         :param salt_nonce: Random value for solidity `create2` salt
@@ -177,7 +178,7 @@ class SafeCreationService:
         :rtype: SafeCreation2
         :raises: InvalidPaymentToken
         """
-
+        callback = callback or NULL_ADDRESS
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price: int = self._get_configured_gas_price()
@@ -190,6 +191,7 @@ class SafeCreationService:
                                                       fixed_creation_cost=self.safe_fixed_creation_cost,
                                                       setup_data=HexBytes(setup_data if setup_data else '0x'),
                                                       to=to,
+                                                      callback=callback
                                                       )
 
         safe_contract, created = SafeContract.objects.get_or_create(
@@ -222,6 +224,7 @@ class SafeCreationService:
             setup_data=safe_creation_tx.safe_setup_data,
             gas_estimated=safe_creation_tx.gas,
             gas_price_estimated=safe_creation_tx.gas_price,
+            callback=callback,
         )
 
     def deploy_create2_safe_tx(self, safe_address: str) -> SafeCreation2:
@@ -287,13 +290,14 @@ class SafeCreationService:
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
-            ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
+            ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_callback(self.funder_account,
                                                                                    self.safe_contract_address,
                                                                                    setup_data,
                                                                                    safe_creation2.salt_nonce,
                                                                                    safe_creation2.gas_estimated,
                                                                                    safe_creation2.gas_price_estimated,
-                                                                                   nonce=tx_nonce)
+                                                                                   nonce=tx_nonce,
+                                                                                   callback=safe_creation2.callback)
             EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
             safe_creation2.save()

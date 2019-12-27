@@ -63,15 +63,16 @@ class SafeCreationView(CreateAPIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            salt_nonce, owners, threshold, payment_token, setup_data, to = (serializer.data['salt_nonce'], serializer.data['owners'],
+            salt_nonce, owners, threshold, payment_token, setup_data, to, callback = (serializer.data['salt_nonce'], serializer.data['owners'],
                                                             serializer.data['threshold'],
                                                             serializer.data['payment_token'],
                                                             serializer.data['setup_data'],
-                                                            serializer.data['to'])
+                                                            serializer.data['to'],
+                                                            serializer.data['callback'])
 
             safe_creation_service = SafeCreationServiceProvider()
             safe_creation = safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token,
-                                                                  setup_data, to)
+                                                                  setup_data, to, callback)
             safe_creation_response_data = SafeCreation2ResponseSerializer(data={
                 'safe': safe_creation.safe.address,
                 'master_copy': safe_creation.master_copy,
@@ -83,6 +84,7 @@ class SafeCreationView(CreateAPIView):
                 'to': safe_creation.to,
                 'gas_estimated': safe_creation.gas_estimated,
                 'gas_price_estimated': safe_creation.gas_price_estimated,
+                'callback': safe_creation.callback,
             })
             safe_creation_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_creation_response_data.data)
