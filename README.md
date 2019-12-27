@@ -3,7 +3,6 @@
 ![Python 3.7](https://img.shields.io/badge/Python-3.7-blue.svg)
 ![Django 2](https://img.shields.io/badge/Django-2-blue.svg)
 
-
 # Gnosis Safe Relay Service
 Service for Gnosis Safe Relay
 
