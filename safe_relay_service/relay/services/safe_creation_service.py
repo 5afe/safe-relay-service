@@ -290,6 +290,12 @@ class SafeCreationService:
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
+            logger.info('Calling deploy_proxy_contract_with_callback with: funder=%s address=%s setup_data=%s salt_nonce=%s callback=%s',
+                self.funder_account,
+                self.safe_contract_address,
+                setup_data,
+                safe_creation2.salt_nonce,
+                safe_creation2.callback)
             ethereum_tx_sent = self.proxy_factory.deploy_proxy_contract_with_callback(self.funder_account,
                                                                                    self.safe_contract_address,
                                                                                    setup_data,
