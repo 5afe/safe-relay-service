@@ -49,6 +49,7 @@ class SafeCreation2Serializer(ThresholdValidatorSerializerMixin, serializers.Ser
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
     to = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
     setup_data = serializers.CharField(default=None, allow_null=True, allow_blank=True, required=False)
+    callback = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)
 
 
 class SafeCreationEstimateSerializer(serializers.Serializer):
@@ -184,6 +185,7 @@ class SafeCreation2ResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_zero_address=True)
     gas_estimated = serializers.CharField()
     gas_price_estimated = serializers.CharField()
+    callback = EthereumAddressField(allow_zero_address=True)
 
 
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
