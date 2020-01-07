@@ -264,7 +264,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
             try:
                 try:
                     safe_creation = SafeCreation2.objects.get(safe=safe_address)
-                    total_gas_cost = safe_creation.wei_estimated_deploy_cost() + Circles().estimate_signup_gas()
+                    total_gas_cost = safe_creation.wei_estimated_deploy_cost() + Circles().estimate_signup_gas(safe_address)
                     FundingServiceProvider().send_eth_to(safe_address,
                                    total_gas_cost)
                 except SafeCreation.DoesNotExist:
