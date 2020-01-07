@@ -2,7 +2,6 @@ from django.conf import settings
 from logging import getLogger
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.eth.constants import NULL_ADDRESS
 from ethereum.utils import (check_checksum)
 
 logger = getLogger(__name__)

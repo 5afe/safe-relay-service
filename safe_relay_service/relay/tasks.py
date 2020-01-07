@@ -246,6 +246,16 @@ def deploy_safes_task(retry: bool = True) -> None:
     except LockError:
         pass
 
+@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+def fund_token_deployment(self, safe_address: str) -> None:
+    try:
+        redis = RedisRepository().redis
+        with redis.lock('tasks:fund_token_deployment', blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            token_deployment_cost = CirclesService().estimate_signup_gas(safe_address)
+            logger.error('token_deployment_cost %d', token_deployment_cost)
+            FundingServiceProvider().send_eth_to(safe_address, token_deployment_cost, gas=24000, retry=True)
+    except LockError:
+        logger.warning('Cannot get lock={} for deploying safe={}'.format(lock_name, safe_address))
 
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
 def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> None:
@@ -263,14 +273,15 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     try:
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             try:
-                try:
-                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
-                    total_gas_cost = safe_creation.wei_estimated_deploy_cost() + CirclesService().estimate_signup_gas(safe_address)
-                    FundingServiceProvider().send_eth_to(safe_address,
-                                   total_gas_cost)
-                except SafeCreation.DoesNotExist:
-                    pass
+                safe_creation = SafeCreation2.objects.get(safe=safe_address)
+                total_gas_cost = safe_creation.wei_estimated_deploy_cost()
+                logger.error('total_gas_cost %d', total_gas_cost)
+                FundingServiceProvider().send_eth_to(safe_address,
+                               total_gas_cost, gas=24000)
+
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
+            except SafeCreation2.DoesNotExist:
+                pass
             except NotEnoughFundingForCreation:
                 if retry:
                     raise self.retry(countdown=30)
@@ -287,7 +298,7 @@ def check_create2_deployed_safes_task() -> None:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_create2_deployed_safes_task', blocking_timeout=1, timeout=LOCK_TIMEOUT):
             ethereum_client = EthereumClientProvider()
-            confirmations = 6
+            confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
             current_block_number = ethereum_client.current_block_number
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
@@ -298,8 +309,11 @@ def check_create2_deployed_safes_task() -> None:
                         logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
                                     safe_address, safe_creation2.tx_hash, block_number)
                         safe_creation2.block_number = block_number
+
                         safe_creation2.save(update_fields=['block_number'])
-                        send_create_notification.delay(safe_address, safe_creation2.owners)
+
+                        # start task to fund token deployment
+                        fund_token_deployment.delay(safe_address)
                 else:
                     # If safe was not included in any block after 30 minutes (mempool limit is 30 minutes)
                     # try to increase a little the gas price
