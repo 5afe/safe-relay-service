@@ -20,4 +20,4 @@ class CirclesService:
             self.data,
             self.operation,
             self.gas_token)
-        return transaction_estimation
+        return (transaction_estimation.safe_tx_gas + transaction_estimation.base_gas) * transaction_estimation.gas_price
