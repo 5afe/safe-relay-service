@@ -44,7 +44,7 @@ class FundingService:
         self.ethereum_client = ethereum_client
         self.gas_station = gas_station
         self.redis = redis
-        self.funder_account = Account.privateKeyToAccount(funder_private_key)
+        self.funder_account = Account.from_key(funder_private_key)
         self.max_eth_to_send = max_eth_to_send
 
     def send_eth_to(self, to: str, value: int, gas: int = 22000, gas_price=None,
@@ -57,7 +57,7 @@ class FundingService:
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                timeout=60 * 2) as tx_nonce:
-            return self.ethereum_client.send_eth_to(self.funder_account.privateKey, to, gas_price, value,
+            return self.ethereum_client.send_eth_to(self.funder_account.key, to, gas_price, value,
                                                     gas=gas,
                                                     retry=retry,
                                                     block_identifier=block_identifier,

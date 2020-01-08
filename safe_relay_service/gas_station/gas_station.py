@@ -53,10 +53,10 @@ class GasStation:
         self.w3 = Web3(HTTPProvider(http_provider_uri))
         try:
             if self.w3.net.version != 1:
-                self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+                self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
             # For tests using dummy connections (like IPC)
         except (ConnectionError, FileNotFoundError):
-            self.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _get_block_cache_key(self, block_number):
         return 'block:%d' % block_number

@@ -28,3 +28,7 @@ class TokensView(ListAPIView):
     ordering_fields = '__all__'
     ordering = ('relevance', 'name')
     queryset = Token.objects.all()
+
+    @method_decorator(cache_page(60 * 5))  # Cache 5 minutes
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

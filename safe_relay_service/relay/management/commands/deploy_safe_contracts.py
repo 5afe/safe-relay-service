@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = 'Deploys master copy using first unlocked account on the node if `ganache -d` is found and contract ' \
            'is not deployed. If not you need to set a private key using `--deployer-key`'
     GANACHE_FIRST_ACCOUNT_KEY = '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
-    DEFAULT_ACCOUNT = Account.privateKeyToAccount(GANACHE_FIRST_ACCOUNT_KEY)
+    DEFAULT_ACCOUNT = Account.from_key(GANACHE_FIRST_ACCOUNT_KEY)
 
     def add_arguments(self, parser):
         # Positional arguments
@@ -20,7 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         ethereum_client = EthereumClientProvider()
         deployer_key = options['deployer_key']
-        deployer_account = Account.privateKeyToAccount(deployer_key) if deployer_key else self.DEFAULT_ACCOUNT
+        deployer_account = Account.from_key(deployer_key) if deployer_key else self.DEFAULT_ACCOUNT
 
         master_copies_with_deploy_fn = {
             settings.SAFE_CONTRACT_ADDRESS: Safe.deploy_master_contract,

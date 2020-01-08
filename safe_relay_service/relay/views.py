@@ -29,8 +29,7 @@ from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
 from .serializers import (
     ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
     InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
-    SafeContractSerializer, SafeCreationEstimateResponseSerializer,
-    SafeCreationEstimateSerializer, SafeCreationResponseSerializer,
+    SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
     SafeRelayMultisigTxSerializer, SafeResponseSerializer,
@@ -39,8 +38,7 @@ from .services import StatsServiceProvider
 from .services.funding_service import FundingServiceException
 from .services.safe_creation_service import (SafeCreationServiceException,
                                              SafeCreationServiceProvider)
-from .services.transaction_service import (SafeMultisigTxExists,
-                                           TransactionServiceException,
+from .services.transaction_service import (TransactionServiceException,
                                            TransactionServiceProvider)
 from .tasks import fund_deployer_task
 
@@ -77,9 +75,9 @@ class AboutView(APIView):
     renderer_classes = (JSONRenderer,)
 
     def get(self, request, format=None):
-        safe_funder_public_key = Account.privateKeyToAccount(settings.SAFE_FUNDER_PRIVATE_KEY).address \
+        safe_funder_public_key = Account.from_key(settings.SAFE_FUNDER_PRIVATE_KEY).address \
             if settings.SAFE_FUNDER_PRIVATE_KEY else None
-        safe_sender_public_key = Account.privateKeyToAccount(settings.SAFE_TX_SENDER_PRIVATE_KEY).address \
+        safe_sender_public_key = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address \
             if settings.SAFE_TX_SENDER_PRIVATE_KEY else None
         content = {
             'name': 'Safe Relay Service',

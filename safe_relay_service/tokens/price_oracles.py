@@ -113,7 +113,7 @@ class Uniswap(PriceOracle):
         :return: price
         """
         ethereum_client = EthereumClientProvider()
-        uniswap = UniswapOracle(ethereum_client.w3, self.uniswap_exchange_address)
+        uniswap = UniswapOracle(ethereum_client, self.uniswap_exchange_address)
         try:
             return uniswap.get_price(ticker)
         except OracleException as e:
@@ -132,7 +132,7 @@ class Kyber(PriceOracle):
         :return: price
         """
         ethereum_client = EthereumClientProvider()
-        kyber = KyberOracle(ethereum_client.w3, self.kyber_network_proxy_address)
+        kyber = KyberOracle(ethereum_client, self.kyber_network_proxy_address)
         try:
             return kyber.get_price(ticker, self.weth_token_address)
         except OracleException as e:

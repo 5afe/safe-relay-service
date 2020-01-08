@@ -113,7 +113,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
                                                                   NULL_ADDRESS,
                                                                   NULL_ADDRESS, 0
                                                                   ).buildTransaction({'from': self.ethereum_test_account.address})
-        tx_hash = self.ethereum_client.send_unsigned_transaction(proxy_create_tx, private_key=self.ethereum_test_account.privateKey)
+        tx_hash = self.ethereum_client.send_unsigned_transaction(proxy_create_tx, private_key=self.ethereum_test_account.key)
         tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash, timeout=60)
         proxy_address = tx_receipt.contractAddress
         with self.assertRaises(InvalidMasterCopyAddress):
