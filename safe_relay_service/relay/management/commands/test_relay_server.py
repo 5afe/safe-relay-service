@@ -9,6 +9,7 @@ import requests
 from eth_account import Account
 from web3 import HTTPProvider, Web3
 
+from gnosis.eth import EthereumClient
 from gnosis.eth.contracts import get_erc20_contract
 from gnosis.safe import SafeTx
 from gnosis.safe.tests.utils import generate_valid_s
@@ -40,6 +41,7 @@ def send_token(w3, account, to, amount_to_send, token_address, nonce=None):
 class Command(BaseCommand):
     base_url: str
     w3: Web3
+    ethereum_client: EthereumClient
     main_account: Account
     main_account_nonce: int
 
@@ -50,10 +52,13 @@ class Command(BaseCommand):
         # Positional arguments
         parser.add_argument('base_url', help='Base url of relay (e.g. http://safe-relay.gnosistest.com)')
         parser.add_argument('private_key', help='Private key')
-        parser.add_argument('--node_url', default='http://localhost:8545',
+        parser.add_argument('--node-url', default='http://localhost:8545',
                             help='Ethereum node in the same net that the relay')
         parser.add_argument('--payment-token', help='Use payment token for creating/testing')
-        parser.add_argument('--create2', help='Use CREATE2 for safe creation', action='store_true', default=False)
+        parser.add_argument('--v2', help='Use v2 endpoints for safe V1.0.0 creation', action='store_true',
+                            default=False)
+        parser.add_argument('--v3', help='Use v3 endpoints for safe V1.1.1 creation', action='store_true',
+                            default=True)
         parser.add_argument('--multiple-txs', help='Test sending multiple txs at the same time',
                             action='store_true', default=False)
 
@@ -71,11 +76,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.base_url = options['base_url']
-        create2 = options['create2']
+        v2 = options['v2']
+        v3 = options['v3']
         payment_token = options['payment_token']
         multiple_txs = options['multiple_txs']
 
-        self.w3 = Web3(HTTPProvider(options['node_url']))
+        self.ethereum_client = EthereumClient(options['node_url'])
+        self.w3 = self.ethereum_client.w3
         self.main_account = Account.from_key(options['private_key'])
         self.main_account_nonce = self.w3.eth.getTransactionCount(self.main_account.address, 'pending')
         main_account_balance = self.w3.eth.getBalance(self.main_account.address)
@@ -84,10 +91,13 @@ class Command(BaseCommand):
         about_url = urljoin(self.base_url, reverse('v1:about'))
         about_json = requests.get(about_url).json()
 
-        if create2:
-            master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
-        else:
+        if v2:
             master_copy_address = about_json['settings']['SAFE_V1_0_0_CONTRACT_ADDRESS']
+        elif v3:
+            master_copy_address = about_json['settings']['SAFE_CONTRACT_ADDRESS']
+        else:  # Old not CREATE2
+            master_copy_address = about_json['settings']['SAFE_V0_0_1_CONTRACT_ADDRESS']
+        self.stdout.write(self.style.SUCCESS(f'Using master-copy={master_copy_address}'))
 
         accounts = [Account.create() for _ in range(3)]
         for account in accounts:
@@ -101,8 +111,7 @@ class Command(BaseCommand):
             safe_addresses = []
             self.stdout.write(self.style.SUCCESS('Creating multiple safes'))
             for _ in range(10):
-                safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token,
-                                                         create2=create2)
+                safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, v2=v2, v3=v3)
                 self.fund_safe(safe_address, payment, payment_token, wait_for_receipt=False)
                 safe_addresses.append(safe_address)
 
@@ -122,16 +131,19 @@ class Command(BaseCommand):
                                                              timeout=500).status == 1, 'Error on tx-hash=%s' % tx_hash
             self.stdout.write(self.style.SUCCESS('Success with tx-hash=%s' % tx_hash))
         else:
-            safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, create2=create2)
+            safe_address, payment = self.create_safe(owners, threshold=2, payment_token=payment_token, v2=v2, v3=v3)
             self.fund_safe(safe_address, payment, payment_token)
             safe_info = self.check_safe_deployed(safe_address, owners, master_copy_address)
             safe_version = safe_info['version']
             self.send_safe_tx(safe_address, safe_version, accounts, payment_token)
 
     def create_safe(self, owners: List[Account], threshold: int = 2,
-                    payment_token: Optional[None] = None, create2: bool = True):
-        if create2:
-            creation_url = urljoin(self.base_url, reverse('v2:safe-creation'))
+                    payment_token: Optional[None] = None, v2: bool = False, v3: bool = True):
+        if v2 or v3:
+            if v2:
+                creation_url = urljoin(self.base_url, reverse('v2:safe-creation'))
+            else:
+                creation_url = urljoin(self.base_url, reverse('v3:safe-creation'))
             data = {
                 'saltNonce': generate_valid_s(),
                 'owners': owners,
