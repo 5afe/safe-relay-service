@@ -287,6 +287,9 @@ class EthereumBlock(models.Model):
     timestamp = models.DateTimeField()
     block_hash = Sha3HashField(unique=True)
 
+    def __str__(self):
+        return f'Block={self.number} on {self.timestamp}'
+
 
 class EthereumTxManager(models.Manager):
     def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
