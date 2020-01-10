@@ -35,13 +35,14 @@ class TestExchanges(TestCase):
         exchange = Binance()
         self.exchange_helper(exchange, ['BTCUSDT', 'ETHUSDT'], ['BADTICKER'])
 
+    @pytest.mark.xfail
     def test_dutchx(self):
         exchange = DutchX()
         # Dai address is 0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359
         # Gno address is 0x6810e776880C02933D47DB1b9fc05908e5386b96
         self.exchange_helper(exchange,
                              [# 'WETH-0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359', # DAI
-                              # '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359-WETH', # DAI
+                              '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359-WETH', # DAI
                               # 'WETH-0x6810e776880C02933D47DB1b9fc05908e5386b96'
                               '0x6810e776880C02933D47DB1b9fc05908e5386b96-WETH',
                               ],

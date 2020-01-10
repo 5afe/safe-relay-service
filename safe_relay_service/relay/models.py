@@ -15,7 +15,7 @@ from model_utils.models import TimeStampedModel
 from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
-from gnosis.safe import SafeOperation
+from gnosis.safe import SafeOperation, SafeTx
 
 from .models_raw import SafeContractManagerRaw, SafeContractQuerySetRaw
 
@@ -287,6 +287,9 @@ class EthereumBlock(models.Model):
     timestamp = models.DateTimeField()
     block_hash = Sha3HashField(unique=True)
 
+    def __str__(self):
+        return f'Block={self.number} on {self.timestamp}'
+
 
 class EthereumTxManager(models.Manager):
     def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
@@ -420,6 +423,13 @@ class SafeMultisigTx(TimeStampedModel):
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
                                           self.safe.address)
+
+    def get_safe_tx(self) -> SafeTx:
+        return SafeTx(None, self.safe_id, self.to, self.value, self.data.tobytes() if self.data else b'',
+                      self.operation, self.safe_tx_gas, self.data_gas, self.gas_price, self.gas_token,
+                      self.refund_receiver,
+                      signatures=self.signatures.tobytes() if self.signatures else b'',
+                      safe_nonce=self.nonce)
 
 
 class InternalTxManager(models.Manager):

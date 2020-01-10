@@ -4,6 +4,7 @@ set -euo pipefail
 
 echo "==> Migrating Django models..."
 python manage.py migrate --noinput
+python manage.py fix_safe_tx_hash
 echo "==> Setup Gas Station..."
 python manage.py setup_gas_station
 echo "==> Setup Safe Relay Task..."
