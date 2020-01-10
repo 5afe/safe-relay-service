@@ -252,7 +252,7 @@ def fund_token_deployment(self, safe_address: str) -> None:
         redis = RedisRepository().redis
         with redis.lock('tasks:fund_token_deployment', blocking_timeout=1, timeout=LOCK_TIMEOUT):
             token_deployment_cost = CirclesService().estimate_signup_gas(safe_address)
-            logger.error('token_deployment_cost %d', token_deployment_cost)
+            logger.info('token_deployment_cost %d', token_deployment_cost)
             FundingServiceProvider().send_eth_to(safe_address, token_deployment_cost, gas=24000, retry=True)
     except LockError:
         logger.warning('Cannot get lock={} for deploying safe={}'.format(lock_name, safe_address))
@@ -301,8 +301,6 @@ def check_create2_deployed_safes_task() -> None:
             confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
             current_block_number = ethereum_client.current_block_number
             pending_to_check = SafeCreation2.objects.pending_to_check()
-            logger.error('pending to check %d', pending_to_check)
-            logger.error('confirmations %d', confirmations)
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 safe_address = safe_creation2.safe_id
                 ethereum_tx = TransactionServiceProvider().create_or_update_ethereum_tx(safe_creation2.tx_hash)
