@@ -300,6 +300,9 @@ def check_create2_deployed_safes_task() -> None:
             ethereum_client = EthereumClientProvider()
             confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
             current_block_number = ethereum_client.current_block_number
+            pending_to_check = SafeCreation2.objects.pending_to_check()
+            logger.error('pending to check %d', pending_to_check)
+            logger.error('confirmations %d', confirmations)
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
                 safe_address = safe_creation2.safe_id
