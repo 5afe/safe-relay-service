@@ -273,10 +273,9 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             try:
                 safe_creation = SafeCreation2.objects.get(safe=safe_address)
-                total_gas_cost = safe_creation.wei_estimated_deploy_cost()
-                logger.error('total_gas_cost %d', total_gas_cost)
+                safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
                 FundingServiceProvider().send_eth_to(safe_address,
-                               total_gas_cost, gas=24000)
+                               safe_deploy_cost, gas=24000)
 
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
             except SafeCreation2.DoesNotExist:
@@ -299,7 +298,6 @@ def check_create2_deployed_safes_task() -> None:
             ethereum_client = EthereumClientProvider()
             confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
             current_block_number = ethereum_client.current_block_number
-            pending_to_check = SafeCreation2.objects.pending_to_check()
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
                 safe_address = safe_creation2.safe.address
