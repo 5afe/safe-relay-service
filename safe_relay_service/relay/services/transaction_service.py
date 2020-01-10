@@ -421,7 +421,7 @@ class TransactionService:
                                timeout=60 * 2) as tx_nonce:
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
-            return tx_hash, safe_tx.tx_hash, tx
+            return tx_hash, safe_tx.safe_tx_hash, tx
 
     def get_pending_multisig_transactions(self, older_than: int) -> List[SafeMultisigTx]:
         """
