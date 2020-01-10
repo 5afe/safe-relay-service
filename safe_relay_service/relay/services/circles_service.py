@@ -19,8 +19,7 @@ class CirclesService:
 
     def estimate_signup_gas(self, address):
         '''estimates gas costs of circles token deployment using standard signup data string'''
-        logger.error("In estimate signup gas")
-        logger.error('address %s data %s', address, self.data)
+        logger.info('address %s data %s', address, self.data)
         transaction_estimation = TransactionServiceProvider().estimate_tx(
             address,
             settings.CIRCLES_HUB_ADDRESS,
@@ -28,5 +27,4 @@ class CirclesService:
             self.data,
             self.operation,
             self.gas_token)
-        logger.error('safe_tx_gas %d base_gas %d gas_price %d', transaction_estimation.safe_tx_gas, transaction_estimation.base_gas, transaction_estimation.gas_price)
         return (transaction_estimation.safe_tx_gas + transaction_estimation.base_gas) * transaction_estimation.gas_price
