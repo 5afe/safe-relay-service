@@ -2,18 +2,15 @@ from django.conf import settings
 from logging import getLogger
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.eth.constants import NULL_ADDRESS
 from ethereum.utils import (check_checksum)
 
 logger = getLogger(__name__)
 
 class Circles:
-    magic_signup_gas = 3999092000000000
-    gas_price = 1
-    ethereum_client = EthereumClientProvider()
 
-    def estimate_signup_gas(self):
-        return self.magic_signup_gas
+    def __init__(self):
+        self.gas_price = 1 #gas price when paid in circles token
+        self.ethereum_client = EthereumClientProvider()
 
     def estimate_gas_price(self):
         return self.gas_price

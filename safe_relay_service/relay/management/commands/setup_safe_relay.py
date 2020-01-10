@@ -1,3 +1,4 @@
+from django.conf import settings
 from typing import NamedTuple, Tuple
 
 from django.core.management.base import BaseCommand
@@ -22,12 +23,13 @@ class CeleryTaskConfiguration(NamedTuple):
 
 class Command(BaseCommand):
     help = 'Setup Safe relay required tasks'
+    check_create2_interval = 20 if settings.DEBUG else 60
     tasks = [CeleryTaskConfiguration('safe_relay_service.relay.tasks.deploy_safes_task',
                                      'Deploy Safes', 20, IntervalSchedule.SECONDS),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_balance_of_accounts_task',
                                      'Check Balance of realy accounts', 1, IntervalSchedule.HOURS),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_create2_deployed_safes_task',
-                                     'Check and deploy Create2 Safes', 1, IntervalSchedule.MINUTES),
+                                     'Check and deploy Create2 Safes', check_create2_interval, IntervalSchedule.SECONDS),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_internal_txs_task',
                                      'Process Internal Txs for Safes', 2, IntervalSchedule.MINUTES),
              CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_erc_20_721_transfers_task',
