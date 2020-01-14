@@ -103,7 +103,7 @@ class Kraken(PriceOracle):
 
 
 class Uniswap(PriceOracle):
-    def __init__(self, uniswap_exchange_address: str):
+    def __init__(self, uniswap_exchange_address: str, **kwargs):
         self.uniswap_exchange_address = uniswap_exchange_address
 
     @cached(cache=TTLCache(maxsize=1024, ttl=60))
@@ -121,9 +121,8 @@ class Uniswap(PriceOracle):
 
 
 class Kyber(PriceOracle):
-    def __init__(self, kyber_network_proxy_address: str, weth_token_address: str):
+    def __init__(self, kyber_network_proxy_address: str, **kwargs):
         self.kyber_network_proxy_address = kyber_network_proxy_address
-        self.weth_token_address = weth_token_address
 
     @cached(cache=TTLCache(maxsize=1024, ttl=60))
     def get_price(self, ticker: str) -> float:
@@ -134,7 +133,7 @@ class Kyber(PriceOracle):
         ethereum_client = EthereumClientProvider()
         kyber = KyberOracle(ethereum_client, self.kyber_network_proxy_address)
         try:
-            return kyber.get_price(ticker, self.weth_token_address)
+            return kyber.get_price(ticker)
         except OracleException as e:
             raise CannotGetTokenPriceFromApi from e
 
