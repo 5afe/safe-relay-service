@@ -5,9 +5,12 @@ from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 
-from ..models import SafeContract, SafeFunding
+from eth_account import Account
+
+from ..models import EthereumTx, SafeContract, SafeFunding
 from ..services import Erc20EventsServiceProvider, InternalTxServiceProvider
-from ..tasks import (check_balance_of_accounts_task,
+from ..tasks import (check_and_update_pending_transactions,
+                     check_balance_of_accounts_task,
                      check_deployer_funded_task, check_pending_transactions,
                      deploy_create2_safe_task, deploy_safes_task,
                      find_erc_20_721_transfers_task, find_internal_txs_task,
@@ -94,3 +97,15 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=not_mined_alert_minutes + 1),
                               ethereum_tx__block=None)
         self.assertEqual(check_pending_transactions.delay().get(), 1)
+
+    def test_check_and_update_pending_transactions(self):
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=16),
+                              ethereum_tx__block=None)
+        self.assertEqual(check_and_update_pending_transactions.delay().get(), 0)
+
+        tx_hash = self.send_ether(Account.create().address, 1)
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=16),
+                              ethereum_tx__tx_hash=tx_hash,
+                              ethereum_tx__block=None)
+        self.assertEqual(check_and_update_pending_transactions.delay().get(), 1)
+        self.assertGreaterEqual(EthereumTx.objects.get(tx_hash=tx_hash).block_id, 0)
