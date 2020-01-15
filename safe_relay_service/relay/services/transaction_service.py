@@ -21,7 +21,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
-from ..models import EthereumTx, SafeContract, SafeMultisigTx
+from ..models import EthereumBlock, EthereumTx, SafeContract, SafeMultisigTx
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
@@ -425,7 +425,7 @@ class TransactionService:
 
     def get_pending_multisig_transactions(self, older_than: int) -> List[SafeMultisigTx]:
         """
-        Get multisig txs that have not been mined after X seconds
+        Get multisig txs that have not been mined after `older_than` seconds
         :param older_than: Time in seconds for a tx to be considered pending, if 0 all will be returned
         """
         return SafeMultisigTx.objects.filter(
@@ -433,3 +433,31 @@ class TransactionService:
         ).filter(
             created__lte=timezone.now() - timedelta(seconds=older_than),
         )
+
+    # TODO Refactor and test
+    def create_or_update_ethereum_tx(self, tx_hash: str) -> EthereumTx:
+        try:
+            ethereum_tx = EthereumTx.objects.get(tx_hash=tx_hash)
+            if ethereum_tx.block is None:
+                tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
+                if tx_receipt:
+                    ethereum_tx.block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
+                    ethereum_tx.gas_used = tx_receipt.gasUsed
+                    ethereum_tx.save()
+            return ethereum_tx
+        except EthereumTx.DoesNotExist:
+            tx = self.ethereum_client.get_transaction(tx_hash)
+            if tx:
+                if tx_receipt:
+                    tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
+                    ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
+                    return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
+                return EthereumTx.objects.create_from_tx(tx, tx_hash)
+
+    # TODO Refactor and test
+    def get_or_create_ethereum_block(self, block_number: int):
+        try:
+            return EthereumBlock.objects.get(number=block_number)
+        except EthereumBlock.DoesNotExist:
+            block = self.ethereum_client.get_block(block_number)
+            return EthereumBlock.objects.create_from_block(block)

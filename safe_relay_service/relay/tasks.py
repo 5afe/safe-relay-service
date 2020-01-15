@@ -392,3 +392,25 @@ def check_pending_transactions() -> int:
     except LockError:
         pass
     return number_txs
+
+
+@app.shared_task(soft_time_limit=60)
+def check_and_update_pending_transactions() -> int:
+    """
+    Check if pending txs have been mined and update them
+    :return: Number of pending transactions
+    """
+    number_txs = 0
+    try:
+        redis = RedisRepository().redis
+        with redis.lock('tasks:check_and_update_pending_transactions', blocking_timeout=1, timeout=60):
+            transaction_service = TransactionServiceProvider()
+            txs = TransactionServiceProvider().get_pending_multisig_transactions(older_than=15)
+            for tx in txs:
+                ethereum_tx = transaction_service.create_or_update_ethereum_tx(tx.ethereum_tx_id)
+                if ethereum_tx and ethereum_tx.block_id:
+                    logger.info('Updated tx with tx-hash=%s and block=%d', ethereum_tx.tx_hash, ethereum_tx.block_id)
+                    number_txs += 1
+    except LockError:
+        pass
+    return number_txs
