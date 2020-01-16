@@ -248,9 +248,10 @@ def deploy_safes_task(retry: bool = True) -> None:
 
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
 def fund_token_deployment(self, safe_address: str) -> None:
+    redis = RedisRepository().redis
+    lock_name = f'locks:fund_token_deployment:{safe_address}'
     try:
-        redis = RedisRepository().redis
-        with redis.lock('tasks:fund_token_deployment', blocking_timeout=1, timeout=LOCK_TIMEOUT):
+        with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             token_deployment_cost = CirclesService().estimate_signup_gas(safe_address)
             logger.info('token_deployment_cost %d', token_deployment_cost)
             FundingServiceProvider().send_eth_to(safe_address, token_deployment_cost, gas=24000, retry=True)
