@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpResponse
 from django.views import defaults as default_views
+from django.views.decorators.cache import cache_control
 
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
@@ -22,10 +23,18 @@ schema_view = get_schema_view(
 )
 
 
+schema_cache_timeout = 60 * 5  # 5 minutes
+
 urlpatterns = [
-    url(r'^$', schema_view.with_ui('swagger', cache_timeout=None), name='schema-swagger-ui'),
-    url(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=None), name='schema-json'),
-    url(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=None), name='schema-redoc'),
+    url(r'^$',
+        cache_control(max_age=schema_cache_timeout)(schema_view.with_ui('swagger', cache_timeout=0)),
+        name='schema-swagger-ui'),
+    url(r'^swagger(?P<format>\.json|\.yaml)$',
+        cache_control(max_age=schema_cache_timeout)(schema_view.without_ui(cache_timeout=schema_cache_timeout)),
+        name='schema-json'),
+    url(r'^redoc/$',
+        cache_control(max_age=schema_cache_timeout)(schema_view.with_ui('redoc', cache_timeout=schema_cache_timeout)),
+        name='schema-redoc'),
     url(settings.ADMIN_URL, admin.site.urls),
     url(r'^api/v1/', include('safe_relay_service.relay.urls', namespace='v1')),
     url(r'^api/v2/', include('safe_relay_service.relay.urls_v2', namespace='v2')),
