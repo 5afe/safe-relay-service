@@ -18,5 +18,13 @@ DOCKER_SHARED_DIR=/nginx
 rm -rf $DOCKER_SHARED_DIR/*
 STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput
 
+if [[ -n "$SLACK_API_WEBHOOK" ]];
+then
+  echo "==> Sending Slack message"
+  APP_VERSION=`python manage.py get_version`
+  curl -X POST -H 'Content-type: application/json' \
+    --data '{"text":"Starting Safe Relay version '${APP_VERSION}'"}' $SLACK_API_WEBHOOK
+fi
+
 echo "==> Running Gunicorn ... "
 exec gunicorn --pythonpath "$PWD" config.wsgi:application --log-file=- --error-logfile=- --access-logfile=- --log-level info --logger-class='safe_relay_service.relay.utils.CustomGunicornLogger' -b unix:$DOCKER_SHARED_DIR/gunicorn.socket -b 127.0.0.1:8888 --worker-class gevent
