@@ -3,6 +3,8 @@ from typing import Any, List
 
 from gunicorn import glogging
 
+from gnosis.eth import EthereumClient, EthereumClientProvider
+
 
 class IgnoreCheckUrl(logging.Filter):
     def filter(self, record):
@@ -27,3 +29,20 @@ def chunks(l: List[Any], n: int):
     """
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
+
+class EthereumNetwork:
+
+    ethereum_client = EthereumClientProvider()
+
+    def get_network(self):
+        """
+        return: Name of the current Ethereum network
+        """
+        network = {
+            1: 'mainnet',
+            3: 'ropsten',
+            4: 'rinkeby',
+            42: 'kovan',
+        }
+        return network.get(self.ethereum_client.w3.net.version, "unknown")
