@@ -389,8 +389,13 @@ class TransactionService:
                                        "safe-tx-gas=%d and data-gas=%d" %
                                        (safe_tx_gas_estimation, safe_base_gas_estimation, safe_tx_gas, base_gas))
 
-        # We use fast tx gas price, if not txs could be stuck
-        tx_gas_price = self._get_configured_gas_price()
+        # Use user provided gasPrice for TX if more than our stardard gas price
+        standard_gas = self._get_configured_gas_price()
+        if gas_price > standard_gas :
+            tx_gas_price = gas_price
+        else:
+            tx_gas_price = standard_gas
+
         tx_sender_private_key = self.tx_sender_account.privateKey
         tx_sender_address = Account.privateKeyToAccount(tx_sender_private_key).address
 
