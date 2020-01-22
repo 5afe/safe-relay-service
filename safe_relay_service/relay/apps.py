@@ -2,11 +2,11 @@ from django.apps import AppConfig
 from django.conf import settings
 from logging import getLogger
 
-from .utils import EthereumNetwork
+from gnosis.eth import EthereumClientProvider
+
 from ..version import __version__
 
 logger = getLogger(__name__)
-ethereum_network = EthereumNetwork()
 
 
 class RelayConfig(AppConfig):
@@ -14,11 +14,12 @@ class RelayConfig(AppConfig):
 
     def ready(self):
         from .services import SlackNotificationClientProvider
+        ethereum_client = EthereumClientProvider()
 
         slack_notification_client = SlackNotificationClientProvider()
         startup_message = str.format("Starting {} version {} on {}",
                         self.verbose_name, __version__,
-                        ethereum_network.get_network())
+                        ethereum_client.get_network_name().name.capitalize())
         logger.info(startup_message)
         if settings.SLACK_API_WEBHOOK:
             try:
