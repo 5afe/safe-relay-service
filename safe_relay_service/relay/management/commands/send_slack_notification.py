@@ -18,7 +18,7 @@ class Command(BaseCommand):
         app_name = apps.get_app_config('relay').verbose_name
         startup_message = str.format("Starting {} version {} on {}",
                                      app_name, __version__,
-                                     EthereumNetworkName(int(self.ethereum_client.w3.net.version)).name.capitalize())
+                                     self.ethereum_client.get_network_name().name.capitalize())
 
         self.stdout.write(self.style.SUCCESS(startup_message))
         if settings.SLACK_API_WEBHOOK:
