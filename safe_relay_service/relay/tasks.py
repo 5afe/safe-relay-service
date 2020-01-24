@@ -20,8 +20,9 @@ from .models import (SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                      SafeMultisigTx)
 from .repositories.redis_repository import RedisRepository
 from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
-                       NotificationServiceProvider,
-                       SafeCreationServiceProvider, TransactionServiceProvider)
+                       InternalTxServiceProvider, NotificationServiceProvider,
+                       SafeCreationServiceProvider, TransactionServiceProvider,
+                       CirclesService, GraphQLService)
 from .services.safe_creation_service import NotEnoughFundingForCreation
 
 logger = get_task_logger(__name__)
@@ -261,7 +262,7 @@ def fund_token_deployment(self, safe_address: str) -> None:
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
 def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> None:
     """
-    Check if user has sent enough ether or tokens to the safe account
+    Check if user has enough incoming trust connections to the safe account
     If every condition is met safe is deployed
     :param safe_address: safe account
     :param retry: if True, retries are allowed, otherwise don't retry
@@ -273,11 +274,18 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     lock_name = f'locks:deploy_create2_safe:{safe_address}'
     try:
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            # Check if we have enough trust connections
+            if not GraphQLService().check_trust_connections(safe_address):
+                return
+
             try:
+                logger.info('Fund deployment for {}'.format(safe_address))
+
                 safe_creation = SafeCreation2.objects.get(safe=safe_address)
                 safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
                 FundingServiceProvider().send_eth_to(safe_address,
-                               safe_deploy_cost, gas=24000)
+                                                     safe_deploy_cost,
+                                                     gas=24000)
 
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
             except SafeCreation2.DoesNotExist:

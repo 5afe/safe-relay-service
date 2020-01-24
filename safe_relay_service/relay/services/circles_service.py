@@ -4,7 +4,9 @@ from logging import getLogger
 from gnosis.eth.constants import NULL_ADDRESS
 from .transaction_service import TransactionServiceProvider
 
+
 logger = getLogger(__name__)
+
 
 class CirclesService:
 
