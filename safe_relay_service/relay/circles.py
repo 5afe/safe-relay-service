@@ -4,7 +4,6 @@ from logging import getLogger
 from gnosis.eth import EthereumClientProvider
 from ethereum.utils import (check_checksum)
 
-logger = getLogger(__name__)
 
 
 class Circles:
