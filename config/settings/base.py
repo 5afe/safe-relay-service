@@ -342,3 +342,8 @@ INTERNAL_TXS_BLOCK_PROCESS_LIMIT = env('INTERNAL_TXS_BLOCK_PROCESS_LIMIT', defau
 # Circles
 # ------------------------------------------------------------------------------
 CIRCLES_HUB_ADDRESS = env('CIRCLES_HUB_ADDRESS', default='0x' + '0' * 39 + '1')
+
+GRAPH_NODE_ENDPOINT = env('GRAPH_NODE_ENDPOINT', default='')
+SUBGRAPH_NAME = env('SUBGRAPH_NAME', default='')
+
+MIN_TRUST_CONNECTIONS = env('MIN_TRUST_CONNECTIONS', default=3)
