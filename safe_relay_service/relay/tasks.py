@@ -274,23 +274,19 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     lock_name = f'locks:deploy_create2_safe:{safe_address}'
     try:
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
-            # Check if we have enough trust connections
-            if not GraphQLService().check_trust_connections(safe_address):
-                return
-
             try:
-                logger.info('Fund deployment for {}'.format(safe_address))
-
-                safe_creation = SafeCreation2.objects.get(safe=safe_address)
-                safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
-                FundingServiceProvider().send_eth_to(safe_address,
-                                                     safe_deploy_cost,
-                                                     gas=24000)
-
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
             except SafeCreation2.DoesNotExist:
                 pass
             except NotEnoughFundingForCreation:
+                # Check if we have enough trust connections to fund Safe
+                if not GraphQLService().check_trust_connections(safe_address):
+                    logger.info('Fund deployment for {}'.format(safe_address))
+                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
+                    safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
+                    FundingServiceProvider().send_eth_to(safe_address,
+                                                         safe_deploy_cost,
+                                                         gas=24000)
                 if retry:
                     raise self.retry(countdown=30)
     except LockError:
