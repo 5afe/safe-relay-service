@@ -14,7 +14,7 @@ class GraphQLService:
     def __init__(self):
         self.endpoint = HTTPEndpoint(url)
 
-    def check_trust_connections(safe_address: str):
+    def check_trust_connections(self, safe_address: str):
         trust_limit = settings.MIN_TRUST_CONNECTIONS
 
         query = ('{'
