@@ -8,3 +8,5 @@ from .safe_creation_service import (SafeCreationService,
                                     SafeCreationServiceProvider)
 from .stats_service import StatsService, StatsServiceProvider
 from .transaction_service import TransactionService, TransactionServiceProvider
+from .circles_service import CirclesService
+from .graphql_service import GraphQLService
