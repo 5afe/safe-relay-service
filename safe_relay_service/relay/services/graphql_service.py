@@ -1,5 +1,7 @@
 from django.conf import settings
+from logging import getLogger
 from sgqlc.endpoint.http import HTTPEndpoint
+
 
 logger = getLogger(__name__)
 
