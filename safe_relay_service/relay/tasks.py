@@ -280,7 +280,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
                 pass
             except NotEnoughFundingForCreation:
                 # Check if we have enough trust connections to fund Safe
-                if not GraphQLService().check_trust_connections(safe_address):
+                if GraphQLService().check_trust_connections(safe_address):
                     logger.info('Fund deployment for {}'.format(safe_address))
                     safe_creation = SafeCreation2.objects.get(safe=safe_address)
                     safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
