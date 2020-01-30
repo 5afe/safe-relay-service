@@ -4,55 +4,64 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+  batch: false
+  branches:
+    include:
+      - master
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-- group: aws-credentials
+  - group: aws-credentials
 
 steps:
-- task: Docker@1
-  displayName: docker login
-  inputs:
-    command: login
-    containerRegistryType: Container Registry
-    dockerRegistryEndpoint: dockerhub-augurproject
+  - condition: |
+      and
+      (
+        eq(variables['Build.SourceBranch'], 'refs/heads/master')
+      )
+  - task: Docker@1
+    displayName: docker login
+    inputs:
+      command: login
+      containerRegistryType: Container Registry
+      dockerRegistryEndpoint: dockerhub-augurproject
 
-- bash: |
-    set -exuo pipefail
-    docker-compose build
-    docker images
-    docker tag s_scheduler:latest augurproject/safe-relay-service_scheduler:latest
-    docker tag s_web:latest augurproject/safe-relay-service_web:latest
-    docker tag s_worker:latest augurproject/safe-relay-service_worker:latest
-    docker push augurproject/safe-relay-service_scheduler:latest
-    docker push augurproject/safe-relay-service_web:latest
-    docker push augurproject/safe-relay-service_worker:latest
-  displayName: 'docker compose build'
+  - bash: |
+      set -exuo pipefail
+      docker-compose build
+      docker images
+      docker tag s_scheduler:latest augurproject/safe-relay-service_scheduler:latest
+      docker tag s_web:latest augurproject/safe-relay-service_web:latest
+      docker tag s_worker:latest augurproject/safe-relay-service_worker:latest
+      docker push augurproject/safe-relay-service_scheduler:latest
+      docker push augurproject/safe-relay-service_web:latest
+      docker push augurproject/safe-relay-service_worker:latest
+    displayName: 'docker compose build'
 
-- task: Docker@1
-  displayName: docker logout
-  inputs:
-    command: logout
-    containerRegistryType: Container Registry
-    dockerRegistryEndpoint: dockerhub-augurproject
 
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.6'
+  - task: Docker@1
+    displayName: docker logout
+    inputs:
+      command: logout
+      containerRegistryType: Container Registry
+      dockerRegistryEndpoint: dockerhub-augurproject
 
-- bash: |
-    set -euo pipefail
-    python3 -m venv venv && \
-    source venv/bin/activate && \
-    python3 -m pip install --no-cache-dir awscli
-    aws --region=us-east-1 ecs update-service  --service gnosis-web --cluster kovan-v2-ecs --force-new-deployment
-    aws --region=us-east-1 ecs update-service  --service gnosis-scheduler --cluster kovan-v2-ecs --force-new-deployment
-    aws --region=us-east-1 ecs update-service  --service gnosis-worker --cluster kovan-v2-ecs --force-new-deployment
-  displayName: 'push build to aws'
-  env:
-    AWS_ACCESS_KEY_ID: $(AWS_KEY_ID)
-    AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.6'
+
+  - bash: |
+      set -euo pipefail
+      python3 -m venv venv && \
+      source venv/bin/activate && \
+      python3 -m pip install --no-cache-dir awscli
+      aws --region=us-east-1 ecs update-service  --service gnosis-web --cluster kovan-v2-ecs --force-new-deployment
+      aws --region=us-east-1 ecs update-service  --service gnosis-scheduler --cluster kovan-v2-ecs --force-new-deployment
+      aws --region=us-east-1 ecs update-service  --service gnosis-worker --cluster kovan-v2-ecs --force-new-deployment
+    displayName: 'push build to aws'
+    env:
+      AWS_ACCESS_KEY_ID: $(AWS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
 
