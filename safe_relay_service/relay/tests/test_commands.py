@@ -30,6 +30,13 @@ class TestCommands(TestCase):
         call_command('deploy_safe_contracts', stdout=buf)
         self.assertEqual(buf.getvalue().count('Contract has been deployed on'), 3)
 
+    def test_send_slack_notification(self):
+        buf = StringIO()
+        call_command('send_slack_notification', stdout=buf)
+        text = buf.getvalue()
+        self.assertIn('Slack not configured, ignoring', text)
+        self.assertIn('Starting Safe Relay version', text)
+
     def test_setup_internal_txs(self):
         buf = StringIO()
 

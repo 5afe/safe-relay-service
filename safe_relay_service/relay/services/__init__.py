@@ -6,7 +6,5 @@ from .notification_service import (NotificationService,
                                    NotificationServiceProvider)
 from .safe_creation_service import (SafeCreationService,
                                     SafeCreationServiceProvider)
-from .slack_notification_client import (SlackNotificationClient,
-                                        SlackNotificationClientProvider)
 from .stats_service import StatsService, StatsServiceProvider
 from .transaction_service import TransactionService, TransactionServiceProvider
