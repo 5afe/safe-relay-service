@@ -18,7 +18,7 @@ DOCKER_SHARED_DIR=/nginx
 rm -rf $DOCKER_SHARED_DIR/*
 STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput
 
-echo "==> Send Safe relay version and network"
+echo "==> Send via Slack info about service version and network"
 python manage.py send_slack_notification
 
 echo "==> Running Gunicorn ... "

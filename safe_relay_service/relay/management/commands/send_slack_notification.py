@@ -2,11 +2,11 @@ from django.apps import apps
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from gnosis.eth.ethereum_client import EthereumNetworkName
 from gnosis.eth import EthereumClientProvider
+from gnosis.eth.ethereum_client import EthereumNetworkName
 
-from ...services import SlackNotificationClientProvider
 from ....version import __version__
+from ...services import SlackNotificationClientProvider
 
 
 class Command(BaseCommand):

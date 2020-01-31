@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
+from logging import getLogger
 from typing import NoReturn, Optional
 from urllib.parse import urljoin
 
 from requests import post
-from logging import getLogger
 
 logger = getLogger(__name__)
 
@@ -15,6 +15,31 @@ class NotificationClient(ABC):
 
     @abstractmethod
     def send(self, *args, **kwargs) -> NoReturn: pass
+
+
+class SlackNotificationClientProvider:
+    """
+    Provides singletone handling of Notification clients.
+    """
+
+    def __new__(cls):
+        """
+        Returns the instance of EmptyClient if no settings are configurated
+        """
+        if not hasattr(cls, 'instance'):
+            from django.conf import settings
+            if hasattr(settings, 'SLACK_API_WEBHOOK') and settings.SLACK_API_WEBHOOK:
+                # Create instance
+                cls.instance = SlackNotificationClient(webhook=settings.SLACK_API_WEBHOOK)
+            else:
+                logger.debug('Slack Notification system is disabled because no configuration was set')
+                cls.instance = EmptyClient()
+        return cls.instance
+
+    @classmethod
+    def del_singleton(cls):
+        if hasattr(cls, "instance"):
+            del cls.instance
 
 
 class SlackNotificationClient(NotificationClient):
@@ -89,28 +114,3 @@ class MockClient(NotificationClient):
 
     def send(self, text):
         self.notifications.append(text)
-
-
-class SlackNotificationClientProvider:
-    """
-    Provides singletone handling of Notification clients.
-    """
-
-    def __new__(cls):
-        """
-        Returns the instance of EmptyClient if no settings are configurated
-        """
-        if not hasattr(cls, 'instance'):
-            from django.conf import settings
-            if hasattr(settings, 'SLACK_API_WEBHOOK') and settings.SLACK_API_WEBHOOK:
-                # Create instance
-                cls.instance = SlackNotificationClient(webhook=settings.SLACK_API_WEBHOOK)
-            else:
-                logger.debug('Slack Notification system is disabled because no configuration was set')
-                cls.instance = EmptyClient()
-        return cls.instance
-
-    @classmethod
-    def del_singleton(cls):
-        if hasattr(cls, "instance"):
-            del cls.instance

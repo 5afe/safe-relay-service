@@ -1,7 +1,7 @@
 from django.test import TestCase
 
+from ..services import SlackNotificationClient, SlackNotificationClientProvider
 from ..services.slack_notification_client import EmptyClient
-from ..services import (SlackNotificationClientProvider,  SlackNotificationClient)
 
 
 class TestSlackClient(TestCase):
@@ -16,4 +16,3 @@ class TestSlackClient(TestCase):
             self.assertIsInstance(client, EmptyClient)
 
         SlackNotificationClientProvider.del_singleton()
-
