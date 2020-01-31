@@ -330,3 +330,6 @@ TOKEN_LOGO_BASE_URI = env('TOKEN_LOGO_BASE_URI', default='https://gnosis-safe-to
 TOKEN_LOGO_EXTENSION = env('TOKEN_LOGO_EXTENSION', default='.png')
 
 INTERNAL_TXS_BLOCK_PROCESS_LIMIT = env('INTERNAL_TXS_BLOCK_PROCESS_LIMIT', default=100000)
+
+# Notifications
+SLACK_API_WEBHOOK = env('SLACK_API_WEBHOOK', default=None)
