@@ -9,6 +9,7 @@ from django.utils import timezone
 from eth_account import Account
 from packaging.version import Version
 from redis import Redis
+from web3.exceptions import BadFunctionCallOutput
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
@@ -215,9 +216,13 @@ class TransactionService:
             raise InvalidGasToken(gas_token)
         safe = Safe(safe_address, self.ethereum_client)
         last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
-        last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
-        if last_used_nonce < 0:  # There's no last_used_nonce
+        try:
+            last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
+            if last_used_nonce < 0:  # There's no last_used_nonce
+                last_used_nonce = None
+        except BadFunctionCallOutput:  # If Safe does not exist
             last_used_nonce = None
+
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
 

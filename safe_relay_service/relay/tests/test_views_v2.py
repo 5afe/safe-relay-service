@@ -187,7 +187,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
         to = Account.create().address

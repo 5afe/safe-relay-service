@@ -370,12 +370,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        my_safe_address, _ = get_eth_address_with_key()
-        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
-                                    data={},
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
         my_safe_address = self.create2_test_safe_in_db().safe.address
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
@@ -393,7 +387,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
         to, _ = get_eth_address_with_key()
@@ -442,7 +436,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
 
