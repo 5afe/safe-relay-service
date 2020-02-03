@@ -213,8 +213,11 @@ class TransactionService:
         """
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
-        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
         safe = Safe(safe_address, self.ethereum_client)
+        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
+        last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
+        if last_used_nonce < 0:  # There's no last_used_nonce
+            last_used_nonce = None
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
 
@@ -280,7 +283,8 @@ class TransactionService:
         :raises: TransactionServiceException: If Safe Tx is not valid (not sorted owners, bad signature, bad nonce...)
         """
 
-        safe_contract = SafeContract.objects.get(address=safe_address)
+        safe_contract, _ = SafeContract.objects.get_or_create(address=safe_address,
+                                                              defaults={'master_copy': NULL_ADDRESS})
         created = timezone.now()
 
         if SafeMultisigTx.objects.filter(safe=safe_contract, nonce=nonce).exists():

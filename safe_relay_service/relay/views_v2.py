@@ -100,11 +100,6 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.get_serializer_class()(data=request.data)
