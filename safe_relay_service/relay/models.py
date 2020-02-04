@@ -64,18 +64,6 @@ class SafeContractManager(SafeContractManagerRaw):
 class SafeContractQuerySet(SafeContractQuerySetRaw):
     deployed_filter = ~Q(safecreation2__block_number=None) | Q(safefunding__safe_deployed=True)
 
-    def with_balance(self):
-        """
-        :return: Queryset with the Safes and a `balance` attribute
-        """
-        return self.annotate(
-            balance=Subquery(
-                InternalTx.objects.balance_for_all_safes(
-                ).filter(
-                    to=OuterRef('address')
-                ).values('balance').distinct(),
-                models.DecimalField()))
-
     def deployed(self):
         return self.filter(
             self.deployed_filter
@@ -94,9 +82,6 @@ class SafeContract(TimeStampedModel):
 
     def __str__(self):
         return 'Safe=%s Master-copy=%s' % (self.address, self.master_copy)
-
-    def get_balance(self) -> int:
-        return InternalTx.objects.calculate_balance(self.address)
 
     def get_tokens_with_balance(self) -> List[Dict[str, Any]]:
         return EthereumEvent.objects.erc20_tokens_with_balance(self.address)
@@ -430,129 +415,6 @@ class SafeMultisigTx(TimeStampedModel):
                       self.refund_receiver,
                       signatures=self.signatures.tobytes() if self.signatures else b'',
                       safe_nonce=self.nonce)
-
-
-class InternalTxManager(models.Manager):
-    def get_or_create_from_trace(self, trace: Dict[str, Any], ethereum_tx: EthereumTx):
-        tx_type = EthereumTxType.parse(trace['type'])
-        call_type = EthereumTxCallType.parse_call_type(trace['action'].get('callType'))
-        trace_address_str = ','.join([str(address) for address in trace['traceAddress']])
-        internal_tx, _ = self.get_or_create(
-            ethereum_tx=ethereum_tx,
-            trace_address=trace_address_str,
-            defaults={
-                '_from': trace['action'].get('from'),
-                'gas': trace['action'].get('gas', 0),
-                'data': trace['action'].get('input') or trace['action'].get('init'),
-                'to': trace['action'].get('to') or trace['action'].get('address'),
-                'value': trace['action'].get('value') or trace['action'].get('balance', 0),
-                'gas_used': (trace.get('result') or {}).get('gasUsed', 0),
-                'contract_address': (trace.get('result') or {}).get('address'),
-                'code': (trace.get('result') or {}).get('code'),
-                'output': (trace.get('result') or {}).get('output'),
-                'refund_address': trace['action'].get('refundAddress'),
-                'tx_type': tx_type.value,
-                'call_type': call_type.value if call_type else None,
-                'error': trace.get('error'),
-            }
-        )
-        return internal_tx
-
-    def balance_for_all_safes(self):
-        # Exclude `DELEGATE_CALL` and errored transactions from `balance` calculations
-
-        # There must be at least 2 txs (one in and another out for this method to work
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = address
-        # sum
-        # -----
-        # (1 row)
-
-        # But Django uses group by
-        # SELECT SUM(value) FROM "relay_internaltx" U0 WHERE U0."_from" = '0xE3726b0a9d59c3B28947Ae450e8B8FC864c7f77f' GROUP BY U0."_from"
-        # sum
-        # -----
-        # (0 rows)
-
-        # We would like to translate this query into Django (excluding errors and DELEGATE_CALLs),
-        # but it's not working as Django always try to `GROUP BY` when using `annotate`
-        # SELECT *, (SELECT SUM(CASE WHEN "to"=R.to THEN value ELSE -value END)
-        # FROM relay_internaltx
-        # WHERE "to"=R.to OR _from=R.to) FROM relay_internaltx R;
-
-        outgoing_balance = self.filter(
-            _from=OuterRef('to'), error=None
-        ).exclude(
-            call_type=EthereumTxCallType.DELEGATE_CALL.value
-        ).order_by().values('_from').annotate(
-            total=Coalesce(Sum('value'), 0)
-        ).values('total')
-
-        incoming_balance = self.filter(
-            to=OuterRef('to'), error=None
-        ).exclude(
-            call_type=EthereumTxCallType.DELEGATE_CALL.value
-        ).order_by().values('to').annotate(
-            total=Coalesce(Sum('value'), 0)
-        ).values('total')
-
-        return self.annotate(balance=Subquery(incoming_balance, output_field=models.DecimalField()) -
-                                     Subquery(outgoing_balance, output_field=models.DecimalField()))
-
-    def calculate_balance(self, address: str) -> int:
-        # balances_from = InternalTx.objects.filter(_from=safe_address).aggregate(value=Sum('value')).get('value', 0)
-        # balances_to = InternalTx.objects.filter(to=safe_address).aggregate(value=Sum('value')).get('value', 0)
-        # return balances_to - balances_from
-
-        # If `from` we set `value` to `-value`, if `to` we let the `value` as it is. Then SQL `Sum` will get the balance
-        # balance = InternalTx.objects.filter(
-        #     error=None  # Exclude errored txs
-        # ).exclude(
-        #     call_type=EthereumTxCallType.DELEGATE_CALL.value  # Exclude delegate calls
-        # ).exclude(
-        #     Q(_from=address) & Q(to=address)  # Exclude txs to the same address
-        # ).filter(
-        #     Q(_from=address) | Q(to=address)
-        # ).annotate(
-        #     balance=Case(
-        #         When(_from=address, then=-F('value')),
-        #         default='value',
-        #     )
-        # ).aggregate(Sum('balance')).get('balance__sum', 0)
-        # return balance if balance else 0
-        internal_tx = self.balance_for_all_safes().filter(to=address).values('balance').first()
-        if not internal_tx:
-            return 0
-        else:
-            return int(internal_tx.get('balance') or 0)
-
-
-class InternalTx(models.Model):
-    objects = InternalTxManager()
-    ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='internal_txs')
-    _from = EthereumAddressField(null=True, db_index=True)  # For SELF-DESTRUCT it can be null
-    gas = Uint256Field()
-    data = models.BinaryField(null=True)  # `input` for Call, `init` for Create
-    to = EthereumAddressField(null=True, db_index=True)
-    value = Uint256Field()
-    gas_used = Uint256Field()
-    contract_address = EthereumAddressField(null=True, db_index=True)  # Create
-    code = models.BinaryField(null=True)                # Create
-    output = models.BinaryField(null=True)              # Call
-    refund_address = EthereumAddressField(null=True, db_index=True)  # For SELF-DESTRUCT
-    tx_type = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in EthereumTxType])
-    call_type = models.PositiveSmallIntegerField(null=True,
-                                                 choices=[(tag.value, tag.name) for tag in EthereumTxCallType])  # Call
-    trace_address = models.CharField(max_length=100)  # Stringified traceAddress
-    error = models.CharField(max_length=100, null=True)
-
-    class Meta:
-        unique_together = (('ethereum_tx', 'trace_address'),)
-
-    def __str__(self):
-        if self.to:
-            return 'Internal tx hash={} from={} to={}'.format(self.ethereum_tx.tx_hash, self._from, self.to)
-        else:
-            return 'Internal tx hash={} from={}'.format(self.ethereum_tx.tx_hash, self._from)
 
 
 class SafeTxStatusQuerySet(models.QuerySet):

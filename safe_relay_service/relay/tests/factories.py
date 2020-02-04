@@ -12,10 +12,8 @@ from gnosis.eth.constants import (ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS,
                                   SIGNATURE_R_MAX_VALUE, SIGNATURE_R_MIN_VALUE,
                                   SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
-from gnosis.eth.utils import get_eth_address_with_key
 
 from ..models import (EthereumBlock, EthereumEvent, EthereumTx,
-                      EthereumTxCallType, EthereumTxType, InternalTx,
                       SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                       SafeMultisigTx, SafeTxStatus)
 
@@ -128,27 +126,6 @@ class SafeMultisigTxFactory(factory.DjangoModelFactory):
     refund_receiver = factory.LazyFunction(lambda: Account.create().address)
     nonce = factory.Sequence(lambda n: n)
     safe_tx_hash = factory.Sequence(lambda n: Web3.keccak(text='safe_tx_hash%d' % n))
-
-
-class InternalTxFactory(factory.DjangoModelFactory):
-    class Meta:
-        model = InternalTx
-
-    ethereum_tx = factory.SubFactory(EthereumTxFactory)
-    _from = factory.LazyFunction(lambda: Account.create().address)
-    gas = factory.fuzzy.FuzzyInteger(1000, 5000)
-    data = factory.Sequence(lambda n: HexBytes('%x' % (n + 1000)))
-    to = factory.LazyFunction(lambda: Account.create().address)
-    value = factory.fuzzy.FuzzyInteger(0, 1000)
-    gas_used = factory.fuzzy.FuzzyInteger(1000, 5000)
-    contract_address = None
-    code = None
-    output = None
-    refund_address = NULL_ADDRESS
-    tx_type = EthereumTxType.CALL.value
-    call_type = EthereumTxCallType.CALL.value
-    trace_address = factory.Sequence(lambda n: n)
-    error = None
 
 
 class SafeTxStatusFactory(factory.DjangoModelFactory):

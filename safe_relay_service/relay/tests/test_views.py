@@ -21,7 +21,7 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
-                        InternalTxFactory, SafeContractFactory,
+                        SafeContractFactory,
                         SafeCreation2Factory, SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
@@ -565,49 +565,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertAlmostEqual(int(estimation_token['gasPrice']), int(estimation_ether['gasPrice']) // 2, delta=1.0)
         self.assertEqual(estimation_token['gasToken'], valid_token.address)
 
-    def test_get_all_txs(self):
-        safe_address = Account().create().address
-        SafeContractFactory(address=safe_address)
-
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        db_ethereum_tx = EthereumTxFactory(to=safe_address)
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 1)
-        ethereum_tx = response.json()['results'][0]
-        self.assertEqual(ethereum_tx['from'], db_ethereum_tx._from)
-        self.assertEqual(ethereum_tx['to'], safe_address)
-        self.assertEqual(ethereum_tx['data'], db_ethereum_tx.data.hex())
-        self.assertEqual(ethereum_tx['gas'], str(db_ethereum_tx.gas))
-        self.assertEqual(ethereum_tx['gasPrice'], str(db_ethereum_tx.gas_price))
-        self.assertEqual(ethereum_tx['txHash'], db_ethereum_tx.tx_hash.hex())
-        self.assertEqual(ethereum_tx['value'], str(db_ethereum_tx.value))
-
-        EthereumTxFactory(_from=safe_address)
-        EthereumTxFactory()
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 2)
-
-        db_internal_tx = InternalTxFactory(to=safe_address)
-        InternalTxFactory(_from=safe_address)
-        InternalTxFactory()
-        InternalTxFactory(contract_address=safe_address)
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 5)
-
-        at_least_one = False
-        for ethereum_tx in response.json()['results']:
-            if db_internal_tx.ethereum_tx.tx_hash.hex() == ethereum_tx['txHash']:
-                self.assertEqual(len(ethereum_tx['internalTxs']), 1)
-                self.assertEqual(ethereum_tx['internalTxs'][0]['from'], db_internal_tx._from)
-                self.assertEqual(ethereum_tx['internalTxs'][0]['to'], safe_address)
-                at_least_one = True
-        self.assertTrue(at_least_one)
-
     def test_erc20_view(self):
         safe_address = Account().create().address
         SafeContractFactory(address=safe_address)
@@ -651,29 +608,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         EthereumEventFactory(from_=safe_address, erc721=True)
         EthereumEventFactory(erc721=True)
         response = self.client.get(reverse('v1:erc721-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()['count'], 2)
-
-    def test_internal_tx_view(self):
-        safe_address = Account().create().address
-        SafeContractFactory(address=safe_address)
-
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        internal_tx = InternalTxFactory(to=safe_address)
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        response_internal_tx = response.json()['results'][0]
-        self.assertEqual(internal_tx._from, response_internal_tx['from'])
-        self.assertEqual(internal_tx.to, response_internal_tx['to'])
-        self.assertEqual(internal_tx.data.hex(), response_internal_tx['data'])
-        self.assertEqual(internal_tx.value, int(response_internal_tx['value']))
-        self.assertEqual(internal_tx.ethereum_tx.to, response_internal_tx['ethereumTx']['to'])
-
-        InternalTxFactory(_from=safe_address)
-        InternalTxFactory()
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['count'], 2)
 

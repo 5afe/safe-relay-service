@@ -24,11 +24,11 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
+from .models import (EthereumEvent, EthereumTx, SafeContract,
                      SafeFunding, SafeMultisigTx)
 from .serializers import (
-    ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
-    InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
+    ERC20Serializer, ERC721Serializer,
+    SafeBalanceResponseSerializer,
     SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
@@ -378,20 +378,6 @@ class SafeMultisigTxView(SafeListApiView):
             return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
 
-class EthereumTxView(SafeListApiView):
-    ordering = ('-block__number',)
-    serializer_class = EthereumTxWithInternalTxsSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return EthereumTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(internal_txs__to=address) |
-                                         Q(internal_txs___from=address) |
-                                         Q(internal_txs__contract_address=address)
-                                         ).distinct().select_related('block').prefetch_related('internal_txs')
-
-
 class ERC20View(SafeListApiView):
     ordering = ('-ethereum_tx__block__number',)
     serializer_class = ERC20Serializer
@@ -408,18 +394,6 @@ class ERC721View(SafeListApiView):
     def get_queryset(self):
         address = self.kwargs['address']
         return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx', 'ethereum_tx__block')
-
-
-class InternalTxsView(SafeListApiView):
-    ordering = ('-ethereum_tx__block__number',)
-    serializer_class = InternalTxWithEthereumTxSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return InternalTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(contract_address=address)
-                                         ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class StatsView(APIView):

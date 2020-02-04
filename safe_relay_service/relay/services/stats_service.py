@@ -81,9 +81,9 @@ class StatsService:
                 'deployed': add_time_filter(SafeContract.objects.deployed()).annotate(
                     created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')
                                                                                        ).order_by('created_date'),
-                'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
-                'average_deploy_time_total_seconds':
-                    SafeContract.objects.get_average_deploy_time_total_grouped(from_date, to_date),
+                # 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
+                # 'average_deploy_time_total_seconds':
+                #    SafeContract.objects.get_average_deploy_time_total_grouped(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage_grouped(from_date, to_date),
             },
             'relayed_txs': {
@@ -110,9 +110,9 @@ class StatsService:
             'safes_created': {
                 'deployed': deployed,
                 'not_deployed': add_time_filter(SafeContract.objects.all()).count() - deployed,
-                'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
-                'average_deploy_time_total_seconds':
-                    SafeContract.objects.get_average_deploy_time_total(from_date, to_date),
+                # 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
+                # 'average_deploy_time_total_seconds':
+                #     SafeContract.objects.get_average_deploy_time_total(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage(from_date, to_date),
             },
             'relayed_txs': {

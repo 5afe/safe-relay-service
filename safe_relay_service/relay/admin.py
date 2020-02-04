@@ -5,7 +5,7 @@ from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
-from .models import (EthereumBlock, EthereumEvent, EthereumTx, InternalTx,
+from .models import (EthereumBlock, EthereumEvent, EthereumTx,
                      SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                      SafeMultisigTx, SafeTxStatus)
 
@@ -120,13 +120,6 @@ class EthereumTxAdmin(admin.ModelAdmin):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         queryset |= self.model.objects.filter(tx_hash=search_term)
         return queryset, use_distinct
-
-
-@admin.register(InternalTx)
-class InternalTxAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
-    list_display = ('block_number', 'ethereum_tx_id', '_from', 'to', 'value', 'call_type')
-    list_filter = ('tx_type', 'call_type')
-    search_fields = ['=ethereum_tx__block__number', '=_from', '=to']
 
 
 class SafeContractDeployedListFilter(admin.SimpleListFilter):
