@@ -37,17 +37,6 @@ class TestCommands(TestCase):
         self.assertIn('Slack not configured, ignoring', text)
         self.assertIn('Starting Safe Relay version', text)
 
-    def test_setup_internal_txs(self):
-        buf = StringIO()
-
-        safe = SafeContractFactory()
-        call_command('setup_internal_txs', stdout=buf)
-        self.assertIn('Generated 0 SafeTxStatus', buf.getvalue())
-
-        SafeCreation2Factory(safe=safe, block_number=10)
-        call_command('setup_internal_txs', stdout=buf)
-        self.assertIn('Generated 1 SafeTxStatus', buf.getvalue())
-
     def test_setup_service(self):
         from ..management.commands.setup_service import Command
         number_tasks = len(Command.tasks)
