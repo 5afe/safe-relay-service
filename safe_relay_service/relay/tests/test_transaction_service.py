@@ -9,7 +9,7 @@ from hexbytes import HexBytes
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.eth.contracts import get_paying_proxy_contract, get_safe_contract
 from gnosis.eth.utils import get_eth_address_with_key
-from gnosis.safe import CannotEstimateGas, Safe, SafeOperation
+from gnosis.safe import Safe, SafeOperation
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
@@ -19,6 +19,7 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             InvalidRefundReceiver,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
+                                            SafeDoesNotExist,
                                             SignaturesNotSorted)
 from .factories import SafeContractFactory, SafeMultisigTxFactory
 from .relay_test_case import RelayTestCaseMixin
@@ -318,13 +319,14 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
 
         TokenFactory(address=gas_token, gas=True)
-        with self.assertRaises(CannotEstimateGas):
+        with self.assertRaises(SafeDoesNotExist):
             self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
 
         # We need a real safe deployed for this method to work
         gas_token = NULL_ADDRESS
         safe_address = self.deploy_test_safe().safe_address
-        transaction_estimation = self.transaction_service.estimate_tx(safe_address, to, value, data, operation, gas_token)
+        transaction_estimation = self.transaction_service.estimate_tx(safe_address, to, value, data, operation,
+                                                                      gas_token)
         self.assertEqual(transaction_estimation.last_used_nonce, None)
         self.assertGreater(transaction_estimation.safe_tx_gas, 0)
         self.assertGreater(transaction_estimation.base_gas, 0)
@@ -332,7 +334,6 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         self.assertGreater(transaction_estimation.gas_price, 0)
         self.assertEqual(transaction_estimation.operational_gas, 0)
         self.assertEqual(transaction_estimation.gas_token, NULL_ADDRESS)
-        #TODO Test operational gas for old safes
 
     def test_estimate_tx_for_all_tokent(self):
         safe_address = self.deploy_test_safe().safe_address

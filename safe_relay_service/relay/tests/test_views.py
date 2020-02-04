@@ -19,7 +19,7 @@ from gnosis.safe.signatures import signatures_to_bytes
 from safe_relay_service.gas_station.tests.factories import GasPriceFactory
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..models import SafeMultisigTx, SafeContract
+from ..models import SafeContract, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
                         InternalTxFactory, SafeContractFactory,
                         SafeCreation2Factory, SafeMultisigTxFactory)
