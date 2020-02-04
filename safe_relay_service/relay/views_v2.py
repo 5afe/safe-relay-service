@@ -82,8 +82,7 @@ class SafeCreationView(CreateAPIView):
             safe_creation_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_creation_response_data.data)
         else:
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            data=serializer.errors)
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
 
 class SafeMultisigTxEstimateView(CreateAPIView):
