@@ -32,6 +32,10 @@ class TransactionServiceException(Exception):
     pass
 
 
+class SafeDoesNotExist(TransactionServiceException):
+    pass
+
+
 class RefundMustBeEnabled(TransactionServiceException):
     pass
 
@@ -200,6 +204,17 @@ class TransactionService:
         """
         return self.gas_station.get_gas_prices().standard
 
+    def _get_last_used_nonce(self, safe_address: str) -> Optional[int]:
+        safe = Safe(safe_address, self.ethereum_client)
+        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
+        try:
+            last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
+            if last_used_nonce < 0:  # There's no last_used_nonce
+                last_used_nonce = None
+            return last_used_nonce
+        except BadFunctionCallOutput:  # If Safe does not exist
+            raise SafeDoesNotExist(f'Safe={safe_address} does not exist')
+
     def _get_minimum_gas_price(self) -> int:
         """
         :return: Minimum gas price accepted for txs set by the user
@@ -214,15 +229,9 @@ class TransactionService:
         """
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
-        safe = Safe(safe_address, self.ethereum_client)
-        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
-        try:
-            last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
-            if last_used_nonce < 0:  # There's no last_used_nonce
-                last_used_nonce = None
-        except BadFunctionCallOutput:  # If Safe does not exist
-            last_used_nonce = None
 
+        last_used_nonce = self._get_last_used_nonce(safe_address)
+        safe = Safe(safe_address, self.ethereum_client)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
 
@@ -240,8 +249,8 @@ class TransactionService:
 
     def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: str,
                                    operation: int) -> TransactionEstimationWithNonceAndGasTokens:
-        last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
         safe = Safe(safe_address, self.ethereum_client)
+        last_used_nonce = self._get_last_used_nonce(safe_address)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
 
         safe_version = safe.retrieve_version()
