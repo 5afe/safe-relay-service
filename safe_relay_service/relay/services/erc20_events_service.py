@@ -13,7 +13,7 @@ class Erc20EventsServiceProvider:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             from django.conf import settings
-            cls.instance = Erc20EventsService(EthereumClient(settings.ETHEREUM_TRACING_NODE_URL))
+            cls.instance = Erc20EventsService(EthereumClient(settings.ETHEREUM_NODE_URL))
         return cls.instance
 
     @classmethod

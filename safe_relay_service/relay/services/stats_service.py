@@ -81,14 +81,10 @@ class StatsService:
                 'deployed': add_time_filter(SafeContract.objects.deployed()).annotate(
                     created_date=TruncDate('created')).values('created_date').annotate(number=Count('*')
                                                                                        ).order_by('created_date'),
-                'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
-                'average_deploy_time_total_seconds':
-                    SafeContract.objects.get_average_deploy_time_total_grouped(from_date, to_date),
+                # 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time_grouped(from_date, to_date),
+                # 'average_deploy_time_total_seconds':
+                #    SafeContract.objects.get_average_deploy_time_total_grouped(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage_grouped(from_date, to_date),
-                'funds_stored': {
-                    'ether': SafeContract.objects.get_total_balance_grouped(from_date, to_date),
-                    'tokens': SafeContract.objects.get_total_token_balance_grouped(from_date, to_date),
-                }
             },
             'relayed_txs': {
                 'total': add_time_filter(SafeMultisigTx.objects.annotate(
@@ -97,10 +93,6 @@ class StatsService:
                 'average_execution_time_seconds': SafeMultisigTx.objects.get_average_execution_time_grouped(from_date,
                                                                                                             to_date),
                 'payment_tokens': add_time_filter(SafeMultisigTx.objects.get_tokens_usage_grouped()),
-                'volume': {
-                    'ether': SafeContract.objects.get_total_volume_grouped(from_date, to_date),
-                    'tokens': SafeContract.objects.get_total_token_volume_grouped(from_date, to_date),
-                }
             }
         }
 
@@ -118,23 +110,15 @@ class StatsService:
             'safes_created': {
                 'deployed': deployed,
                 'not_deployed': add_time_filter(SafeContract.objects.all()).count() - deployed,
-                'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
-                'average_deploy_time_total_seconds':
-                    SafeContract.objects.get_average_deploy_time_total(from_date, to_date),
+                # 'average_deploy_time_seconds': SafeContract.objects.get_average_deploy_time(from_date, to_date),
+                # 'average_deploy_time_total_seconds':
+                #     SafeContract.objects.get_average_deploy_time_total(from_date, to_date),
                 'payment_tokens': SafeContract.objects.get_creation_tokens_usage(from_date, to_date),
-                'funds_stored': {
-                    'ether': SafeContract.objects.get_total_balance(from_date, to_date),  #FIXME
-                    'tokens': SafeContract.objects.get_total_token_balance(from_date, to_date),  #FIXME
-                }
             },
             'relayed_txs': {
                 'total': add_time_filter(SafeMultisigTx.objects.all()).count(),
                 'average_execution_time_seconds': SafeMultisigTx.objects.get_average_execution_time(from_date, to_date),
                 'pending_txs': add_time_filter(SafeMultisigTx.objects.pending()).count(),
                 'payment_tokens': add_time_filter(SafeMultisigTx.objects.get_tokens_usage()),
-                'volume': {
-                    'ether': SafeContract.objects.get_total_volume(from_date, to_date),
-                    'tokens': SafeContract.objects.get_total_token_volume(from_date, to_date),
-                }
             }
         }

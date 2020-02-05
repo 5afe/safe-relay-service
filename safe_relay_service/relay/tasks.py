@@ -17,7 +17,7 @@ from safe_relay_service.relay.models import (SafeContract, SafeCreation,
 
 from .repositories.redis_repository import RedisRepository
 from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
-                       InternalTxServiceProvider, NotificationServiceProvider,
+                       NotificationServiceProvider,
                        SafeCreationServiceProvider, TransactionServiceProvider)
 from .services.safe_creation_service import NotEnoughFundingForCreation
 
@@ -337,23 +337,6 @@ def check_balance_of_accounts_task() -> bool:
                          address, balance_wei, balance_warning_wei)
             result = False
     return result
-
-
-@app.shared_task(soft_time_limit=60 * 30)
-def find_internal_txs_task() -> int:
-    """
-    Find and process internal txs for existing safes
-    :return: Number of safes processed
-    """
-    number_safes = 0
-    try:
-        redis = RedisRepository().redis
-        with redis.lock('tasks:find_internal_txs_task', blocking_timeout=1, timeout=60 * 30):
-            number_safes = InternalTxServiceProvider().process_all()
-            logger.info('Find internal txs task processed %d safes', number_safes)
-    except LockError:
-        pass
-    return number_safes
 
 
 @app.shared_task(soft_time_limit=60 * 30)

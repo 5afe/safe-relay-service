@@ -1,7 +1,6 @@
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -24,11 +23,10 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
-                     SafeFunding, SafeMultisigTx)
+from .models import (EthereumEvent, EthereumTx, SafeContract, SafeFunding,
+                     SafeMultisigTx)
 from .serializers import (
-    ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
-    InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
+    ERC20Serializer, ERC721Serializer, SafeBalanceResponseSerializer,
     SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
@@ -86,7 +84,6 @@ class AboutView(APIView):
             'https_detected': self.request.is_secure(),
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
-                'ETHEREUM_TRACING_NODE_URL': settings.ETHEREUM_TRACING_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
@@ -378,20 +375,6 @@ class SafeMultisigTxView(SafeListApiView):
             return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
 
-class EthereumTxView(SafeListApiView):
-    ordering = ('-block__number',)
-    serializer_class = EthereumTxWithInternalTxsSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return EthereumTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(internal_txs__to=address) |
-                                         Q(internal_txs___from=address) |
-                                         Q(internal_txs__contract_address=address)
-                                         ).distinct().select_related('block').prefetch_related('internal_txs')
-
-
 class ERC20View(SafeListApiView):
     ordering = ('-ethereum_tx__block__number',)
     serializer_class = ERC20Serializer
@@ -408,18 +391,6 @@ class ERC721View(SafeListApiView):
     def get_queryset(self):
         address = self.kwargs['address']
         return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx', 'ethereum_tx__block')
-
-
-class InternalTxsView(SafeListApiView):
-    ordering = ('-ethereum_tx__block__number',)
-    serializer_class = InternalTxWithEthereumTxSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return InternalTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(contract_address=address)
-                                         ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class StatsView(APIView):

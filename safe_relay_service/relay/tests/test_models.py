@@ -10,11 +10,10 @@ from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
 
-from ..models import (EthereumEvent, EthereumTxCallType, InternalTx,
-                      SafeContract, SafeFunding, SafeMultisigTx)
+from ..models import EthereumEvent, SafeContract, SafeFunding, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
-                        InternalTxFactory, SafeCreation2Factory,
-                        SafeFundingFactory, SafeMultisigTxFactory)
+                        SafeCreation2Factory, SafeFundingFactory,
+                        SafeMultisigTxFactory)
 
 
 class TestSafeContractModel(TestCase):
@@ -93,35 +92,6 @@ class TestEthereumEventModel(TestCase):
                                         'tokenId': 2})
         self.assertTrue(EthereumEvent.objects.erc20_events().get().is_erc20())
         self.assertTrue(EthereumEvent.objects.erc721_events().get().is_erc721())
-
-
-class TestInternalTxModel(TestCase):
-    def test_internal_tx_balance(self):
-        address = Account.create().address
-        value = Web3.toWei(1, 'ether')
-
-        # TODO Fix this bug
-        # It will be 0, it needs at least one `ingoing` and one `outgoing` tx
-        InternalTxFactory(to=address, value=value)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), 0)
-
-        InternalTxFactory(_from=address, value=0)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), value)
-
-        InternalTxFactory(_from=address, value=value - 1)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), 1)
-
-        # Delegate CALLs are ignored
-        InternalTxFactory(_from=address, value=1, call_type=EthereumTxCallType.DELEGATE_CALL.value)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), 1)
-
-        # Txs to itself are ignored
-        InternalTxFactory(_from=address, to=address, value=1)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), 1)
-
-        # More income
-        InternalTxFactory(to=address, value=1)
-        self.assertEqual(InternalTx.objects.calculate_balance(address), 2)
 
 
 class TestSafeMultisigTxModel(TestCase):

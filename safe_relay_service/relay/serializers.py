@@ -13,8 +13,6 @@ from gnosis.safe.serializers import (SafeMultisigTxSerializer,
                                      SafeSignatureSerializer)
 
 from safe_relay_service.relay.models import (EthereumEvent, EthereumTx,
-                                             EthereumTxCallType,
-                                             EthereumTxType, InternalTx,
                                              SafeFunding)
 
 from .services import StatsServiceProvider
@@ -148,38 +146,6 @@ class SafeFunding2ResponseSerializer(serializers.Serializer):
     tx_hash = Sha3HashField()
 
 
-class InternalTxSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InternalTx
-        exclude = ('id',)
-
-    _from = EthereumAddressField(allow_null=False, allow_zero_address=True, source='_from')
-    to = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    contract_address = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    data = HexadecimalField()
-    code = HexadecimalField()
-    output = HexadecimalField()
-    tx_type = serializers.SerializerMethodField()
-    call_type = serializers.SerializerMethodField()
-    ethereum_tx = None
-
-    def get_fields(self):
-        result = super().get_fields()
-        # Rename `_from` to `from`
-        _from = result.pop('_from')
-        result['from'] = _from
-        return result
-
-    def get_tx_type(self, obj) -> str:
-        return EthereumTxType(obj.tx_type).name
-
-    def get_call_type(self, obj) -> str:
-        if obj.call_type is None:
-            return None
-        else:
-            return EthereumTxCallType(obj.call_type).name
-
-
 class EthereumTxSerializer(serializers.ModelSerializer):
     class Meta:
         model = EthereumTx
@@ -206,14 +172,6 @@ class EthereumTxSerializer(serializers.ModelSerializer):
     def get_block_timestamp(self, obj: EthereumTx):
         if obj.block:
             return obj.block.timestamp
-
-
-class InternalTxWithEthereumTxSerializer(InternalTxSerializer):
-    ethereum_tx = EthereumTxSerializer()
-
-
-class EthereumTxWithInternalTxsSerializer(EthereumTxSerializer):
-    internal_txs = InternalTxSerializer(many=True)
 
 
 class ERCTransfer(serializers.ModelSerializer):
@@ -248,7 +206,7 @@ class ERC721Serializer(ERCTransfer):
 
 class SafeMultisigTxResponseSerializer(serializers.Serializer):
     to = EthereumAddressField(allow_null=True, allow_zero_address=True)
-    ethereum_tx = EthereumTxWithInternalTxsSerializer()
+    ethereum_tx = EthereumTxSerializer()
     value = serializers.IntegerField(min_value=0)
     data = HexadecimalField()
     timestamp = serializers.DateTimeField(source='created')

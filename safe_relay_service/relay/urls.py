@@ -25,8 +25,6 @@ urlpatterns = [
     path('safes/<str:address>/transactions/', views.SafeMultisigTxView.as_view(), name='safe-multisig-txs'),
     path('safes/<str:address>/erc20-transactions/', views.ERC20View.as_view(), name='erc20-txs'),
     path('safes/<str:address>/erc721-transactions/', views.ERC721View.as_view(), name='erc721-txs'),
-    path('safes/<str:address>/internal-transactions/', views.InternalTxsView.as_view(), name='internal-txs'),
-    path('safes/<str:address>/all-transactions/', views.EthereumTxView.as_view(), name='safe-all-txs'),
     path('safes/<str:address>/transactions/estimate/', views.SafeMultisigTxEstimateView.as_view(),
          name='safe-multisig-tx-estimate'),
     path('safes/<str:address>/transactions/estimates/', views.SafeMultisigTxEstimatesView.as_view(),
