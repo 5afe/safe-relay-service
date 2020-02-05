@@ -285,7 +285,6 @@ REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 # ------------------------------------------------------------------------------
 ETH_HASH_PREFIX = env('ETH_HASH_PREFIX', default='GNO')
 ETHEREUM_NODE_URL = env('ETHEREUM_NODE_URL', default=None)
-ETHEREUM_TRACING_NODE_URL = env('ETHEREUM_TRACING_NODE_URL', default=ETHEREUM_NODE_URL)
 
 GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
 
