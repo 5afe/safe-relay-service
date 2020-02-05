@@ -15,26 +15,16 @@ class GraphQLService:
         self.endpoint = HTTPEndpoint(url)
 
     def check_trust_connections(self, safe_address: str):
-        trust_limit = settings.MIN_TRUST_CONNECTIONS
-
         query = ('{'
-                 '  safe(id: "' + safe_address + '") {'
-                 '    incoming(first: ' + str(trust_limit) + ') {'
-                 '      user { id }'
-                 '    }'
+                 '  trusts(where: { userAddress: "' + safe_address + '" }) {'
+                 '    id'
                  '  }'
                  '}')
 
         try:
-            response = self.endpoint(query)
-            safe = response['data']['safe']
-
-            # Safe does not exist yet
-            if not safe:
-                return False
-
             # Check if we have enough incoming trust connections
-            return len(safe['incoming']) >= trust_limit
+            response = self.endpoint(query)
+            return len(response['data']['trusts']) >= settings.MIN_TRUST_CONNECTIONS
 
         except:
             return False
