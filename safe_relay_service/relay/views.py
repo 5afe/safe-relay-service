@@ -1,7 +1,6 @@
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -24,11 +23,10 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumEvent, EthereumTx, SafeContract,
-                     SafeFunding, SafeMultisigTx)
+from .models import (EthereumEvent, EthereumTx, SafeContract, SafeFunding,
+                     SafeMultisigTx)
 from .serializers import (
-    ERC20Serializer, ERC721Serializer,
-    SafeBalanceResponseSerializer,
+    ERC20Serializer, ERC721Serializer, SafeBalanceResponseSerializer,
     SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,

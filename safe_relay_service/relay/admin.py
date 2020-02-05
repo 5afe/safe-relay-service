@@ -5,9 +5,9 @@ from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
-from .models import (EthereumBlock, EthereumEvent, EthereumTx,
-                     SafeContract, SafeCreation, SafeCreation2, SafeFunding,
-                     SafeMultisigTx, SafeTxStatus)
+from .models import (EthereumBlock, EthereumEvent, EthereumTx, SafeContract,
+                     SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
+                     SafeTxStatus)
 
 
 class EthereumTxForeignClassMixinAdmin:

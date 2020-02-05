@@ -11,11 +11,10 @@ from ..models import EthereumTx
 from ..services import Erc20EventsServiceProvider
 from ..tasks import (check_and_update_pending_transactions,
                      check_balance_of_accounts_task,
-                     check_pending_transactions,
-                     deploy_create2_safe_task,
+                     check_pending_transactions, deploy_create2_safe_task,
                      find_erc_20_721_transfers_task)
-from .factories import (SafeCreation2Factory,
-                        SafeMultisigTxFactory, SafeTxStatusFactory)
+from .factories import (SafeCreation2Factory, SafeMultisigTxFactory,
+                        SafeTxStatusFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)

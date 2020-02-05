@@ -21,8 +21,8 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..models import SafeContract, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
-                        SafeContractFactory,
-                        SafeCreation2Factory, SafeMultisigTxFactory)
+                        SafeContractFactory, SafeCreation2Factory,
+                        SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
