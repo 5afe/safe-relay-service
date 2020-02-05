@@ -24,7 +24,10 @@ class GraphQLService:
         try:
             # Check if we have enough incoming trust connections
             response = self.endpoint(query)
-            return len(response['data']['trusts']) >= settings.MIN_TRUST_CONNECTIONS
+            incoming_count = len(response['data']['trusts'])
+            logger.info('Found {} incoming trust connections for {}'.format(incoming_count,
+                                                                            safe_address))
+            return incoming_count >= settings.MIN_TRUST_CONNECTIONS
 
         except:
             return False
