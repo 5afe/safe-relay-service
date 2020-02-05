@@ -5,7 +5,7 @@ from sgqlc.endpoint.http import HTTPEndpoint
 
 logger = getLogger(__name__)
 
-url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_ENDPOINT,
+url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_EXTERNAL,
                                     settings.SUBGRAPH_NAME)
 
 
