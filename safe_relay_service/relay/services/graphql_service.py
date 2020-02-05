@@ -16,7 +16,7 @@ class GraphQLService:
 
     def check_trust_connections(self, safe_address: str):
         query = ('{'
-                 '  trusts(where: { userAddress: "' + safe_address + '" }) {'
+                 '  trusts(where: { userAddress: "' + safe_address.lower() + '" }) {'
                  '    id'
                  '  }'
                  '}')
