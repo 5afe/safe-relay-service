@@ -17,7 +17,8 @@ This is the recommended configuration for developing and testing the Safe. `dock
 running the project.
 
 Configure the parameters needed on `.env_ganache`. By default the private keys of the accounts are the ones from
-Ganache.
+Ganache, and the contract addresses are calculated to be the ones deployed by the Relay when the application starts,
+so there's no need to configure anything.
 
 More parameters can be added to that file like:
 - `SAFE_FIXED_CREATION_COST`: For fixed price in wei for deploying a Safe. If you set `0` you allow Safes to be
