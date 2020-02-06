@@ -1,4 +1,4 @@
-FROM node:9-alpine
+FROM node:10-alpine
 
 RUN npm install -g ganache-cli@6.6.0
 
