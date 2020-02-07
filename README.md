@@ -4,7 +4,10 @@
 ![Django 2](https://img.shields.io/badge/Django-2-blue.svg)
 
 # Gnosis Safe Relay Service
-Service for Gnosis Safe Relay
+This service allows us to have owners of the Safe contract that don’t need to hold any ETH on those owner addresses.
+How is this possible? The transaction relay service acts as a proxy, paying for the transaction fees and getting it 
+back due to the transaction architecture we use. It also enables the user to pay for ethereum transactions 
+using **ERC20 tokens**.
 
 Docs
 ----
@@ -13,7 +16,7 @@ You can open the diagrams explaining _Pre CREATE2_ deployment under `docs/` with
 
 Setup for development (using ganache)
 -------------------------------------
-This is the recommended configuration for developing and testing the Safe. `docker-compose` is required for
+This is the recommended configuration for developing and testing the Relay service. `docker-compose` is required for
 running the project.
 
 Configure the parameters needed on `.env_ganache`. By default the private keys of the accounts are the ones from
@@ -22,7 +25,7 @@ so there's no need to configure anything.
 
 More parameters can be added to that file like:
 - `SAFE_FIXED_CREATION_COST`: For fixed price in wei for deploying a Safe. If you set `0` you allow Safes to be
-deployed for free
+deployed for free.
 - `SAFE_CONTRACT_ADDRESS` to change the Safe's master copy address.
 - For more parameters check `base.py` file.
 
@@ -34,8 +37,8 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 The service should be running in `localhost:8000`
 
-Setup for production relay
---------------------------
+Setup for production
+--------------------
 This is the recommended configuration for running a production Relay. `docker-compose` is required
 for running the project.
 
@@ -47,7 +50,7 @@ Configure the parameters needed on `.env`. These parameters **need to be changed
 Another parameters can be configured like:
 - `SAFE_CONTRACT_ADDRESS`: If you are not using default Gnosis Safe Master Copy.
 - `SAFE_FIXED_CREATION_COST`: For fixed price in wei for deploying a Safe. If you set `0` you allow Safes to be
-deployed for free
+deployed for free.
 - For more parameters check `base.py` file.
 
 Then:
