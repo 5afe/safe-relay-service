@@ -16,7 +16,7 @@ services:
       - web
 
   redis:
-    image: redis:4-alpine
+    image: redis:5-alpine
     ports:
       - "6379:6379"
 
