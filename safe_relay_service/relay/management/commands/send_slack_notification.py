@@ -16,7 +16,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         ethereum_client = EthereumClientProvider()
         app_name = apps.get_app_config('relay').verbose_name
-        network_name = ethereum_client.get_network_name().name.capitalize()
+        network_name = ethereum_client.get_network().name.capitalize()
         startup_message = f'Starting {app_name} version {__version__} on {network_name}'
         self.stdout.write(self.style.SUCCESS(startup_message))
 
