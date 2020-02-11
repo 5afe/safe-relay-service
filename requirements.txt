@@ -1,4 +1,4 @@
-Django==2.2.8
+Django==2.2.10
 cachetools==4.0.0
 celery==4.4.0
 django-authtools==1.7.0
