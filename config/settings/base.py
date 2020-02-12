@@ -285,7 +285,6 @@ REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 # ------------------------------------------------------------------------------
 ETH_HASH_PREFIX = env('ETH_HASH_PREFIX', default='GNO')
 ETHEREUM_NODE_URL = env('ETHEREUM_NODE_URL', default=None)
-ETHEREUM_TRACING_NODE_URL = env('ETHEREUM_TRACING_NODE_URL', default=ETHEREUM_NODE_URL)
 
 GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
 
@@ -329,4 +328,5 @@ NOTIFICATION_SERVICE_PASS = env('NOTIFICATION_SERVICE_PASS', default=None)
 TOKEN_LOGO_BASE_URI = env('TOKEN_LOGO_BASE_URI', default='https://gnosis-safe-token-logos.s3.amazonaws.com/')
 TOKEN_LOGO_EXTENSION = env('TOKEN_LOGO_EXTENSION', default='.png')
 
-INTERNAL_TXS_BLOCK_PROCESS_LIMIT = env('INTERNAL_TXS_BLOCK_PROCESS_LIMIT', default=100000)
+# Notifications
+SLACK_API_WEBHOOK = env('SLACK_API_WEBHOOK', default=None)

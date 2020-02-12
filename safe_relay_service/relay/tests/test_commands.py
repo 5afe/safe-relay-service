@@ -30,16 +30,12 @@ class TestCommands(TestCase):
         call_command('deploy_safe_contracts', stdout=buf)
         self.assertEqual(buf.getvalue().count('Contract has been deployed on'), 3)
 
-    def test_setup_internal_txs(self):
+    def test_send_slack_notification(self):
         buf = StringIO()
-
-        safe = SafeContractFactory()
-        call_command('setup_internal_txs', stdout=buf)
-        self.assertIn('Generated 0 SafeTxStatus', buf.getvalue())
-
-        SafeCreation2Factory(safe=safe, block_number=10)
-        call_command('setup_internal_txs', stdout=buf)
-        self.assertIn('Generated 1 SafeTxStatus', buf.getvalue())
+        call_command('send_slack_notification', stdout=buf)
+        text = buf.getvalue()
+        self.assertIn('Slack not configured, ignoring', text)
+        self.assertIn('Starting Safe Relay version', text)
 
     def test_setup_service(self):
         from ..management.commands.setup_service import Command

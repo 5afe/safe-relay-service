@@ -19,10 +19,10 @@ from gnosis.safe.signatures import signatures_to_bytes
 from safe_relay_service.gas_station.tests.factories import GasPriceFactory
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..models import SafeMultisigTx
+from ..models import SafeContract, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
-                        InternalTxFactory, SafeContractFactory,
-                        SafeCreation2Factory, SafeMultisigTxFactory)
+                        SafeContractFactory, SafeCreation2Factory,
+                        SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 faker = Faker()
@@ -31,6 +31,12 @@ logger = logging.getLogger(__name__)
 
 
 class TestViews(RelayTestCaseMixin, APITestCase):
+    def test_swagger(self):
+        response = self.client.get(reverse('schema-swagger-ui'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('max-age', response['Cache-Control'])
+        self.assertNotIn('max-age=0', response['Cache-Control'])
+
     def test_about(self):
         response = self.client.get(reverse('v1:about'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -38,7 +44,8 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_gas_station(self):
         response = self.client.get(reverse('v1:gas-station'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.has_header('Cache-Control'))
+        self.assertIn('max-age', response['Cache-Control'])
+        self.assertNotIn('max-age=0', response['Cache-Control'])
 
     def test_gas_station_history(self):
         response = self.client.get(reverse('v1:gas-station-history'), format='json')
@@ -190,6 +197,53 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertTrue('exists' in response.data['exception'])
+
+        # Send with a Safe not created via the service
+        safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold, initial_funding_wei=safe_balance)
+        my_safe_address = safe_creation.safe_address
+        multisig_tx_hash = SafeTx(
+            None,
+            my_safe_address,
+            to,
+            value,
+            tx_data,
+            operation,
+            safe_tx_gas,
+            data_gas,
+            gas_price,
+            gas_token,
+            refund_receiver,
+            safe_nonce=nonce
+        ).safe_tx_hash
+        signatures = [account.signHash(multisig_tx_hash) for account in accounts]
+        signatures_json = [{'v': s['v'], 'r': s['r'], 's': s['s']} for s in signatures]
+        data['signatures'] = signatures_json
+
+        with self.assertRaises(SafeContract.DoesNotExist):
+            SafeContract.objects.get(address=my_safe_address)
+
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(SafeContract.objects.filter(address=my_safe_address).exists())
+        self.assertEqual(SafeMultisigTx.objects.filter(safe_id=my_safe_address).count(), 1)
+
+        # Send the same tx again
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertTrue('exists' in response.data['exception'])
+        self.assertEqual(SafeMultisigTx.objects.filter(safe_id=my_safe_address).count(), 1)
+
+        # Send tx with not existing Safe
+        my_safe_address = Account.create().address
+        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertTrue('InvalidProxyContract' in response.data['exception'])
 
     def test_safe_multisig_tx_get(self):
         safe = SafeContractFactory()
@@ -363,12 +417,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        my_safe_address, _ = get_eth_address_with_key()
-        response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
-                                    data={},
-                                    format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
         my_safe_address = self.create2_test_safe_in_db().safe.address
         response = self.client.post(reverse('v1:safe-multisig-txs', args=(my_safe_address,)),
                                     data={},
@@ -386,7 +434,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
         to, _ = get_eth_address_with_key()
@@ -399,7 +447,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
 
         safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
         my_safe_address = safe_creation.safe_address
-        SafeContractFactory(address=my_safe_address)
 
         response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data=data,
@@ -412,7 +459,20 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertIsNone(response['lastUsedNonce'])
         self.assertEqual(response['gasToken'], NULL_ADDRESS)
 
-        to, _ = get_eth_address_with_key()
+        # Add to the database and check again
+        SafeContractFactory(address=my_safe_address)
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = response.json()
+        self.assertGreater(response['safeTxGas'], 0)
+        self.assertGreater(response['dataGas'], 0)
+        self.assertGreater(response['gasPrice'], 0)
+        self.assertIsNone(response['lastUsedNonce'])
+        self.assertEqual(response['gasToken'], NULL_ADDRESS)
+
+        to = Account.create().address
         data = {
             'to': to,
             'value': initial_funding // 2,
@@ -423,6 +483,14 @@ class TestViews(RelayTestCaseMixin, APITestCase):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Use not existing safe
+        my_safe_address = Account.create().address
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn("SafeDoesNotExist", response.data['exception'])
 
     def test_safe_multisig_tx_estimates(self):
         my_safe_address = get_eth_address_with_invalid_checksum()
@@ -435,13 +503,12 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
 
         safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
         my_safe_address = safe_creation.safe_address
-        SafeContractFactory(address=my_safe_address)
 
         to = Account.create().address
         tx = {
@@ -450,6 +517,21 @@ class TestViews(RelayTestCaseMixin, APITestCase):
             'data': '0x',
             'operation': 1
         }
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
+                                    data=tx,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Use not existing Safe
+        non_existing_safe_address = Account.create().address
+        response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(non_existing_safe_address,)),
+                                    data=tx,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn("SafeDoesNotExist", response.data['exception'])
+
+        # Add to database and test
+        SafeContractFactory(address=my_safe_address)
         response = self.client.post(reverse('v1:safe-multisig-tx-estimates', args=(my_safe_address,)),
                                     data=tx,
                                     format='json')
@@ -482,49 +564,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         self.assertGreater(int(estimation_token['baseGas']), int(estimation_ether['baseGas']))
         self.assertAlmostEqual(int(estimation_token['gasPrice']), int(estimation_ether['gasPrice']) // 2, delta=1.0)
         self.assertEqual(estimation_token['gasToken'], valid_token.address)
-
-    def test_get_all_txs(self):
-        safe_address = Account().create().address
-        SafeContractFactory(address=safe_address)
-
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        db_ethereum_tx = EthereumTxFactory(to=safe_address)
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 1)
-        ethereum_tx = response.json()['results'][0]
-        self.assertEqual(ethereum_tx['from'], db_ethereum_tx._from)
-        self.assertEqual(ethereum_tx['to'], safe_address)
-        self.assertEqual(ethereum_tx['data'], db_ethereum_tx.data.hex())
-        self.assertEqual(ethereum_tx['gas'], str(db_ethereum_tx.gas))
-        self.assertEqual(ethereum_tx['gasPrice'], str(db_ethereum_tx.gas_price))
-        self.assertEqual(ethereum_tx['txHash'], db_ethereum_tx.tx_hash.hex())
-        self.assertEqual(ethereum_tx['value'], str(db_ethereum_tx.value))
-
-        EthereumTxFactory(_from=safe_address)
-        EthereumTxFactory()
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 2)
-
-        db_internal_tx = InternalTxFactory(to=safe_address)
-        InternalTxFactory(_from=safe_address)
-        InternalTxFactory()
-        InternalTxFactory(contract_address=safe_address)
-        response = self.client.get(reverse('v1:safe-all-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.json()['results']), 5)
-
-        at_least_one = False
-        for ethereum_tx in response.json()['results']:
-            if db_internal_tx.ethereum_tx.tx_hash.hex() == ethereum_tx['txHash']:
-                self.assertEqual(len(ethereum_tx['internalTxs']), 1)
-                self.assertEqual(ethereum_tx['internalTxs'][0]['from'], db_internal_tx._from)
-                self.assertEqual(ethereum_tx['internalTxs'][0]['to'], safe_address)
-                at_least_one = True
-        self.assertTrue(at_least_one)
 
     def test_erc20_view(self):
         safe_address = Account().create().address
@@ -569,29 +608,6 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         EthereumEventFactory(from_=safe_address, erc721=True)
         EthereumEventFactory(erc721=True)
         response = self.client.get(reverse('v1:erc721-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()['count'], 2)
-
-    def test_internal_tx_view(self):
-        safe_address = Account().create().address
-        SafeContractFactory(address=safe_address)
-
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-        internal_tx = InternalTxFactory(to=safe_address)
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        response_internal_tx = response.json()['results'][0]
-        self.assertEqual(internal_tx._from, response_internal_tx['from'])
-        self.assertEqual(internal_tx.to, response_internal_tx['to'])
-        self.assertEqual(internal_tx.data.hex(), response_internal_tx['data'])
-        self.assertEqual(internal_tx.value, int(response_internal_tx['value']))
-        self.assertEqual(internal_tx.ethereum_tx.to, response_internal_tx['ethereumTx']['to'])
-
-        InternalTxFactory(_from=safe_address)
-        InternalTxFactory()
-        response = self.client.get(reverse('v1:internal-txs', args=(safe_address,)))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['count'], 2)
 

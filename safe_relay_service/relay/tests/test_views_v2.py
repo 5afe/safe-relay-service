@@ -187,7 +187,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data={},
                                     format='json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         initial_funding = self.w3.toWei(0.0001, 'ether')
         to = Account.create().address
@@ -200,8 +200,22 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
 
         safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
         my_safe_address = safe_creation.safe_address
-        SafeContractFactory(address=my_safe_address)
 
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Use non existing Safe
+        non_existing_safe_address = Account.create().address
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(non_existing_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn("SafeDoesNotExist", response.data['exception'])
+
+        # Add to database and test again
+        SafeContractFactory(address=my_safe_address)
         response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data=data,
                                     format='json')

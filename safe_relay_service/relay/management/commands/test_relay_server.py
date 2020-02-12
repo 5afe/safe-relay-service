@@ -124,7 +124,7 @@ class Command(BaseCommand):
             data['paymentToken'] = payment_token
         self.stdout.write(self.style.SUCCESS(f'Calling creation url {creation_url}'))
         r = requests.post(creation_url, json=data)
-        assert r.ok, f"Error creating safe {r.content} using url f{creation_url}"
+        assert r.ok, f"Error creating safe {r.content} using url={creation_url}"
 
         safe_address, payment = r.json()['safe'], int(r.json()['payment'])
         return safe_address, payment

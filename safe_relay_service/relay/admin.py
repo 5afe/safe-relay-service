@@ -5,9 +5,9 @@ from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
-from .models import (EthereumBlock, EthereumEvent, EthereumTx, InternalTx,
-                     SafeContract, SafeCreation, SafeCreation2, SafeFunding,
-                     SafeMultisigTx, SafeTxStatus)
+from .models import (EthereumBlock, EthereumEvent, EthereumTx, SafeContract,
+                     SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
+                     SafeTxStatus)
 
 
 class EthereumTxForeignClassMixinAdmin:
@@ -16,6 +16,7 @@ class EthereumTxForeignClassMixinAdmin:
     """
     list_select_related = ('ethereum_tx', 'ethereum_tx__block')
     ordering = ['-ethereum_tx__block__number']
+    raw_id_fields = ('ethereum_tx',)
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
@@ -110,21 +111,15 @@ class EthereumEventAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
 @admin.register(EthereumTx)
 class EthereumTxAdmin(admin.ModelAdmin):
     list_display = ('block_id', 'tx_hash', 'nonce', '_from', 'to')
-    search_fields = ['=tx_hash', '=_from', '=to']
     ordering = ['-block_id']
+    raw_id_fields = ('block',)
+    search_fields = ['=tx_hash', '=_from', '=to']
 
     def get_search_results(self, request, queryset, search_term):
         # Fix tx_hash search
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         queryset |= self.model.objects.filter(tx_hash=search_term)
         return queryset, use_distinct
-
-
-@admin.register(InternalTx)
-class InternalTxAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
-    list_display = ('block_number', 'ethereum_tx_id', '_from', 'to', 'value', 'call_type')
-    list_filter = ('tx_type', 'call_type')
-    search_fields = ['=ethereum_tx__block__number', '=_from', '=to']
 
 
 class SafeContractDeployedListFilter(admin.SimpleListFilter):
@@ -202,6 +197,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
     list_display = ('created', 'safe_id', 'deployer', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     ordering = ['-created']
+    raw_id_fields = ('safe',)
     search_fields = ['=safe__address', '=deployer', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
@@ -214,6 +210,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     ordering = ['-created']
+    raw_id_fields = ('safe',)
     search_fields = ['=safe__address', 'owners']
 
     def ether_deploy_cost(self, obj: SafeCreation):
@@ -224,6 +221,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
 class SafeFundingAdmin(admin.ModelAdmin):
     list_display = ('safe_id', 'safe_status', 'deployer_funded_tx_hash', 'safe_deployed_tx_hash')
     list_filter = ('safe_funded', 'deployer_funded', 'safe_deployed')
+    raw_id_fields = ('safe',)
     search_fields = ['=safe__address']
 
     def safe_status(self, obj: SafeFunding):
@@ -236,10 +234,12 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
     list_display = ('created', 'safe_id', 'ethereum_tx_id', 'to', 'value', 'nonce', 'data')
     list_filter = ('operation',)
     ordering = ['-created']
+    raw_id_fields = ('safe', 'ethereum_tx')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
 
 
 @admin.register(SafeTxStatus)
 class SafeTxStatusAdmin(admin.ModelAdmin):
     list_display = ('safe_id', 'initial_block_number', 'tx_block_number', 'erc_20_block_number')
+    raw_id_fields = ('safe',)
     search_fields = ['=safe__address']

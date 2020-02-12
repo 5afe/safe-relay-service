@@ -1,7 +1,6 @@
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -24,11 +23,10 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumEvent, EthereumTx, InternalTx, SafeContract,
-                     SafeFunding, SafeMultisigTx)
+from .models import (EthereumEvent, EthereumTx, SafeContract, SafeFunding,
+                     SafeMultisigTx)
 from .serializers import (
-    ERC20Serializer, ERC721Serializer, EthereumTxWithInternalTxsSerializer,
-    InternalTxWithEthereumTxSerializer, SafeBalanceResponseSerializer,
+    ERC20Serializer, ERC721Serializer, SafeBalanceResponseSerializer,
     SafeContractSerializer, SafeCreationResponseSerializer,
     SafeCreationSerializer, SafeFundingResponseSerializer,
     SafeMultisigEstimateTxResponseSerializer, SafeMultisigTxResponseSerializer,
@@ -86,7 +84,6 @@ class AboutView(APIView):
             'https_detected': self.request.is_secure(),
             'settings': {
                 'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
-                'ETHEREUM_TRACING_NODE_URL': settings.ETHEREUM_TRACING_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
@@ -172,15 +169,10 @@ class SafeView(APIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
-            safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
-            serializer = self.serializer_class(safe_info)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
+        safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
+        serializer = self.serializer_class(safe_info)
+        return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
 class SafeBalanceView(APIView):
@@ -262,11 +254,6 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.get_serializer_class()(data=request.data)
@@ -297,11 +284,6 @@ class SafeMultisigTxEstimatesView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.get_serializer_class()(data=request.data)
@@ -319,6 +301,7 @@ class SafeMultisigTxEstimatesView(CreateAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
 
 
+# Abstract class
 class SafeListApiView(ListAPIView):
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
     ordering_fields = '__all__'
@@ -366,49 +349,30 @@ class SafeMultisigTxView(SafeListApiView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        request.data['safe'] = address
+        serializer = self.get_serializer_class()(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
         else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
-
-            request.data['safe'] = address
-            serializer = self.get_serializer_class()(data=request.data)
-
-            if not serializer.is_valid():
-                return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)
-            else:
-                data = serializer.validated_data
-                safe_multisig_tx = TransactionServiceProvider().create_multisig_tx(
-                    safe_address=data['safe'],
-                    to=data['to'],
-                    value=data['value'],
-                    data=data['data'],
-                    operation=data['operation'],
-                    safe_tx_gas=data['safe_tx_gas'],
-                    base_gas=data['data_gas'],
-                    gas_price=data['gas_price'],
-                    gas_token=data['gas_token'],
-                    nonce=data['nonce'],
-                    refund_receiver=data['refund_receiver'],
-                    signatures=data['signatures']
-                )
-                response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
-                return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
-
-
-class EthereumTxView(SafeListApiView):
-    ordering = ('-block__number',)
-    serializer_class = EthereumTxWithInternalTxsSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return EthereumTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(internal_txs__to=address) |
-                                         Q(internal_txs___from=address) |
-                                         Q(internal_txs__contract_address=address)
-                                         ).distinct().select_related('block').prefetch_related('internal_txs')
+            data = serializer.validated_data
+            safe_multisig_tx = TransactionServiceProvider().create_multisig_tx(
+                safe_address=data['safe'],
+                to=data['to'],
+                value=data['value'],
+                data=data['data'],
+                operation=data['operation'],
+                safe_tx_gas=data['safe_tx_gas'],
+                base_gas=data['data_gas'],
+                gas_price=data['gas_price'],
+                gas_token=data['gas_token'],
+                nonce=data['nonce'],
+                refund_receiver=data['refund_receiver'],
+                signatures=data['signatures']
+            )
+            response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
+            return Response(status=status.HTTP_201_CREATED, data=response_serializer.data)
 
 
 class ERC20View(SafeListApiView):
@@ -427,18 +391,6 @@ class ERC721View(SafeListApiView):
     def get_queryset(self):
         address = self.kwargs['address']
         return EthereumEvent.objects.erc721_events(address=address).select_related('ethereum_tx', 'ethereum_tx__block')
-
-
-class InternalTxsView(SafeListApiView):
-    ordering = ('-ethereum_tx__block__number',)
-    serializer_class = InternalTxWithEthereumTxSerializer
-
-    def get_queryset(self):
-        address = self.kwargs['address']
-        return InternalTx.objects.filter(Q(to=address) |
-                                         Q(_from=address) |
-                                         Q(contract_address=address)
-                                         ).select_related('ethereum_tx', 'ethereum_tx__block')
 
 
 class StatsView(APIView):

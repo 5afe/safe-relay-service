@@ -82,8 +82,7 @@ class SafeCreationView(CreateAPIView):
             safe_creation_response_data.is_valid(raise_exception=True)
             return Response(status=status.HTTP_201_CREATED, data=safe_creation_response_data.data)
         else:
-            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            data=serializer.errors)
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
 
 class SafeMultisigTxEstimateView(CreateAPIView):
@@ -100,11 +99,6 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        else:
-            try:
-                SafeContract.objects.get(address=address)
-            except SafeContract.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
 
         request.data['safe'] = address
         serializer = self.get_serializer_class()(data=request.data)
