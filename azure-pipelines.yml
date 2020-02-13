@@ -40,7 +40,7 @@ steps:
       docker push augurproject/safe-relay-service_web:latest
       docker push augurproject/safe-relay-service_worker:latest
     displayName: 'docker compose push'
-    condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master'))
+    condition: succeeded()
 
 
   - task: Docker@1
@@ -63,7 +63,7 @@ steps:
       aws --region=us-east-1 ecs update-service  --service gnosis-scheduler --cluster kovan-v2-ecs --force-new-deployment
       aws --region=us-east-1 ecs update-service  --service gnosis-worker --cluster kovan-v2-ecs --force-new-deployment
     displayName: 'push build to aws'
-    condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master'))
+    condition: succeeded()
     env:
       AWS_ACCESS_KEY_ID: $(AWS_KEY_ID)
       AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
