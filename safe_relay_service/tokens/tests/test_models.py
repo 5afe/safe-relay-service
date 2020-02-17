@@ -1,3 +1,4 @@
+from unittest import mock
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -6,7 +7,7 @@ from django.test import TestCase
 from web3 import Web3
 
 from ..models import PriceOracle
-from ..price_oracles import CannotGetTokenPriceFromApi
+from ..price_oracles import CannotGetTokenPriceFromApi, DutchX
 from .factories import PriceOracleTickerFactory, TokenFactory
 
 
@@ -33,12 +34,14 @@ class TestModels(TestCase):
         token = TokenFactory(fixed_eth_conversion=1.0, decimals=17)
         self.assertEqual(token.calculate_payment(Web3.toWei(1, 'ether')), Web3.toWei(0.1, 'ether'))
 
-    def test_token_eth_value(self):
+    @mock.patch.object(DutchX, 'get_price', return_value=3.8, autospec=True)
+    def test_token_eth_value(self, get_price_mock):
         price_oracle = PriceOracle.objects.get(name='DutchX')
         token = TokenFactory(fixed_eth_conversion=None)
         with self.assertRaises(CannotGetTokenPriceFromApi):
             token.get_eth_value()
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle,
+                                 ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
         price = token.get_eth_value()
         self.assertIsInstance(price, float)
         self.assertGreater(price, .0)
@@ -50,19 +53,19 @@ class TestModels(TestCase):
         token = TokenFactory(fixed_eth_conversion=None)
         with self.assertRaises(CannotGetTokenPriceFromApi):
             token.get_eth_value()
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='BADTICKER')
-        with self.assertRaises(CannotGetTokenPriceFromApi):
-            token.get_eth_value()
 
-    def test_token_eth_value_inverted(self):
+    @mock.patch.object(DutchX, 'get_price', return_value=3.8, autospec=True)
+    def test_token_eth_value_inverted(self, get_price_mock):
         price_oracle = PriceOracle.objects.get(name='DutchX')
 
         token = TokenFactory(fixed_eth_conversion=None)
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle,
+                                 ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH')
         price = token.get_eth_value()
 
         token = TokenFactory(fixed_eth_conversion=None)
-        PriceOracleTickerFactory(token=token, price_oracle=price_oracle, ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH', inverse=True)
+        PriceOracleTickerFactory(token=token, price_oracle=price_oracle,
+                                 ticker='0xdd974D5C2e2928deA5F71b9825b8b646686BD200-WETH', inverse=True)
         price_inverted = token.get_eth_value()
 
         self.assertAlmostEqual(1 / price, price_inverted, delta=10.0)

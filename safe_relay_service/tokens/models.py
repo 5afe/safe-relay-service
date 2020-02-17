@@ -52,8 +52,8 @@ class TokenQuerySet(models.QuerySet):
 class Token(models.Model):
     objects = TokenQuerySet.as_manager()
     address = EthereumAddressField(primary_key=True)
-    name = models.CharField(max_length=30)
-    symbol = models.CharField(max_length=30)
+    name = models.CharField(max_length=60)
+    symbol = models.CharField(max_length=60)
     description = models.TextField(blank=True)
     decimals = models.PositiveSmallIntegerField()
     logo_uri = models.CharField(blank=True, max_length=300)
