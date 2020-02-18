@@ -63,9 +63,7 @@ class SafeCreationServiceProvider:
                                                settings.SAFE_OLD_CONTRACT_ADDRESS,
                                                settings.SAFE_PROXY_FACTORY_ADDRESS,
                                                settings.SAFE_FUNDER_PRIVATE_KEY,
-                                               settings.SAFE_FIXED_CREATION_COST,
-                                               settings.SAFE_AUTO_FUND,
-                                               settings.SAFE_AUTO_APPROVE_TOKEN)
+                                               settings.SAFE_FIXED_CREATION_COST)
         return cls.instance
 
     @classmethod
@@ -77,8 +75,7 @@ class SafeCreationServiceProvider:
 class SafeCreationService:
     def __init__(self, gas_station: GasStation, ethereum_client: EthereumClient, redis: Redis,
                  safe_contract_address: str, safe_old_contract_address: str, proxy_factory_address: str,
-                 safe_funder_private_key: str, safe_fixed_creation_cost: int, safe_auto_fund: bool,
-                 safe_auto_approve_token: bool):
+                 safe_funder_private_key: str, safe_fixed_creation_cost: int):
         self.gas_station = gas_station
         self.ethereum_client = ethereum_client
         self.redis = redis
@@ -87,8 +84,6 @@ class SafeCreationService:
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.funder_account = Account.privateKeyToAccount(safe_funder_private_key)
         self.safe_fixed_creation_cost = safe_fixed_creation_cost
-        self.safe_auto_fund = safe_auto_fund
-        self.safe_auto_approve_token = safe_auto_approve_token
 
     def _get_token_eth_value_or_raise(self, address: str) -> float:
         """
@@ -103,11 +98,8 @@ class SafeCreationService:
         try:
             token = Token.objects.get(address=address, gas=True)
         except Token.DoesNotExist:
-            if self.safe_auto_approve_token:
-                # Add the token for development purposes.
-                token = Token.objects.create(address=address, name="Cash", symbol="cash", decimals=2, fixed_eth_conversion=0.006, gas=True)
-            else:
-                raise
+            # Add the token for development purposes.
+            token = Token.objects.create(address=address, name="Cash", symbol="cash", decimals=2, fixed_eth_conversion=0.006, gas=True)
 
         return token.get_eth_value()
 
@@ -264,11 +256,11 @@ class SafeCreationService:
 
 
             # Be sure we are actually using an erc20.
-            if self.safe_auto_fund and safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
+            if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
                 # Send funds from deployers address to the contract.
-                # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY (self.safe_auto_fund should be False on production)
-                amount_to_send = 1000000000000000000000
-                funder_balance = self.ethereum_client.erc20.get_balance(self.funder_account.address, safe_creation2.payment_token)
+                # NOTE: THIS IS FOR DEVELOPMENT PURPOSES ONLY.
+                amount_to_send = 1000000000000000000000;
+                funder_balance = self.ethereum_client.erc20.get_balance(self.funder_account.address, safe_creation2.payment_token);
 
 
                 if amount_to_send < funder_balance:
@@ -281,13 +273,13 @@ class SafeCreationService:
                     self.ethereum_client.erc20.send_tokens(safe_address,
                         amount_to_send,
                         safe_creation2.payment_token,
-                        self.funder_account.privateKey)
+                        self.funder_account.privateKey);
 
                 else:
-                    message = message + 'Cannot seed wallet with funds. Please faucet %s' % (self.funder_account.address)
+                    message = message + 'Cannot seed wallet with funds. Please faucet %s' % (self.funder_account.address);
 
-                logger.info(message)
-                raise NotEnoughFundingForCreation(message)
+                logger.info(message);
+                raise NotEnoughFundingForCreation(message);
 
         logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
                     safe_address, safe_creation2.payment_token, safe_creation2.payment)
