@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         if settings.SLACK_API_WEBHOOK:
             try:
-                r = requests.post('SLACK_API_WEBHOOK', json={'text': startup_message})
+                r = requests.post(settings.SLACK_API_WEBHOOK, json={'text': startup_message})
                 if r.ok:
                     self.stdout.write(self.style.SUCCESS(f'Slack configured, "{startup_message}" sent'))
                 else:
