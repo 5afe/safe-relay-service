@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/gnosis/safe-relay-service.svg?branch=master)](https://travis-ci.org/gnosis/safe-relay-service)
 [![Coverage Status](https://coveralls.io/repos/github/gnosis/safe-relay-service/badge.svg?branch=master)](https://coveralls.io/github/gnosis/safe-relay-service?branch=master)
 ![Python 3.8](https://img.shields.io/badge/Python-3.8-blue.svg)
-![Django 2](https://img.shields.io/badge/Django-2-blue.svg)
+![Django 3](https://img.shields.io/badge/Django-3-blue.svg)
 
 # Gnosis Safe Relay Service
 This service allows us to have owners of the Safe contract that don’t need to hold any ETH on those owner addresses.
