@@ -207,8 +207,10 @@ class TransactionService:
     def _get_last_used_nonce(self, safe_address: str) -> Optional[int]:
         safe = Safe(safe_address, self.ethereum_client)
         last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
+        last_used_nonce = last_used_nonce if last_used_nonce is not None else -1
         try:
-            last_used_nonce = last_used_nonce or (safe.retrieve_nonce() - 1)
+            blockchain_nonce = safe.retrieve_nonce()
+            last_used_nonce = max(last_used_nonce, blockchain_nonce - 1)
             if last_used_nonce < 0:  # There's no last_used_nonce
                 last_used_nonce = None
             return last_used_nonce
