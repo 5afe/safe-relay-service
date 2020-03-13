@@ -452,6 +452,8 @@ class TransactionService:
             Q(ethereum_tx__block=None) | Q(ethereum_tx=None)
         ).filter(
             created__lte=timezone.now() - timedelta(seconds=older_than),
+        ).select_related(
+            'ethereum_tx'
         )
 
     # TODO Refactor and test
