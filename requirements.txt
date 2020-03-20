@@ -1,8 +1,8 @@
-Django==3.0.3
+django==3.0.4
 cachetools==4.0.0
-celery==4.4.0
+celery==4.4.2
 django-authtools==1.7.0
-django-celery-beat==1.6.0
+django-celery-beat==2.0.0
 django-debug-toolbar
 django-debug-toolbar-force
 django-environ==0.4.5
@@ -16,11 +16,11 @@ docutils==0.16
 drf-yasg[validation]==1.17.1
 ethereum==2.3.2
 gevent==1.4.0
-gnosis-py==2.1.5
+gnosis-py==2.3.0
 gunicorn==20.0.4
 hexbytes==0.2.0
 lxml==4.5.0
-numpy==1.18.1
+numpy==1.18.2
 packaging>=19.0
 psycopg2-binary==2.8.4
 redis==3.4.1
