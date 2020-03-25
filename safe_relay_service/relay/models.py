@@ -12,6 +12,7 @@ from django.db.models.functions import Cast, Coalesce, TruncDate
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
+from gnosis.eth import EthereumClient
 from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
@@ -409,8 +410,8 @@ class SafeMultisigTx(TimeStampedModel):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
                                           self.safe.address)
 
-    def get_safe_tx(self) -> SafeTx:
-        return SafeTx(None, self.safe_id, self.to, self.value, self.data.tobytes() if self.data else b'',
+    def get_safe_tx(self, ethereum_client: Optional[EthereumClient] = None) -> SafeTx:
+        return SafeTx(ethereum_client, self.safe_id, self.to, self.value, self.data.tobytes() if self.data else b'',
                       self.operation, self.safe_tx_gas, self.data_gas, self.gas_price, self.gas_token,
                       self.refund_receiver,
                       signatures=self.signatures.tobytes() if self.signatures else b'',
