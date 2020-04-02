@@ -6,12 +6,12 @@ sleep 10  # Wait for migrations
 echo "==> $(date +%H:%M:%S) ==> Setup Gas Station..."
 python manage.py setup_gas_station
 echo "==> $(date +%H:%M:%S) ==> Setting up service... "
-python manage.py setup_service &
+python manage.py setup_service
 
 echo "==> $(date +%H:%M:%S) ==> Collecting statics... "
 DOCKER_SHARED_DIR=/nginx
 rm -rf $DOCKER_SHARED_DIR/*
-STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput &
+STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput
 
 echo "==> $(date +%H:%M:%S) ==> Send via Slack info about service version and network"
 python manage.py send_slack_notification
