@@ -103,8 +103,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         # Create Safe ------------------------------------------------
         w3 = self.ethereum_client.w3
         safe_balance = w3.toWei(0.01, 'ether')
-        owner0_balance = safe_balance
-        accounts = [self.create_account(initial_wei=owner0_balance), self.create_account(initial_wei=owner0_balance)]
+        accounts = [self.create_account(), self.create_account()]
         # Signatures must be sorted!
         accounts.sort(key=lambda account: account.address.lower())
         owners = [x.address for x in accounts]
@@ -114,13 +113,13 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         my_safe_address = safe_creation.safe_address
         SafeContractFactory(address=my_safe_address)
 
+        self.assertEqual(self.ethereum_client.get_balance(my_safe_address), safe_balance)
+
         # Safe prepared --------------------------------------------
-        to, _ = get_eth_address_with_key()
+        to = Account.create().address
         value = safe_balance // 2
         tx_data = None
-        operation = 0
-        refund_receiver = None
-        nonce = 0
+        operation = SafeOperation.CALL.value
 
         data = {
             "to": to,
@@ -140,6 +139,8 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         data_gas = estimation_json['dataGas']
         gas_price = estimation_json['gasPrice']
         gas_token = estimation_json['gasToken']
+        refund_receiver = None
+        nonce = 0
 
         multisig_tx_hash = SafeTx(
             None,
@@ -311,14 +312,13 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         # Create Safe ------------------------------------------------
         w3 = self.ethereum_client.w3
         safe_balance = w3.toWei(0.01, 'ether')
-        owner0_balance = safe_balance
-        owner_account = self.create_account(initial_wei=owner0_balance)
-        self.assertEqual(self.w3.eth.getBalance(owner_account.address), owner0_balance)
+        owner_account = self.create_account()
         owner = owner_account.address
         threshold = 1
 
         safe_creation = self.deploy_test_safe(owners=[owner], threshold=threshold, initial_funding_wei=safe_balance)
         my_safe_address = safe_creation.safe_address
+        self.assertEqual(self.w3.eth.getBalance(my_safe_address), safe_balance)
         SafeContractFactory(address=my_safe_address)
 
         # Get tokens for the safe
@@ -326,10 +326,10 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         erc20_contract = self.deploy_example_erc20(safe_token_balance, my_safe_address)
 
         # Safe prepared --------------------------------------------
-        to, _ = get_eth_address_with_key()
+        to = Account.create().address
         value = safe_balance
         tx_data = None
-        operation = 0
+        operation = SafeOperation.CALL.value
         refund_receiver = None
         nonce = 0
         gas_token = erc20_contract.address
