@@ -58,7 +58,7 @@ class SafeCreationView(CreateAPIView):
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
         """
-        Begins creation of a Safe
+        Begins creation of a Gnosis Safe V1.0.0
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
