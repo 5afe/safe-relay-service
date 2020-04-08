@@ -35,7 +35,7 @@ class TestCommands(TestCase):
         call_command('send_slack_notification', stdout=buf)
         text = buf.getvalue()
         self.assertIn('Slack not configured, ignoring', text)
-        self.assertIn('Starting Safe Relay version', text)
+        self.assertIn('Starting Safe Relay Service version', text)
 
     def test_setup_service(self):
         from ..management.commands.setup_service import Command
