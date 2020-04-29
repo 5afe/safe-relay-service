@@ -100,6 +100,9 @@ class EthereumTxFactory(factory.DjangoModelFactory):
 
     block = factory.SubFactory(EthereumBlockFactory)
     tx_hash = factory.Sequence(lambda n: Web3.keccak(text='ethereum_tx_hash%d' % n))
+    gas_used = factory.fuzzy.FuzzyInteger(100000, 500000)
+    status = 1  # Success
+    transaction_index = factory.Sequence(lambda n: n)
     _from = factory.LazyFunction(lambda: Account.create().address)
     gas = factory.fuzzy.FuzzyInteger(1000, 5000)
     gas_price = factory.fuzzy.FuzzyInteger(1, 100)
