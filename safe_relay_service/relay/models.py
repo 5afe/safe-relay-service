@@ -300,6 +300,8 @@ class EthereumTx(TimeStampedModel):
                               related_name='txs')  # If mined
     tx_hash = Sha3HashField(unique=True, primary_key=True)
     gas_used = Uint256Field(null=True, default=None)  # If mined
+    status = models.IntegerField(null=True, default=None, db_index=True)  # If mined. Old txs don't have `status`
+    transaction_index = models.PositiveIntegerField(null=True, default=None)  # If mined
     _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
@@ -309,12 +311,18 @@ class EthereumTx(TimeStampedModel):
     value = Uint256Field()
 
     def __str__(self):
-        return '{} from={} to={}'.format(self.tx_hash, self._from, self.to)
+        return '{} status={} from={} to={}'.format(self.tx_hash, self.status, self._from, self.to)
+
+    @property
+    def success(self) -> Optional[bool]:
+        if self.status is not None:
+            return self.status == 1
 
 
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:
-        nonce_dict = self.filter(safe=safe_address).order_by('-nonce').values('nonce').first()
+        nonce_dict = self.filter(safe=safe_address,
+                                 ethereum_tx__status=1).order_by('-nonce').values('nonce').first()
         return nonce_dict['nonce'] if nonce_dict else None
 
     def get_average_execution_time(self, from_date: datetime.datetime,

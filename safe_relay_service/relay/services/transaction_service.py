@@ -204,7 +204,13 @@ class TransactionService:
         """
         return self.gas_station.get_gas_prices().standard
 
-    def _get_last_used_nonce(self, safe_address: str) -> Optional[int]:
+    def _get_minimum_gas_price(self) -> int:
+        """
+        :return: Minimum gas price accepted for txs set by the user
+        """
+        return self.gas_station.get_gas_prices().safe_low
+
+    def get_last_used_nonce(self, safe_address: str) -> Optional[int]:
         safe = Safe(safe_address, self.ethereum_client)
         last_used_nonce = SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address)
         last_used_nonce = last_used_nonce if last_used_nonce is not None else -1
@@ -217,12 +223,6 @@ class TransactionService:
         except BadFunctionCallOutput:  # If Safe does not exist
             raise SafeDoesNotExist(f'Safe={safe_address} does not exist')
 
-    def _get_minimum_gas_price(self) -> int:
-        """
-        :return: Minimum gas price accepted for txs set by the user
-        """
-        return self.gas_station.get_gas_prices().safe_low
-
     def estimate_tx(self, safe_address: str, to: str, value: int, data: str, operation: int,
                     gas_token: Optional[str]) -> TransactionEstimationWithNonce:
         """
@@ -232,7 +232,7 @@ class TransactionService:
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
 
-        last_used_nonce = self._get_last_used_nonce(safe_address)
+        last_used_nonce = self.get_last_used_nonce(safe_address)
         safe = Safe(safe_address, self.ethereum_client)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
@@ -252,7 +252,7 @@ class TransactionService:
     def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: str,
                                    operation: int) -> TransactionEstimationWithNonceAndGasTokens:
         safe = Safe(safe_address, self.ethereum_client)
-        last_used_nonce = self._get_last_used_nonce(safe_address)
+        last_used_nonce = self.get_last_used_nonce(safe_address)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
 
         safe_version = safe.retrieve_version()
@@ -465,6 +465,8 @@ class TransactionService:
                 if tx_receipt:
                     ethereum_tx.block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
                     ethereum_tx.gas_used = tx_receipt.gasUsed
+                    ethereum_tx.status = tx_receipt.get('status')
+                    ethereum_tx.transaction_index = tx_receipt['transactionIndex']
                     ethereum_tx.save()
             return ethereum_tx
         except EthereumTx.DoesNotExist:

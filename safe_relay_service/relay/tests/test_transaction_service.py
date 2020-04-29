@@ -389,3 +389,16 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         self.assertEqual(self.transaction_service.get_pending_multisig_transactions(30).count(), 1)
         SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=60), ethereum_tx__block=None)
         self.assertEqual(self.transaction_service.get_pending_multisig_transactions(30).count(), 2)
+
+    def test_get_last_nonce(self):
+        safe_address = self.deploy_test_safe().safe_address
+        safe_contract = SafeContractFactory(address=safe_address)
+        self.assertIsNone(self.transaction_service.get_last_used_nonce(safe_address))
+        SafeMultisigTxFactory(safe=safe_contract, nonce=12)
+        self.assertEqual(self.transaction_service.get_last_used_nonce(safe_address), 12)
+
+        SafeMultisigTxFactory(safe=safe_contract, nonce=17)
+        self.assertEqual(self.transaction_service.get_last_used_nonce(safe_address), 17)
+
+        SafeMultisigTxFactory(safe=safe_contract, nonce=22, ethereum_tx__status=0)
+        self.assertEqual(self.transaction_service.get_last_used_nonce(safe_address), 17)
