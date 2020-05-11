@@ -11,7 +11,7 @@ using **ERC20 tokens**.
 
 Docs
 ----
-Docs are available on [Readthedocs](https://gnosis-safe.readthedocs.io/en/latest/services/relay.html)
+Docs are available on [Gnosis Docs](https://docs.gnosis.io/safe/docs/services_relay/)
 You can open the diagrams explaining _Pre CREATE2_ deployment under `docs/` with [Staruml](http://staruml.io/)
 
 Setup for development (using ganache)
