@@ -364,7 +364,7 @@ class TransactionService:
                           refund_receiver: str,
                           safe_nonce: int,
                           signatures: bytes,
-                          tx_gas=None,
+                          tx_gas: Optional[int] = None,
                           block_identifier='latest') -> Tuple[bytes, bytes, Dict[str, Any]]:
         """
         This function calls the `send_multisig_tx` of the Safe, but has some limitations to prevent abusing
