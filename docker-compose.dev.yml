@@ -13,6 +13,7 @@ services:
     working_dir: /app
     ports:
       - "8888:8888"
+      - "8000:8000"
     volumes:
       - nginx-shared:/nginx
     command: docker/web/run_web.sh
