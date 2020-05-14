@@ -156,7 +156,7 @@ class TestSerializers(TestCase):
         ).safe_tx_hash
 
         signatures = [account.signHash(multisig_tx_hash) for account in accounts]
-        data['signatures'] = signatures
+        data['signatures'] = [{'v': s.v, 'r': s.r, 's': s.s} for s in signatures]
         serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
