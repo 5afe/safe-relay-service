@@ -221,8 +221,8 @@ class SafeCreationService:
                                                                               safe_creation2.master_copy,
                                                                               setup_data,
                                                                               safe_creation2.salt_nonce,
-                                                                              safe_creation2.gas_estimated,
-                                                                              safe_creation2.gas_price_estimated,
+                                                                              gas=safe_creation2.gas_estimated,
+                                                                              gas_price=safe_creation2.gas_price_estimated,
                                                                               nonce=tx_nonce)
             EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
