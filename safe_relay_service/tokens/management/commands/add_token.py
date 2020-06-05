@@ -35,4 +35,4 @@ class Command(BaseCommand):
                 response = input(f'Do you want to create a token {info} (y/n) ').strip().lower()
             if response == 'y':
                 Token.objects.create(address=token_address, name=info.name, symbol=info.symbol, decimals=info.decimals)
-                self.stdout.write(self.style.SUCCESS(f'Created token {info.name}'))
+                self.stdout.write(self.style.SUCCESS(f'Created token {info.name} on address {token_address}'))
