@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from safe_relay_service.tokens.models import Token
+from .models import Token
 
 
 class TokenSerializer(serializers.ModelSerializer):
