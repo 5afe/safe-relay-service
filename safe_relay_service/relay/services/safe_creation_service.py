@@ -10,7 +10,8 @@ from redis import Redis
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe import ProxyFactory, Safe
-from gnosis.safe.safe import SafeCreationEstimate
+from gnosis.safe.exceptions import CannotRetrieveSafeInfoException
+from gnosis.safe.safe import SafeCreationEstimate, SafeInfo
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
@@ -35,22 +36,16 @@ class SafeNotDeployed(SafeCreationServiceException):
     pass
 
 
+class CannotRetrieveSafeInfo(SafeCreationServiceException):
+    pass
+
+
 class NotEnoughFundingForCreation(SafeCreationServiceException):
     pass
 
 
 class SafeAlreadyExistsException(SafeCreationServiceException):
     pass
-
-
-class SafeInfo(NamedTuple):
-    address: str
-    nonce: int
-    threshold: int
-    owners: List[str]
-    master_copy: str
-    version: str
-    fallback_handler: str
 
 
 class SafeCreationServiceProvider:
@@ -271,10 +266,8 @@ class SafeCreationService:
         safe = Safe(address, self.ethereum_client)
         if not self.ethereum_client.is_contract(address):
             raise SafeNotDeployed('Safe with address=%s not deployed' % address)
-        nonce = safe.retrieve_nonce()
-        threshold = safe.retrieve_threshold()
-        owners = safe.retrieve_owners()
-        master_copy = safe.retrieve_master_copy_address()
-        version = safe.retrieve_version()
-        fallback_handler = safe.retrieve_fallback_handler()
-        return SafeInfo(address, nonce, threshold, owners, master_copy, version, fallback_handler)
+
+        try:
+            return safe.retrieve_all_info()
+        except CannotRetrieveSafeInfoException as e:
+            raise CannotRetrieveSafeInfo(address) from e

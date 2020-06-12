@@ -10,7 +10,8 @@ from gnosis.eth.utils import get_eth_address_with_key
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
-from ..services.safe_creation_service import (InvalidPaymentToken,
+from ..services.safe_creation_service import (CannotRetrieveSafeInfo,
+                                              InvalidPaymentToken,
                                               NotEnoughFundingForCreation,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
@@ -111,6 +112,10 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
         fake_safe_address = Account.create().address
         with self.assertRaisesMessage(SafeNotDeployed, fake_safe_address):
             self.safe_creation_service.retrieve_safe_info(fake_safe_address)
+
+        with self.assertRaisesMessage(CannotRetrieveSafeInfo, self.multi_send.address):
+            # We use multisend to save time, any contract would do it
+            self.safe_creation_service.retrieve_safe_info(self.multi_send.address)
 
         threshold = 1
         random_fallback_handler = Account.create().address
