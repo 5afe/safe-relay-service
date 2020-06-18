@@ -516,7 +516,7 @@ def circles_onboarding_token_task(safe_address: str) -> None:
             transaction_service = TransactionServiceProvider()
 
             # Do nothing if Token is already deployed
-            if CirclesService(ethereum_client).is_token_deployed(safe=safe_address):
+            if CirclesService(ethereum_client).is_token_deployed(safe_address):
                 return
 
             # Do nothing if the Token is already funded
