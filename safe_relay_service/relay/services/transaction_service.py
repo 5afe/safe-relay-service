@@ -1,6 +1,7 @@
 from logging import getLogger
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
+from django.conf import settings
 from django.db import IntegrityError
 from django.utils import timezone
 
@@ -19,7 +20,7 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
                                                         GasStationProvider)
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
-from safe_relay_service.relay.circles import Circles
+from safe_relay_service.relay.services.circles_service import CirclesService
 
 from ..models import (BannedSigner, EthereumBlock, EthereumTx, SafeContract,
                       SafeMultisigTx)
@@ -159,8 +160,9 @@ class TransactionService:
         if address == NULL_ADDRESS:
             return True
         try:
-            is_token = Circles().is_circles_token(address)
-            return is_token
+            # @TODO: Fetch valid Tokens from database instead
+            ethereum_client = EthereumClientProvider()
+            return CirclesService(ethereum_client).is_circles_token(address)
         except Token.DoesNotExist:
             logger.warning('Cannot retrieve gas token from db: Gas token %s not valid', address)
             return False
@@ -182,7 +184,7 @@ class TransactionService:
         minimum_accepted_gas_price = self._get_minimum_gas_price()
 
         if gas_token and gas_token != NULL_ADDRESS:
-            estimated_gas_price = Circles().estimate_gas_price();
+            estimated_gas_price = self._estimate_tx_gas_price(gas_token)
             if safe_gas_price < estimated_gas_price:
                 raise GasPriceTooLow('Required gas-price>=%d to use gas-token' % estimated_gas_price)
             # We use gas station tx gas price. We cannot use internal tx's because is calculated
@@ -194,10 +196,7 @@ class TransactionService:
 
     def _estimate_tx_gas_price(self, base_gas_price: int, gas_token: Optional[str] = None) -> int:
         if gas_token and gas_token != NULL_ADDRESS:
-            try:
-                return Circles().estimate_gas_price()
-            except Token.DoesNotExist:
-                raise InvalidGasToken('Gas token %s not found' % gas_token)
+            return CirclesService(self.ethereum_client).estimated_gas_price()
         else:
             estimated_gas_price = base_gas_price
 
@@ -291,6 +290,31 @@ class TransactionService:
 
         return TransactionEstimationWithNonceAndGasTokens(last_used_nonce, safe_tx_gas, safe_tx_operational_gas,
                                                           gas_token_estimations)
+
+    def estimate_circles_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+        """
+        Estimates gas costs of Circles token deployment method
+        :param safe_address:
+        :param gas_token:
+        """
+        value = 0
+        operation = 0
+        # Tx data from Circles Token contract signup method
+        data = ("0x519c6377000000000000000000000000000000000000000000000"
+                "0000000000000000020000000000000000000000000000000000000"
+                "0000000000000000000000000007436972636c65730000000000000"
+                "0000000000000000000000000000000000000")
+        transaction_estimation = self.estimate_tx(
+            safe_address,
+            settings.CIRCLES_HUB_ADDRESS,
+            value,
+            data,
+            operation,
+            gas_token
+        )
+        return (
+            transaction_estimation.safe_tx_gas + transaction_estimation.base_gas
+        ) * transaction_estimation.gas_price
 
     def create_multisig_tx(self,
                            safe_address: str,
@@ -394,8 +418,10 @@ class TransactionService:
         if not self._check_refund_receiver(refund_receiver):
             raise InvalidRefundReceiver(refund_receiver)
         
+        # Make sure we only pay gas fees with Circles Tokens
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
+
         self._check_safe_gas_price(gas_token, gas_price)
 
         # Make sure proxy contract is ours
