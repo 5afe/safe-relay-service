@@ -258,7 +258,7 @@ def fund_token_deployment(self, safe_address: str) -> None:
             # do nothing if the token is already funded
             if (ethereum_client.get_balance(safe_address) >= token_deployment_cost):
                 pass
-            else 
+            else:
                 FundingServiceProvider().send_eth_to(safe_address, token_deployment_cost, gas=24000, retry=True)
     except LockError:
         logger.warning('Cannot get lock={} for deploying safe={}'.format(lock_name, safe_address))
@@ -277,7 +277,7 @@ def circles_onboarding(self, safe_address: str) -> None:
             if safe_creation2.tx_hash:
                 # start task to fund token deployment
                 fund_token_deployment.delay(safe_address, retry=False)
-            else 
+            else:
                 deploy_create2_safe_task.delay(safe_address, retry=False)
     except LockError:
         logger.warning('Cannot get lock={} for circles onboarding={}'.format(lock_name, safe_address))
