@@ -54,7 +54,6 @@ class CirclesService:
         call_args = {
             'to': settings.CIRCLES_HUB_ADDRESS,
             # Calling userToToken mapping of Hub contract;
-            # @TODO: Insert correct data
-            'data': '0x' + self.pack_address(safe_address)
+            'data': '0x28d249fe' + self.pack_address(safe_address)
         }
         return self.ethereum_client.w3.eth.call(call_args) != NULL_ADDRESS
