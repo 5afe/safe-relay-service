@@ -470,3 +470,105 @@ def check_and_update_pending_transactions() -> int:
     except LockError:
         pass
     return number_txs
+
+@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+def begin_circles_onboarding_task(self, safe_address: str) -> None:
+    """
+    Starts a multi-step onboarding task for Circles users which 1. funds
+    deploys a Gnosis Safe for them 2. funds the deployment of their Token.
+    :param safe_address: Address of the safe to-be-created
+    """
+
+    assert check_checksum(safe_address)
+
+    redis = RedisRepository().redis
+    lock_name = f'locks:begin_circles_onboarding_task:{safe_address}'
+    try:
+        with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            logger.info('Start onboarding for Circles Safe {}'.format(safe_address))
+            # Deploy Safe when it does not exist yet
+            safe_creation2 = SafeCreation2.objects.get(safe=safe_address)
+            if not safe_creation2.tx_hash:
+                logger.info('Safe does not exist yet, start deploying it {}'.format(safe_address))
+                circles_onboarding_safe_task.delay(safe_address)
+                # Retry later to check for Token funding
+                raise self.retry(countdown=30)
+            else:
+                logger.info('Safe exists, start funding Token {}'.format(safe_address))
+                # Fund Token deployment when it does not exist yet
+                circles_onboarding_token_task.delay(safe_address)
+    except LockError:
+        pass
+
+
+@app.shared_task(soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+def circles_onboarding_safe_task(safe_address: str) -> None:
+    """
+    Check if create2 Safe has enough incoming trust connections to fund and
+    deploy it
+    :param safe_address: Address of the safe to-be-created
+    """
+
+    assert check_checksum(safe_address)
+
+    try:
+        redis = RedisRepository().redis
+        lock_name = f'locks:circles_onboarding_safe_task:{safe_address}'
+        with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            logger.info('Check deploying Safe .. {}'.format(safe_address))
+            try:
+                SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
+            except SafeCreation2.DoesNotExist:
+                pass
+            except NotEnoughFundingForCreation:
+                logger.info('Safe does not have enough fund for deployment, check trust connections {}'.format(safe_address))
+                # If we have enough trust connections, fund safe
+                if GraphQLService().check_trust_connections(safe_address):
+                    logger.info('Fund Safe deployment for {}'.format(safe_address))
+                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
+                    safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
+                    FundingServiceProvider().send_eth_to(safe_address,
+                                                         safe_deploy_cost,
+                                                         gas=24000)
+                else:
+                    logger.info('Not enough trust connections for funding deployment {}'.format(safe_address))
+    except LockError:
+        pass
+
+
+@app.shared_task(soft_time_limit=LOCK_TIMEOUT)
+def circles_onboarding_token_task(safe_address: str) -> None:
+    """
+    Check if Safe already has a Circles token, if not, fund it
+    :param safe_address: Address of the created safe
+    """
+
+    assert check_checksum(safe_address)
+
+    try:
+        redis = RedisRepository().redis
+        lock_name = f'locks:circles_onboarding_token_task:{safe_address}'
+        with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
+            logger.info('Fund Token task for {}'.format(safe_address))
+
+            ethereum_client = EthereumClientProvider()
+            transaction_service = TransactionServiceProvider()
+
+            # @TODO: Do nothing if Token is already deployed
+            # if CirclesService(ethereum_client).is_token_deployed(safe=safe_address):
+            #     return
+
+            # Do nothing if the Token is already funded
+            token_deployment_cost = transaction_service.estimate_circles_signup_tx(safe_address)
+            if ethereum_client.get_balance(safe_address) >= token_deployment_cost:
+                logger.info('Token is already funded {}'.format(safe_address))
+                return
+
+            # Otherwise fund Token deployment
+            logger.info('Fund Token {}'.format(safe_address))
+            FundingServiceProvider().send_eth_to(
+                safe_address,
+                token_deployment_cost,
+                gas=24000,
+                retry=True
+            )
