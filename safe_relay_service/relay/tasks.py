@@ -344,6 +344,7 @@ def check_create2_deployed_safes_task() -> None:
                         # start task to fund token deployment
                         fund_token_deployment.delay(safe_address)
                 else:
+<<<<<<< a086b33fc138d8fbb39717d5f01fd09280871096
                     # If safe was not included in any block after 30 minutes (mempool limit is 30 minutes)
                     # try to increase a little the gas price
                     if safe_creation2.modified + timedelta(minutes=30) < timezone.now():
@@ -355,6 +356,18 @@ def check_create2_deployed_safes_task() -> None:
 
             for safe_creation2 in SafeCreation2.objects.not_deployed().filter(
                     created__gte=timezone.now() - timedelta(days=10)):
+=======
+                    # If safe was not included in any block after 35 minutes
+                    # (mempool limit is 30), we try to deploy it again
+                    if safe_creation2.modified + timedelta(minutes=35) < timezone.now():
+                        logger.info('Safe=%s with tx-hash=%s was not deployed after 10 minutes',
+                                    safe_address, safe_creation2.tx_hash)
+                        safe_creation2.tx_hash = None
+                        safe_creation2.save()
+                        deploy_create2_safe_task.delay(safe_address, retry=False)
+
+            for safe_creation2 in SafeCreation2.objects.not_deployed():
+>>>>>>> Fix copy mistake
                 deploy_create2_safe_task.delay(safe_creation2.safe.address, retry=False)
     except LockError:
         pass
@@ -521,7 +534,8 @@ def circles_onboarding_safe_task(safe_address: str) -> None:
             except SafeCreation2.DoesNotExist:
                 pass
             except NotEnoughFundingForCreation:
-                logger.info('Safe does not have enough fund for deployment, check trust connections {}'.format(safe_address))
+                logger.info('Safe does not have enough fund for deployment,'
+                            'check trust connections {}'.format(safe_address))
                 # If we have enough trust connections, fund safe
                 if GraphQLService().check_trust_connections(safe_address):
                     logger.info('Fund Safe deployment for {}'.format(safe_address))
@@ -572,5 +586,5 @@ def circles_onboarding_token_task(safe_address: str) -> None:
                 gas=24000,
                 retry=True
             )
-    except LockError
-
+    except LockError:
+        pass
