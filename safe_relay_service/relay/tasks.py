@@ -395,6 +395,7 @@ def check_pending_transactions() -> int:
     return number_txs
 
 
+<<<<<<< 4c4cf7cc8d80a057947321b9214dc3e21aff6d7f
 @app.shared_task(soft_time_limit=60)
 def check_and_update_pending_transactions() -> int:
     """
@@ -421,7 +422,7 @@ def check_and_update_pending_transactions() -> int:
         pass
     return number_txs
 
-@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=6)
 def begin_circles_onboarding_task(self, safe_address: str) -> None:
     """
     Starts a multi-step onboarding task for Circles users which 1. funds
