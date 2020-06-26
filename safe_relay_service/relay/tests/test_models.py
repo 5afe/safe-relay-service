@@ -12,8 +12,8 @@ from gnosis.eth.constants import NULL_ADDRESS
 
 from ..models import EthereumEvent, SafeContract, SafeFunding, SafeMultisigTx
 from .factories import (EthereumEventFactory, EthereumTxFactory,
-                        SafeCreation2Factory, SafeFundingFactory,
-                        SafeMultisigTxFactory)
+                        SafeContractFactory, SafeCreation2Factory,
+                        SafeFundingFactory, SafeMultisigTxFactory)
 
 
 class TestSafeContractModel(TestCase):
@@ -95,6 +95,23 @@ class TestEthereumEventModel(TestCase):
 
 
 class TestSafeMultisigTxModel(TestCase):
+    def test_get_last_nonce_for_safe(self):
+        safe_address = Account.create().address
+        self.assertIsNone(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address))
+        safe_contract = SafeContractFactory(address=safe_address)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=0)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=0)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 0)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=1)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 1)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=2, ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 2)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=0)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=2)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 2)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 3)
+
     def test_get_average_execution_time(self):
         from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
         to_date = timezone.now()
