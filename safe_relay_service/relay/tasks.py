@@ -251,7 +251,7 @@ def deploy_safes_task(retry: bool = True) -> None:
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
 def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> None:
     """
-    Check if user has enough incoming trust connections to the safe account
+    Check if user has sent enough ether or tokens to the safe account
     If every condition is met safe is deployed
     :param safe_address: safe account
     :param retry: if True, retries are allowed, otherwise don't retry
@@ -265,17 +265,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
             try:
                 SafeCreationServiceProvider().deploy_create2_safe_tx(safe_address)
-            except SafeCreation2.DoesNotExist:
-                pass
             except NotEnoughFundingForCreation:
-                # If we have enough trust connections, fund safe
-                if GraphQLService().check_trust_connections(safe_address):
-                    logger.info('Fund deployment for {}'.format(safe_address))
-                    safe_creation = SafeCreation2.objects.get(safe=safe_address)
-                    safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
-                    FundingServiceProvider().send_eth_to(safe_address,
-                                                         safe_deploy_cost,
-                                                         gas=24000)
                 if retry:
                     raise self.retry(countdown=30)
     except LockError:
@@ -291,7 +281,7 @@ def check_create2_deployed_safes_task() -> None:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_create2_deployed_safes_task', blocking_timeout=1, timeout=LOCK_TIMEOUT):
             ethereum_client = EthereumClientProvider()
-            confirmations = settings.SAFE_FUNDING_CONFIRMATIONS
+            confirmations = 6
             current_block_number = ethereum_client.current_block_number
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 safe_address = safe_creation2.safe_id
