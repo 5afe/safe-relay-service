@@ -329,7 +329,6 @@ class TransactionService:
 
         ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
 
-        # Fix race conditions for tx being created at the same time
         try:
             return SafeMultisigTx.objects.create(
                 created=created,
@@ -349,7 +348,7 @@ class TransactionService:
                 safe_tx_hash=safe_tx_hash,
             )
         except IntegrityError as exc:
-            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB') from exc
+            raise SafeMultisigTxExists(f'Tx with safe_tx_hash={safe_tx_hash.hex()} already exists in DB') from exc
 
     def _send_multisig_tx(self,
                           safe_address: str,
@@ -438,7 +437,7 @@ class TransactionService:
         safe_tx.call(tx_sender_address=tx_sender_address, block_identifier=block_identifier)
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
-                               timeout=60 * 2) as tx_nonce:
+                               lock_timeout=60 * 2) as tx_nonce:
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
             return tx_hash, safe_tx.safe_tx_hash, tx
@@ -449,7 +448,7 @@ class TransactionService:
         :param older_than: Time in seconds for a tx to be considered pending, if 0 all will be returned
         """
         return SafeMultisigTx.objects.filter(
-            Q(ethereum_tx__block=None) | Q(ethereum_tx=None)
+            Q(ethereum_tx__block=None) | Q(ethereum_tx=None)  # Just in case, but ethereum_tx cannot be null
         ).filter(
             created__lte=timezone.now() - timedelta(seconds=older_than),
         ).select_related(
@@ -457,7 +456,7 @@ class TransactionService:
         )
 
     # TODO Refactor and test
-    def create_or_update_ethereum_tx(self, tx_hash: str) -> EthereumTx:
+    def create_or_update_ethereum_tx(self, tx_hash: str) -> Optional[EthereumTx]:
         try:
             ethereum_tx = EthereumTx.objects.get(tx_hash=tx_hash)
             if ethereum_tx.block is None:

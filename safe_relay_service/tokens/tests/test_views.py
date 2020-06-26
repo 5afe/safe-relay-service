@@ -53,4 +53,3 @@ class TestTokenViews(SafeTestCaseMixin, APITestCase):
                                                      'decimals': token.decimals,
                                                      'website_uri': token.website_uri,
                                                      'gas': token.gas}])
-

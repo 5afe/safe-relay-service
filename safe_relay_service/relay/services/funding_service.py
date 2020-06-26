@@ -56,7 +56,7 @@ class FundingService:
             raise EtherLimitExceeded('%d is bigger than %f' % (value, self.max_eth_to_send))
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
-                               timeout=60 * 2) as tx_nonce:
+                               lock_timeout=60 * 2) as tx_nonce:
             return self.ethereum_client.send_eth_to(self.funder_account.key, to, gas_price, value,
                                                     gas=gas,
                                                     retry=retry,
