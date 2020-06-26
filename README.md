@@ -78,6 +78,16 @@ You can test everything is set up:
 curl 'http://localhost:8000/api/v1/about/'
 ```
 
+## Use admin interface
+Services come with a basic administration web ui (provided by Django). A user must be created first to
+get access:
+```bash
+docker exec -it safe-transaction-service_web_1 bash
+python manage.py createsuperuser
+```
+
+Then go to the web browser and navigate to http://localhost:8000/admin/
+
 Contributors
 ------------
 - Stefan George (stefan@gnosis.pm)
