@@ -16,9 +16,9 @@ class CirclesService:
         self.ethereum_client = ethereum_client
         self.gas_price = gas_price
 
-    def estimated_gas_price(self) -> int:
+    def gas_price(self) -> int:
         """
-        Returns the estimate gas price for transactions with Circles token
+        Returns the gas price for transactions with Circles token
         :return: Gas price
         """
         return self.gas_price
