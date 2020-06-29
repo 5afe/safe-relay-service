@@ -1,5 +1,5 @@
 django==3.0.7
-cachetools==4.1.0
+cachetools==4.1.1
 celery==4.4.6
 django-authtools==1.7.0
 django-celery-beat==2.0.0
