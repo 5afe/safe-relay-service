@@ -25,7 +25,7 @@ class RedisRepository:
 #TODO Test this using multiple threads
 class EthereumNonceLock:
     def __init__(self, redis: Redis, ethereum_client: EthereumClient, address: str, lock_timeout: Optional[int] = None,
-                 key_timeout: Optional[int] = 120):
+                 key_timeout: Optional[int] = 60):
         self.redis = redis
         self.ethereum_client = ethereum_client
         self.address = address
