@@ -109,8 +109,14 @@ class TestSafeMultisigTxModel(TestCase):
         SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=0)
         SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=2)
         self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 2)
-        SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=1)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=3, ethereum_tx__status=None)
         self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 3)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=8, ethereum_tx__status=None)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 8)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=16, ethereum_tx__status=2)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 8)
+        SafeMultisigTxFactory(safe=safe_contract, nonce=16, ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 16)
 
     def test_get_average_execution_time(self):
         from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)
