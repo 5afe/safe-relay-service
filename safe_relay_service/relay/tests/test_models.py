@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 
 from django.test import TestCase
 from django.utils import timezone
@@ -6,7 +7,6 @@ from django.utils import timezone
 from eth_account import Account
 from hexbytes import HexBytes
 from pytz import utc
-from web3 import Web3
 
 from gnosis.eth.constants import NULL_ADDRESS
 
@@ -117,6 +117,21 @@ class TestSafeMultisigTxModel(TestCase):
         self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 8)
         SafeMultisigTxFactory(safe=safe_contract, nonce=16, ethereum_tx__status=1)
         self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 16)
+
+    def test_pending(self):
+        self.assertFalse(SafeMultisigTx.objects.pending(0))
+
+        SafeMultisigTxFactory(created=timezone.now())
+        self.assertFalse(SafeMultisigTx.objects.pending(0))
+
+        SafeMultisigTxFactory(created=timezone.now(), ethereum_tx__block=None)
+        self.assertEqual(SafeMultisigTx.objects.pending(0).count(), 1)
+        self.assertFalse(SafeMultisigTx.objects.pending(30))
+
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=60), ethereum_tx__block=None)
+        self.assertEqual(SafeMultisigTx.objects.pending(30).count(), 1)
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=60), ethereum_tx__block=None)
+        self.assertEqual(SafeMultisigTx.objects.pending(30).count(), 2)
 
     def test_get_average_execution_time(self):
         from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)

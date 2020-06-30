@@ -375,21 +375,6 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         self.assertGreater(estimation_token.base_gas, estimation_ether.base_gas)
         self.assertEqual(estimation_token.gas_token, valid_token.address)
 
-    def test_get_pending_multisig_transactions(self):
-        self.assertFalse(self.transaction_service.get_pending_multisig_transactions(0))
-
-        SafeMultisigTxFactory(created=timezone.now())
-        self.assertFalse(self.transaction_service.get_pending_multisig_transactions(0))
-
-        SafeMultisigTxFactory(created=timezone.now(), ethereum_tx__block=None)
-        self.assertEqual(self.transaction_service.get_pending_multisig_transactions(0).count(), 1)
-        self.assertFalse(self.transaction_service.get_pending_multisig_transactions(30))
-
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=60), ethereum_tx__block=None)
-        self.assertEqual(self.transaction_service.get_pending_multisig_transactions(30).count(), 1)
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=60), ethereum_tx__block=None)
-        self.assertEqual(self.transaction_service.get_pending_multisig_transactions(30).count(), 2)
-
     def test_get_last_nonce(self):
         safe_address = self.deploy_test_safe().safe_address
         safe_contract = SafeContractFactory(address=safe_address)

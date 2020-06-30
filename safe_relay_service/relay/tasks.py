@@ -12,9 +12,8 @@ from redis.exceptions import LockError
 from gnosis.eth import EthereumClientProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
 
-from safe_relay_service.relay.models import (SafeContract, SafeCreation,
-                                             SafeCreation2, SafeFunding)
-
+from .models import (SafeContract, SafeCreation, SafeCreation2, SafeFunding,
+                     SafeMultisigTx)
 from .repositories.redis_repository import RedisRepository
 from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
                        NotificationServiceProvider,
@@ -367,7 +366,7 @@ def check_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_pending_transactions', blocking_timeout=1, timeout=60):
             tx_not_mined_alert = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
-            txs = TransactionServiceProvider().get_pending_multisig_transactions(older_than=tx_not_mined_alert * 60)
+            txs = SafeMultisigTx.objects.pending(older_than=tx_not_mined_alert * 60)
             for tx in txs:
                 logger.error('Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after a while, created=%s',
                              tx.ethereum_tx_id, tx.safe_tx_hash, tx.created)
@@ -388,7 +387,7 @@ def check_and_update_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_and_update_pending_transactions', blocking_timeout=1, timeout=60):
             transaction_service = TransactionServiceProvider()
-            txs = transaction_service.get_pending_multisig_transactions(older_than=15)
+            txs = SafeMultisigTx.objects.pending(older_than=15)
             for tx in txs:
                 ethereum_tx = transaction_service.create_or_update_ethereum_tx(tx.ethereum_tx_id)
                 if ethereum_tx and ethereum_tx.block_id:

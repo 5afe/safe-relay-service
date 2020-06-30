@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -6,8 +7,9 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
                               Value, When)
-from django.db.models.expressions import OuterRef, RawSQL, Subquery, Window
-from django.db.models.functions import Cast, Coalesce, TruncDate
+from django.db.models.expressions import RawSQL, Subquery, Window
+from django.db.models.functions import Cast, TruncDate
+from django.utils import timezone
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
@@ -392,8 +394,22 @@ class SafeMultisigTxManager(models.Manager):
 
 
 class SafeMultisigTxQuerySet(models.QuerySet):
-    def pending(self):
-        return self.filter(ethereum_tx__block=None)
+    def pending(self, older_than: int = 0):
+        """
+        Get multisig txs that have not been mined after `older_than` seconds
+        :param older_than: Time in seconds for a tx to be considered pending, if 0 all will be returned
+        """
+        not_mined_filter = self.filter(
+            Q(ethereum_tx__block=None) | Q(ethereum_tx=None)  # Just in case, but ethereum_tx cannot be null
+        ).select_related(
+            'ethereum_tx'
+        )
+        if older_than:
+            return not_mined_filter.filter(
+                created__lte=timezone.now() - timedelta(seconds=older_than),
+            )
+        else:
+            return not_mined_filter
 
 
 class SafeMultisigTx(TimeStampedModel):

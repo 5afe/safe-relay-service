@@ -1,9 +1,7 @@
-from datetime import timedelta
 from logging import getLogger
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from django.db import IntegrityError
-from django.db.models import Q
 from django.utils import timezone
 
 from eth_account import Account
@@ -440,20 +438,9 @@ class TransactionService:
                                lock_timeout=60 * 2) as tx_nonce:
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
+            logger.info('Sent transaction with nonce=%d tx-hash=%s for safe=%s safe-tx-hash=%s safe-nonce=%d',
+                        tx_nonce, tx_hash.hex(), safe_address, safe_tx.safe_tx_hash.hex(), safe_tx.safe_nonce)
             return tx_hash, safe_tx.safe_tx_hash, tx
-
-    def get_pending_multisig_transactions(self, older_than: int) -> List[SafeMultisigTx]:
-        """
-        Get multisig txs that have not been mined after `older_than` seconds
-        :param older_than: Time in seconds for a tx to be considered pending, if 0 all will be returned
-        """
-        return SafeMultisigTx.objects.filter(
-            Q(ethereum_tx__block=None) | Q(ethereum_tx=None)  # Just in case, but ethereum_tx cannot be null
-        ).filter(
-            created__lte=timezone.now() - timedelta(seconds=older_than),
-        ).select_related(
-            'ethereum_tx'
-        )
 
     # TODO Refactor and test
     def create_or_update_ethereum_tx(self, tx_hash: str) -> Optional[EthereumTx]:

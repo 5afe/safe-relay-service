@@ -7,12 +7,13 @@ from ...services import TransactionServiceProvider
 
 
 class Command(BaseCommand):
-    help = 'Resend txs using a higher gas price. Use this command to allow stuck txs go through'
+    help = 'Resend txs using a higher gas price. Use this command to allow stuck txs go through. If no options' \
+           'are specified all txs with gas price less than current fast price on GasStation will be sent'
 
     def add_arguments(self, parser):
         # Positional arguments
-        parser.add_argument('--gas-price', help='Resend all txs below this gas-price using that gas price')
-        parser.add_argument('--safe-tx-hash', help='Resend tx with tx hash')
+        parser.add_argument('--gas-price', help='Resend all txs below this gas-price using this gas price')
+        parser.add_argument('--safe-tx-hash', help='Resend tx with safe tx hash')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -41,9 +42,9 @@ class Command(BaseCommand):
         gas_price = options['gas_price'] or GasStationProvider().get_gas_prices().fast
         safe_tx_hash = options['safe_tx_hash']
 
-        for multisig_tx in self.tx_service.get_pending_multisig_transactions(older_than=60):
-            if safe_tx_hash:
-                if multisig_tx.safe_tx_hash == safe_tx_hash:
-                    self.resend(gas_price, multisig_tx)
-            else:
+        if safe_tx_hash:
+            multisig_tx = SafeMultisigTx.objects.get(safe_tx_hash=safe_tx_hash)
+            self.resend(gas_price, multisig_tx)
+        else:
+            for multisig_tx in SafeMultisigTx.objects.pending(older_than=60):
                 self.resend(gas_price, multisig_tx)
