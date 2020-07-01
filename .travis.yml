@@ -23,8 +23,8 @@ install:
   - travis_retry pip install coveralls
 before_script:
   - psql -c 'create database travisci;' -U postgres
-script:
   - flake8 --ignore=E501,W503,F841
+script:
   - coverage run --source=$SOURCE_FOLDER -m py.test -rxXs
 deploy:
   - provider: script
