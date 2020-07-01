@@ -301,8 +301,8 @@ class TransactionService:
                                                               defaults={'master_copy': NULL_ADDRESS})
         created = timezone.now()
 
-        if SafeMultisigTx.objects.filter(safe=safe_contract, nonce=nonce).exists():
-            raise SafeMultisigTxExists(f'Tx with nonce={nonce} for safe={safe_address} already exists in DB')
+        if SafeMultisigTx.objects.not_failed().filter(safe=safe_contract, nonce=nonce).exists():
+            raise SafeMultisigTxExists(f'Tx with safe-nonce={nonce} for safe={safe_address} already exists in DB')
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = signatures_to_bytes(signature_pairs)

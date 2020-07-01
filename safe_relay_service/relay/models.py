@@ -323,10 +323,12 @@ class EthereumTx(TimeStampedModel):
 
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:
-        nonce_dict = self.filter(
-            Q(ethereum_tx__status=1) | Q(ethereum_tx__status=None),  # No failed transactions, just success or not mined
-            safe=safe_address,
-        ).order_by('-nonce').values('nonce').first()
+        """
+        Get last nonce for Safe from transactions pending/executed successfully, excluding failed transactions
+        :param safe_address:
+        :return:
+        """
+        nonce_dict = self.filter(safe=safe_address).not_failed().order_by('-nonce').values('nonce').first()
         return nonce_dict['nonce'] if nonce_dict else None
 
     def get_average_execution_time(self, from_date: datetime.datetime,
@@ -410,6 +412,15 @@ class SafeMultisigTxQuerySet(models.QuerySet):
             )
         else:
             return not_mined_filter
+
+    def not_failed(self):
+        """
+        Just return not failed or not mined
+        :return:
+        """
+        return self.filter(
+            Q(ethereum_tx__status=1) | Q(ethereum_tx__status=None)  # No failed transactions, just success or not mined
+        )
 
 
 class SafeMultisigTx(TimeStampedModel):
