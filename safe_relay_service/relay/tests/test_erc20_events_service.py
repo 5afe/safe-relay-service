@@ -41,8 +41,8 @@ class TestErc20EventsService(SafeTestCaseMixin, TestCase):
         # Will not index anything as no `SafeTxStatus` exists
         self.assertIsNone(erc20_events_service.process_addresses([safe_address]))
         self.assertEqual(SafeTxStatus.objects.filter(safe=safe_contract).count(), 0)
-        self.assertEqual(EthereumEvent.objects.filter(Q(arguments__from=safe_address) |
-                                                      Q(arguments__to=safe_address)).count(), 0)
+        self.assertEqual(EthereumEvent.objects.filter(Q(arguments__from=safe_address)
+                                                      | Q(arguments__to=safe_address)).count(), 0)
         SafeTxStatusFactory(safe=safe_contract)
 
         # Now it will scan 1 block, but nothing will appear for this new address
@@ -67,8 +67,8 @@ class TestErc20EventsService(SafeTestCaseMixin, TestCase):
         self.assertEqual(safe_tx_status.erc_20_block_number,
                          erc20_events_service.ethereum_client.current_block_number)
         self.assertEqual(EthereumEvent.objects.count(), 2)
-        self.assertEqual(EthereumEvent.objects.filter(Q(arguments__from=safe_address) |
-                                                      Q(arguments__to=safe_address)).count(), 2)
+        self.assertEqual(EthereumEvent.objects.filter(Q(arguments__from=safe_address)
+                                                      | Q(arguments__to=safe_address)).count(), 2)
         self.assertEqual(EthereumEvent.objects.get(arguments__from=safe_address).ethereum_tx_id, from_tx_hash.hex())
         self.assertEqual(EthereumEvent.objects.get(arguments__to=safe_address).ethereum_tx_id, to_tx_hash.hex())
         for erc20_event in EthereumEvent.objects.erc20_events():

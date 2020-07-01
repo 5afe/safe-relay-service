@@ -1,7 +1,4 @@
-from datetime import timedelta
-
 from django.test import TestCase
-from django.utils import timezone
 
 from eth_account import Account
 from hexbytes import HexBytes
@@ -203,8 +200,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
                 gas_token,
                 refund_receiver,
                 nonce,
-                signatures,
-                )
+                signatures)
 
         with self.assertRaises(InvalidGasToken):
             invalid_gas_token = Account.create().address

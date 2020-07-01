@@ -6,13 +6,14 @@ from ..singleton import singleton
 
 faker = Faker()
 
+
 @singleton
 class MyClass:
     def __init__(self, name):
         self.name = name
 
 
-class TestSigning(TestCase):
+class TestSingleton(TestCase):
 
     def test_singleton(self):
         name = faker.name()

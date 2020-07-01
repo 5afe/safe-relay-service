@@ -22,7 +22,7 @@ class RedisRepository:
                                  key_timeout=key_timeout)
 
 
-#TODO Test this using multiple threads
+# TODO Test this using multiple threads
 class EthereumNonceLock:
     def __init__(self, redis: Redis, ethereum_client: EthereumClient, address: str, lock_timeout: Optional[int] = None,
                  key_timeout: Optional[int] = 60):

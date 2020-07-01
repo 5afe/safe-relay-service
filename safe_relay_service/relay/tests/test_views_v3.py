@@ -161,8 +161,8 @@ class TestViewsV3(RelayTestCaseMixin, APITestCase):
         self.assertTrue(check_checksum(response_json['paymentReceiver']))
         self.assertEqual(response_json['paymentToken'], payment_token)
         self.assertEqual(int(response_json['payment']),
-                         int(response_json['gasEstimated']) * int(response_json['gasPriceEstimated']) *
-                         (1 / fixed_eth_conversion))
+                         int(response_json['gasEstimated']) * int(response_json['gasPriceEstimated'])
+                         * (1 / fixed_eth_conversion))
         self.assertGreater(int(response_json['gasEstimated']), 0)
         self.assertGreater(int(response_json['gasPriceEstimated']), 0)
         self.assertGreater(len(response_json['setupData']), 2)

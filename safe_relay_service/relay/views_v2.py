@@ -14,7 +14,7 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 
 from safe_relay_service.relay.services import TransactionServiceProvider
 
-from .models import SafeContract, SafeCreation2
+from .models import SafeCreation2
 from .serializers import (SafeCreation2ResponseSerializer,
                           SafeCreation2Serializer,
                           SafeCreationEstimateResponseSerializer,

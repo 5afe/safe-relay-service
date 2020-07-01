@@ -76,7 +76,7 @@ class GasStation:
     def _store_gas_price_in_cache(self, gas_price):
         return cache.set(self._get_gas_price_cache_key(), gas_price)
 
-    def _build_block_request(self, block_number: int, full_transactions: bool=False) -> Dict[str, Any]:
+    def _build_block_request(self, block_number: int, full_transactions: bool = False) -> Dict[str, Any]:
         block_number_hex = '0x{:x}'.format(block_number)
         return {"jsonrpc": "2.0",
                 "method": "eth_getBlockByNumber",

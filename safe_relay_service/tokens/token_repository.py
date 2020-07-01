@@ -23,7 +23,7 @@ class TokenRepository:
                     f.write(chunk)
         return local_filename
 
-    def __pull_token_info(self, page_number: int=1) -> List[Any]:
+    def __pull_token_info(self, page_number: int = 1) -> List[Any]:
         tokens = []
         page = requests.get('https://etherscan.io/tokens?p=' + str(page_number))
         tree = html.fromstring(page.content)
@@ -78,7 +78,7 @@ class TokenRepository:
                 0].strip(),
             "decimals": int(tree.xpath(
                 '//a[contains(text(), "decimals")]/../../following-sibling::div//div[@class="form-group"]/text()')[
-                                0].strip())
+                0].strip())
         }
 
     def __get_token_image_url(self, token_address: str) -> str:

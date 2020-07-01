@@ -20,7 +20,7 @@ class Command(BaseCommand):
         self.tx_service = TransactionServiceProvider()
 
     def resend(self, gas_price: int, multisig_tx: SafeMultisigTx):
-        #TODO Refactor, do it on the service
+        # TODO Refactor, do it on the service
         if multisig_tx.ethereum_tx.gas_price < gas_price:
             assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
             self.stdout.write(self.style.NOTICE(

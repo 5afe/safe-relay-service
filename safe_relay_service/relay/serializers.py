@@ -40,7 +40,7 @@ class SafeCreationSerializer(ThresholdValidatorSerializerMixin, serializers.Seri
 
 
 class SafeCreation2Serializer(ThresholdValidatorSerializerMixin, serializers.Serializer):
-    salt_nonce = serializers.IntegerField(min_value=0, max_value=2**256-1)  # Uint256
+    salt_nonce = serializers.IntegerField(min_value=0, max_value=2**256 - 1)  # Uint256
     owners = serializers.ListField(child=EthereumAddressField(), min_length=1)
     threshold = serializers.IntegerField(min_value=1)
     payment_token = EthereumAddressField(default=None, allow_null=True, allow_zero_address=True)

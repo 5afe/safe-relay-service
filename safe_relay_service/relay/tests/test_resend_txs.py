@@ -81,10 +81,10 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
         self.assertTrue(tx_receipt['status'])
         self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
         self.assertEqual(w3.toChecksumAddress(tx_receipt['to']), my_safe_address)
-        self.assertEqual(w3.eth.getBalance(to),  value)
+        self.assertEqual(w3.eth.getBalance(to), value)
 
         w3.testing.revert(snapshot_id)  # Revert to snapshot in ganache
-        self.assertEqual(w3.eth.getBalance(to),  0)
+        self.assertEqual(w3.eth.getBalance(to), 0)
 
         old_multisig_tx: SafeMultisigTx = SafeMultisigTx.objects.all().first()
         old_multisig_tx.created = timezone.now() - timedelta(days=1)
@@ -95,6 +95,6 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
         multisig_tx: SafeMultisigTx = SafeMultisigTx.objects.all().first()
         self.assertNotEqual(multisig_tx.ethereum_tx_id, old_multisig_tx.ethereum_tx_id)
         self.assertEqual(multisig_tx.ethereum_tx.gas_price, new_gas_price)
-        self.assertEqual(w3.eth.getBalance(to),  value)  # Tx is executed again
+        self.assertEqual(w3.eth.getBalance(to), value)  # Tx is executed again
         self.assertEqual(multisig_tx.get_safe_tx().__dict__,
                          old_multisig_tx.get_safe_tx().__dict__)

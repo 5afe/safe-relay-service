@@ -538,8 +538,7 @@ class EthereumEventManager(models.Manager):
                                           'from': decoded_event['args']['from'],
                                           'to': decoded_event['args']['to'],
                                           'value': decoded_event['args']['value'],
-                                      }
-                                  })
+                                      }})
 
     def get_or_create_erc721_event(self, decoded_event: Dict[str, Any]):
         return self.get_or_create(ethereum_tx_id=decoded_event['transactionHash'],
@@ -551,8 +550,7 @@ class EthereumEventManager(models.Manager):
                                           'from': decoded_event['args']['from'],
                                           'to': decoded_event['args']['to'],
                                           'tokenId': decoded_event['args']['tokenId'],
-                                      }
-                                  })
+                                      }})
 
 
 class EthereumEvent(models.Model):

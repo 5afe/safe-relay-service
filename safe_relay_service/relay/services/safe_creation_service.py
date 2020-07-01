@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Iterable, List, NamedTuple, Optional
+from typing import Iterable, List, Optional
 
 from django.conf import settings
 

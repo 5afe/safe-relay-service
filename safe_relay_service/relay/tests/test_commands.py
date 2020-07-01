@@ -5,8 +5,7 @@ from django.test import TestCase
 
 from django_celery_beat.models import PeriodicTask
 
-from .factories import (SafeContractFactory, SafeCreation2Factory,
-                        SafeFundingFactory)
+from .factories import SafeFundingFactory
 
 
 class TestCommands(TestCase):

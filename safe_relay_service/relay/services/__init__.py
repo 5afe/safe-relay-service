@@ -1,3 +1,4 @@
+# flake8: noqa F401
 from .erc20_events_service import (Erc20EventsService,
                                    Erc20EventsServiceProvider)
 from .funding_service import FundingService, FundingServiceProvider

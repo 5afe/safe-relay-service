@@ -1,4 +1,3 @@
-from django.conf.urls import include, url
 from django.urls import path
 
 from rest_framework.authtoken import views as rest_views

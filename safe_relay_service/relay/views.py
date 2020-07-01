@@ -23,8 +23,7 @@ from gnosis.safe.serializers import SafeMultisigEstimateTxSerializer
 from safe_relay_service.version import __version__
 
 from .filters import DefaultPagination, SafeMultisigTxFilter
-from .models import (EthereumEvent, EthereumTx, SafeContract, SafeFunding,
-                     SafeMultisigTx)
+from .models import EthereumEvent, SafeContract, SafeFunding, SafeMultisigTx
 from .serializers import (
     ERC20Serializer, ERC721Serializer, SafeBalanceResponseSerializer,
     SafeContractSerializer, SafeCreationResponseSerializer,
@@ -60,7 +59,7 @@ def custom_exception_handler(exc, context):
             exception_str = '{}: {}'.format(exc.__class__.__name__, exc)
         else:
             exception_str = exc.__class__.__name__
-        response.data = {'exception':  exception_str}
+        response.data = {'exception': exception_str}
 
         logger.warning('%s - Exception: %s - Data received %s',
                        context['request'].build_absolute_uri(),
