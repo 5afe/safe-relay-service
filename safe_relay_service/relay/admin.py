@@ -162,17 +162,10 @@ class SafeContractTokensListFilter(admin.SimpleListFilter):
 @admin.register(SafeContract)
 class SafeContractAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'address', 'master_copy', 'balance')
-    list_filter = ('master_copy', SafeContractDeployedListFilter,
-                   SafeContractTokensListFilter)
+    list_display = ('created', 'address', 'master_copy')
+    list_filter = ('master_copy', SafeContractDeployedListFilter, SafeContractTokensListFilter)
     ordering = ['-created']
     search_fields = ['address']
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).with_balance()
-
-    def balance(self, obj):
-        return obj.balance
 
 
 @admin.register(SafeCreation)
