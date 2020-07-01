@@ -3,4 +3,3 @@
 ipython
 isort
 ipdb
-flake8
