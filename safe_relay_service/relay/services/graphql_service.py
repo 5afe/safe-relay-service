@@ -28,6 +28,6 @@ class GraphQLService:
             logger.info('Found {} incoming trust connections for {}'.format(incoming_count,
                                                                             safe_address))
             return incoming_count >= settings.MIN_TRUST_CONNECTIONS
-
-        except:
+        except BaseException as error:
+            logger.error('Error "{}" after checking trust connections for {}'.format(str(error), safe_address))
             return False
