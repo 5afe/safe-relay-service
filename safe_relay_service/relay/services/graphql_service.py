@@ -2,16 +2,14 @@ from django.conf import settings
 from logging import getLogger
 from sgqlc.endpoint.http import HTTPEndpoint
 
-
 logger = getLogger(__name__)
-
-url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_EXTERNAL,
-                                    settings.SUBGRAPH_NAME)
 
 
 class GraphQLService:
 
     def __init__(self):
+        url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_EXTERNAL,
+                                            settings.SUBGRAPH_NAME)
         self.endpoint = HTTPEndpoint(url)
 
     def check_trust_connections(self, safe_address: str):
