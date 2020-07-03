@@ -1,4 +1,5 @@
 from django.conf import settings
+from hexbytes import HexBytes
 
 from ethereum.utils import check_checksum
 
@@ -45,7 +46,8 @@ class CirclesService:
             # Calling tokenToUser mapping of Hub contract;
             'data': '0xa18b506b' + self.pack_address(token_address)
         }
-        return self.ethereum_client.w3.eth.call(call_args) != NULL_ADDRESS
+        call_result = self.ethereum_client.w3.eth.call(call_args)
+        return HexBytes(call_result).hex() != NULL_ADDRESS
 
     def is_token_deployed(self, safe_address: str) -> bool:
         """
@@ -58,4 +60,5 @@ class CirclesService:
             # Calling userToToken mapping of Hub contract;
             'data': '0x28d249fe' + self.pack_address(safe_address)
         }
-        return self.ethereum_client.w3.eth.call(call_args) != NULL_ADDRESS + MAPPING_NULL_PREFIX
+        call_result = self.ethereum_client.w3.eth.call(call_args)
+        return HexBytes(call_result).hex() != NULL_ADDRESS + MAPPING_NULL_PREFIX
