@@ -5,6 +5,8 @@ from ethereum.utils import check_checksum
 from gnosis.eth import EthereumClient
 from gnosis.eth.constants import NULL_ADDRESS
 
+MAPPING_NULL_PREFIX: str = '0' * 24
+
 
 class CirclesService:
 
@@ -30,7 +32,7 @@ class CirclesService:
         :return: packed string
         """
         assert check_checksum(token_address)
-        return "000000000000000000000000" + token_address[2:]
+        return MAPPING_NULL_PREFIX + token_address[2:]
 
     def is_circles_token(self, token_address: str) -> bool:
         """
@@ -56,4 +58,4 @@ class CirclesService:
             # Calling userToToken mapping of Hub contract;
             'data': '0x28d249fe' + self.pack_address(safe_address)
         }
-        return self.ethereum_client.w3.eth.call(call_args) != NULL_ADDRESS
+        return self.ethereum_client.w3.eth.call(call_args) != NULL_ADDRESS + MAPPING_NULL_PREFIX
