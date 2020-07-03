@@ -445,7 +445,7 @@ def begin_circles_onboarding_task(self, safe_address: str) -> None:
                 # Retry later to check for Token funding
                 raise self.retry(countdown=30)
             else:
-                logger.info('Safe exists, start funding Token {}'.format(safe_address))
+                logger.info('Safe exists, start funding Token for {}'.format(safe_address))
                 # Fund Token deployment when it does not exist yet
                 circles_onboarding_token_task.delay(safe_address)
     except LockError:
@@ -504,7 +504,6 @@ def circles_onboarding_token_task(safe_address: str) -> None:
             logger.info('Fund Token task for {}'.format(safe_address))
 
             ethereum_client = EthereumClientProvider()
-            transaction_service = TransactionServiceProvider()
 
             # Do nothing if Token is already deployed
             if CirclesService(ethereum_client).is_token_deployed(safe_address):
@@ -512,8 +511,12 @@ def circles_onboarding_token_task(safe_address: str) -> None:
                 return
 
             # Do nothing if the Token is already funded
-            token_deployment_cost = transaction_service.estimate_circles_signup_tx(safe_address)
-            if ethereum_client.get_balance(safe_address) >= token_deployment_cost:
+            transaction_service = TransactionServiceProvider()
+            payment = transaction_service.estimate_circles_signup_tx(safe_address)
+            safe_balance = ethereum_client.get_balance(safe_address)
+            logger.info('Found %d balance for token deployment of safe=%s. Required=%d',
+                        safe_balance, safe_address, payment)
+            if safe_balance >= payment:
                 logger.info('Token is already funded {}'.format(safe_address))
                 return
 
@@ -521,7 +524,7 @@ def circles_onboarding_token_task(safe_address: str) -> None:
             logger.info('Fund Token {}'.format(safe_address))
             FundingServiceProvider().send_eth_to(
                 safe_address,
-                token_deployment_cost,
+                payment,
                 gas=24000,
                 retry=True
             )
