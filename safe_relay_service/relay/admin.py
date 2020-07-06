@@ -188,7 +188,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     ordering = ['-created']
     raw_id_fields = ('safe',)
-    search_fields = ['=safe__address', 'owners']
+    search_fields = ['=safe__address', 'owners', '=tx_hash']
 
     def ether_deploy_cost(self, obj: SafeCreation):
         return Web3.fromWei(obj.wei_estimated_deploy_cost(), 'ether')

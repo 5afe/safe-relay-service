@@ -281,24 +281,23 @@ def check_create2_deployed_safes_task() -> None:
             current_block_number = ethereum_client.current_block_number
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
                 tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
-                safe_address = safe_creation2.safe.address
-                if tx_receipt:
-                    block_number = tx_receipt.blockNumber
+                safe_address = safe_creation2.safe_id
+                if tx_receipt and tx_receipt['blockNumber'] is not None:
+                    block_number = tx_receipt['blockNumber']
                     if (current_block_number - block_number) >= confirmations:
                         logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
                                     safe_address, safe_creation2.tx_hash, block_number)
-                        send_create_notification.delay(safe_address, safe_creation2.owners)
                         safe_creation2.block_number = block_number
-                        safe_creation2.save()
+                        safe_creation2.save(update_fields=['block_number'])
+                        send_create_notification.delay(safe_address, safe_creation2.owners)
                 else:
-                    # If safe was not included in any block after 35 minutes (mempool limit is 30) we show a
-                    # warning
-                    if safe_creation2.modified + timedelta(minutes=35) < timezone.now():
-                        logger.info('Safe=%s with tx-hash=%s was not deployed after 35 minutes',
-                                    safe_address, safe_creation2.tx_hash)
+                    # If safe was not included in any block after 1 hour (mempool limit is 30 minutes) show a warning
+                    if safe_creation2.modified + timedelta(hours=1) < timezone.now():
+                        logger.warning('Safe=%s with tx-hash=%s was not deployed after 1 hour',
+                                       safe_address, safe_creation2.tx_hash)
                         # Don't try to deploy it again
                         # safe_creation2.tx_hash = None
-                        # safe_creation2.save()
+                        # safe_creation2.save(update_fields=['tx_hash'])
                         # deploy_create2_safe_task.delay(safe_address, retry=False)
 
             for safe_creation2 in SafeCreation2.objects.not_deployed().filter(
