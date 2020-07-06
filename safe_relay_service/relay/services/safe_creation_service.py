@@ -212,13 +212,14 @@ class SafeCreationService:
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
             proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
-            ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(self.funder_account,
-                                                                              safe_creation2.master_copy,
-                                                                              setup_data,
-                                                                              safe_creation2.salt_nonce,
-                                                                              gas=safe_creation2.gas_estimated,
-                                                                              gas_price=safe_creation2.gas_price_estimated,
-                                                                              nonce=tx_nonce)
+            ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(
+                self.funder_account,
+                safe_creation2.master_copy,
+                setup_data,
+                safe_creation2.salt_nonce,
+                gas=safe_creation2.gas_estimated + 50000,  # Just in case
+                gas_price=safe_creation2.gas_price_estimated,
+                nonce=tx_nonce)
             EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
             safe_creation2.save()
