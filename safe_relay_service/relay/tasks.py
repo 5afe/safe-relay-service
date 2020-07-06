@@ -295,10 +295,7 @@ def check_create2_deployed_safes_task() -> None:
                     if safe_creation2.modified + timedelta(hours=1) < timezone.now():
                         logger.warning('Safe=%s with tx-hash=%s was not deployed after 1 hour',
                                        safe_address, safe_creation2.tx_hash)
-                        # Don't try to deploy it again
-                        # safe_creation2.tx_hash = None
-                        # safe_creation2.save(update_fields=['tx_hash'])
-                        # deploy_create2_safe_task.delay(safe_address, retry=False)
+                        SafeCreationServiceProvider().deploy_again_create2_safe_tx(safe_address)
 
             for safe_creation2 in SafeCreation2.objects.not_deployed().filter(
                     created__gte=timezone.now() - timedelta(days=10)):
