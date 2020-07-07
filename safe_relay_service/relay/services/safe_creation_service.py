@@ -1,5 +1,6 @@
+import math
 from logging import getLogger
-from typing import Iterable, List, Optional
+from typing import Iterable, List, NoReturn, Optional
 
 from django.conf import settings
 
@@ -45,6 +46,10 @@ class NotEnoughFundingForCreation(SafeCreationServiceException):
 
 
 class SafeAlreadyExistsException(SafeCreationServiceException):
+    pass
+
+
+class DeployTransactionDoesNotExist(SafeCreationServiceException):
     pass
 
 
@@ -122,6 +127,32 @@ class SafeCreationService:
         """
         return self.gas_station.get_gas_prices().fast
 
+    def _check_safe_balance(self, safe_creation2: SafeCreation2) -> NoReturn:
+        """
+        Check there are enough funds to deploy a Safe. Raises `NotEnoughFundingForCreation`
+        if not
+        :param safe_creation2:
+        :return:
+        :raises: NotEnoughFundingForCreation
+        """
+        safe_address = safe_creation2.safe_id
+        if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
+            safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
+        else:
+            safe_balance = self.ethereum_client.get_balance(safe_address)
+
+        if safe_balance < safe_creation2.payment:
+            message = 'Balance=%d for safe=%s with payment-token=%s. Not found ' \
+                      'required=%d' % (safe_balance,
+                                       safe_address,
+                                       safe_creation2.payment_token,
+                                       safe_creation2.payment)
+            logger.info(message)
+            raise NotEnoughFundingForCreation(message)
+        else:
+            logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
+                        safe_address, safe_creation2.payment_token, safe_creation2.payment)
+
     def create2_safe_tx(self, salt_nonce: int, owners: Iterable[str], threshold: int,
                         payment_token: Optional[str]) -> SafeCreation2:
         """
@@ -190,25 +221,9 @@ class SafeCreationService:
             logger.info('Safe=%s has already been deployed with tx-hash=%s', safe_address, safe_creation2.tx_hash)
             return safe_creation2
 
-        if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
-            safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
-        else:
-            safe_balance = self.ethereum_client.get_balance(safe_address)
-
-        if safe_balance < safe_creation2.payment:
-            message = 'Balance=%d for safe=%s with payment-token=%s. Not found ' \
-                      'required=%d' % (safe_balance,
-                                       safe_address,
-                                       safe_creation2.payment_token,
-                                       safe_creation2.payment)
-            logger.info(message)
-            raise NotEnoughFundingForCreation(message)
-
-        logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
-                    safe_address, safe_creation2.payment_token, safe_creation2.payment)
+        self._check_safe_balance(safe_creation2)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
-
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
             proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
@@ -236,45 +251,32 @@ class SafeCreationService:
         safe_creation2: SafeCreation2 = SafeCreation2.objects.get(safe=safe_address)
 
         if not safe_creation2.tx_hash:
-            logger.info('Safe=%s deploy transaction does not exist', safe_address)
-            return safe_creation2
+            message = f'Safe={safe_address} deploy transaction does not exist'
+            logger.info(message)
+            raise DeployTransactionDoesNotExist(message)
 
         if safe_creation2.block_number is not None:
-            logger.info('Safe=%s has already been deployed with tx-hash=%s on block-number=%d',
-                        safe_address, safe_creation2.tx_hash, safe_creation2.block_number)
-            return safe_creation2
+            message = f'Safe={safe_address} has already been deployed with tx-hash={safe_creation2.tx_hash} ' \
+                      f'on block-number={safe_creation2.block_number}'
+            logger.info(message)
+            raise SafeAlreadyExistsException(message)
 
         ethereum_tx: EthereumTx = EthereumTx.objects.get(tx_hash=safe_creation2.tx_hash)
         assert ethereum_tx, 'Ethereum tx cannot be missing'
 
-        # TODO Refactor or remove this (shouldn't be needed as we are sending again txs)
-        if safe_creation2.payment_token and safe_creation2.payment_token != NULL_ADDRESS:
-            safe_balance = self.ethereum_client.erc20.get_balance(safe_address, safe_creation2.payment_token)
-        else:
-            safe_balance = self.ethereum_client.get_balance(safe_address)
-
-        if safe_balance < safe_creation2.payment:
-            message = 'Balance=%d for safe=%s with payment-token=%s. Not found ' \
-                      'required=%d' % (safe_balance,
-                                       safe_address,
-                                       safe_creation2.payment_token,
-                                       safe_creation2.payment)
-            logger.info(message)
-            raise NotEnoughFundingForCreation(message)
-
-        logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
-                    safe_address, safe_creation2.payment_token, safe_creation2.payment)
+        self._check_safe_balance(safe_creation2)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
-
         proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
+        # Increase gas price a little
+        gas_price = math.ceil(max(self.gas_station.get_gas_prices().fast, ethereum_tx.gas_price) * 1.1)
         ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(
             self.funder_account,
             safe_creation2.master_copy,
             setup_data,
             safe_creation2.salt_nonce,
             gas=safe_creation2.gas_estimated + 50000,  # Just in case
-            gas_price=self.gas_station.get_gas_prices().fast,
+            gas_price=gas_price,
             nonce=ethereum_tx.nonce)  # Replace old transaction
         EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
         safe_creation2.tx_hash = ethereum_tx_sent.tx_hash

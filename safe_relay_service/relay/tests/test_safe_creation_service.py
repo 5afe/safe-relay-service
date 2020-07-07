@@ -10,11 +10,15 @@ from gnosis.eth.utils import get_eth_address_with_key
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
+from ..models import EthereumTx
 from ..services.safe_creation_service import (CannotRetrieveSafeInfo,
+                                              DeployTransactionDoesNotExist,
                                               InvalidPaymentToken,
                                               NotEnoughFundingForCreation,
+                                              SafeAlreadyExistsException,
                                               SafeCreationServiceProvider,
                                               SafeNotDeployed)
+from .factories import EthereumTxFactory, SafeCreation2Factory
 from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
@@ -28,11 +32,11 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
 
         owner_accounts = [Account.create() for _ in range(4)]
         owners = [owner_account.address for owner_account in owner_accounts]
-
         salt_nonce = 17051863
         threshold = 2
         payment_token = None
         safe_creation_2 = self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
+
         safe_address = safe_creation_2.safe_id
         self.assertFalse(self.ethereum_client.is_contract(safe_address))
         self.assertIsNone(safe_creation_2.tx_hash)
@@ -46,6 +50,46 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
         # If already deployed it will return `SafeCreation2`
         another_safe_creation2 = self.safe_creation_service.deploy_create2_safe_tx(safe_address)
         self.assertEqual(another_safe_creation2, new_safe_creation_2)
+
+    def test_deploy_again_create2_safe_tx(self):
+        safe_address = SafeCreation2Factory(tx_hash=None).safe_id
+        with self.assertRaises(DeployTransactionDoesNotExist):
+            self.safe_creation_service.deploy_again_create2_safe_tx(safe_address)
+
+        safe_address = SafeCreation2Factory(block_number=2).safe_id
+        with self.assertRaises(SafeAlreadyExistsException):
+            self.safe_creation_service.deploy_again_create2_safe_tx(safe_address)
+
+        safe_creation_2 = SafeCreation2Factory()
+        safe_address = safe_creation_2.safe_id
+        with self.assertRaises(EthereumTx.DoesNotExist):
+            self.safe_creation_service.deploy_again_create2_safe_tx(safe_address)
+
+        EthereumTxFactory(tx_hash=safe_creation_2.tx_hash)
+        with self.assertRaises(NotEnoughFundingForCreation):
+            self.safe_creation_service.deploy_again_create2_safe_tx(safe_address)
+
+        # Now deploy a real Safe stopping mining, create a snapshot and revert, as replacing transaction with
+        # same nonce is not supported on ganache
+        owner_accounts = [Account.create() for _ in range(4)]
+        owners = [owner_account.address for owner_account in owner_accounts]
+        salt_nonce = 17051863
+        threshold = 2
+        payment_token = None
+        safe_creation_2 = self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
+        safe_address = safe_creation_2.safe_id
+        self.send_ether(safe_address, safe_creation_2.payment)
+        snapshot_id = self.w3.testing.snapshot()
+        self.assertFalse(self.ethereum_client.is_contract(safe_address))
+        new_safe_creation_2 = self.safe_creation_service.deploy_create2_safe_tx(safe_address)
+        tx_hash = new_safe_creation_2.tx_hash
+        self.assertTrue(self.ethereum_client.is_contract(safe_address))
+        self.w3.testing.revert(snapshot_id)
+        self.assertFalse(self.ethereum_client.is_contract(safe_address))
+        self.safe_creation_service.deploy_again_create2_safe_tx(safe_address)
+        new_safe_creation_2.refresh_from_db()
+        self.assertNotEqual(new_safe_creation_2.tx_hash, tx_hash)
+        self.assertTrue(self.ethereum_client.is_contract(safe_address))
 
     def test_creation_service_provider_singleton(self):
         self.assertEqual(SafeCreationServiceProvider(), SafeCreationServiceProvider())

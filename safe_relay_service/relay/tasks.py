@@ -291,11 +291,14 @@ def check_create2_deployed_safes_task() -> None:
                         safe_creation2.save(update_fields=['block_number'])
                         send_create_notification.delay(safe_address, safe_creation2.owners)
                 else:
-                    # If safe was not included in any block after 1 hour (mempool limit is 30 minutes) show a warning
-                    if safe_creation2.modified + timedelta(hours=1) < timezone.now():
-                        logger.warning('Safe=%s with tx-hash=%s was not deployed after 1 hour',
-                                       safe_address, safe_creation2.tx_hash)
-                        SafeCreationServiceProvider().deploy_again_create2_safe_tx(safe_address)
+                    # If safe was not included in any block after 30 minutes (mempool limit is 30 minutes)
+                    # try to increase a little the gas price
+                    if safe_creation2.modified + timedelta(minutes=30) < timezone.now():
+                        logger.warning('Safe=%s with tx-hash=%s was not deployed after 30 minutes. '
+                                       'Increasing the gas price', safe_address, safe_creation2.tx_hash)
+                        safe_creation2 = SafeCreationServiceProvider().deploy_again_create2_safe_tx(safe_address)
+                        logger.warning('Safe=%s has a new tx-hash=%s with increased gas price.', safe_address,
+                                       safe_creation2.tx_hash)
 
             for safe_creation2 in SafeCreation2.objects.not_deployed().filter(
                     created__gte=timezone.now() - timedelta(days=10)):
