@@ -5,8 +5,8 @@
 
 # Gnosis Safe Relay Service
 This service allows us to have owners of the Safe contract that don’t need to hold any ETH on those owner addresses.
-How is this possible? The transaction relay service acts as a proxy, paying for the transaction fees and getting it 
-back due to the transaction architecture we use. It also enables the user to pay for ethereum transactions 
+How is this possible? The **Transaction Relay Service** acts as a proxy, paying for the transaction fees and getting it
+back due to the transaction architecture we use. It also enables the user to pay for ethereum transactions
 using **ERC20 tokens**.
 
 Docs
@@ -87,6 +87,16 @@ python manage.py createsuperuser
 ```
 
 Then go to the web browser and navigate to http://localhost:8000/admin/
+
+
+## Add your custom gas token
+Custom tokens can be added as a payment option for the Relay Service from the **admin interface**:
+- Navigate to `Tokens` and click `Add`.
+- Configure your token and set `Fixed eth conversion` if your token has a fixed price (related to ETH price).
+For example, `WETH` token has a `fixed eth conversion` equal to `1`. If not, leave it blank.
+- If you want to set up a dynamic oracle after adding your `Token` you need to add a `Price Oracle Ticker`.
+You can choose multiple oracle sources. Go back to your `Token` and check if `Eth value` is correct.
+- Price is always shown as a reference to Ethereum, so for example `WETH` will have a `eth value` of `1`
 
 Contributors
 ------------
