@@ -434,8 +434,8 @@ class TransactionService:
 
         logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
         # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
-        tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 25000
-        safe_tx.call(tx_gas=tx_gas, tx_sender_address=tx_sender_address, block_identifier=block_identifier)
+        tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 75000
+        safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
         logger.info('Safe=%s safe-nonce=%d `call()` was successful', safe_address, safe_nonce)
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
