@@ -86,7 +86,14 @@ class SafeCreationView(CreateAPIView):
             logger.error(serializer.errors)
             logger.error('Request data:')
             logger.error(request.data)
-            logger.error(request.META.keys())
+            logger.error(request.body)
+            logger.error(request.META['HTTP_HOST'])
+            logger.error(request.META['HTTP_USER_AGENT'])
+            logger.error(request.META['HTTP_CONNECTION'])
+            logger.error(request.META['REMOTE_ADDR'])
+            logger.error(request.META['RAW_URI'])
+            logger.error(request.META['QUERY_STRING'])
+
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             data=serializer.errors)
 
