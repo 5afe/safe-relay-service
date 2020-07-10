@@ -86,7 +86,7 @@ class SafeCreationView(CreateAPIView):
             logger.error(serializer.errors)
             logger.error('Request data:')
             logger.error(request.data)
-            logger.error(request)
+            logger.error(request.META.keys())
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             data=serializer.errors)
 
