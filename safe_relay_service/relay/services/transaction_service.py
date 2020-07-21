@@ -361,7 +361,6 @@ class TransactionService:
                           refund_receiver: str,
                           safe_nonce: int,
                           signatures: bytes,
-                          tx_gas: Optional[int] = None,
                           block_identifier='latest') -> Tuple[bytes, bytes, Dict[str, Any]]:
         """
         This function calls the `send_multisig_tx` of the Safe, but has some limitations to prevent abusing
@@ -432,14 +431,13 @@ class TransactionService:
             raise SignaturesNotSorted('Safe-tx-hash=%s - Signatures are not sorted by owner: %s' %
                                       (safe_tx.safe_tx_hash.hex(), safe_tx.signers))
 
-        logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
-        # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
-        tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 75000
-        safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
-        logger.info('Safe=%s safe-nonce=%d `call()` was successful', safe_address, safe_nonce)
-
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
+            logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
+            # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
+            tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 75000
+            safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
+            logger.info('Safe=%s safe-nonce=%d `call()` was successful', safe_address, safe_nonce)
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
             logger.info('Safe=%s, Sent transaction with nonce=%d tx-hash=%s for safe-tx-hash=%s safe-nonce=%d',
