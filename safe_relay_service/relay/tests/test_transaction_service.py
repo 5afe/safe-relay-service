@@ -12,11 +12,13 @@ from safe_relay_service.tokens.tests.factories import TokenFactory
 
 from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             InvalidMasterCopyAddress,
+                                            InvalidOwners,
                                             InvalidProxyContract,
                                             InvalidRefundReceiver,
                                             NotEnoughFundsForMultisigTx,
                                             RefundMustBeEnabled,
                                             SafeDoesNotExist,
+                                            SafeMultisigTxExists,
                                             SignaturesNotSorted)
 from .factories import SafeContractFactory, SafeMultisigTxFactory
 from .relay_test_case import RelayTestCaseMixin
@@ -54,16 +56,16 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         refund_receiver = NULL_ADDRESS
         safe = Safe(my_safe_address, self.ethereum_client)
         nonce = safe.retrieve_nonce()
-        safe_multisig_tx_hash = safe.build_multisig_tx(to,
-                                                       value,
-                                                       data,
-                                                       operation,
-                                                       safe_tx_gas,
-                                                       data_gas,
-                                                       gas_price,
-                                                       gas_token,
-                                                       refund_receiver,
-                                                       safe_nonce=nonce).safe_tx_hash
+        safe_tx = safe.build_multisig_tx(to,
+                                         value,
+                                         data,
+                                         operation,
+                                         safe_tx_gas,
+                                         data_gas,
+                                         gas_price,
+                                         gas_token,
+                                         refund_receiver,
+                                         safe_nonce=nonce).safe_tx_hash
 
         # Just to make sure we are not miscalculating tx_hash
         contract_multisig_tx_hash = my_safe_contract.functions.getTransactionHash(
@@ -78,9 +80,9 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             refund_receiver,
             nonce).call()
 
-        self.assertEqual(safe_multisig_tx_hash, contract_multisig_tx_hash)
+        self.assertEqual(safe_tx, contract_multisig_tx_hash)
 
-        signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
+        signatures = [account.signHash(safe_tx) for account in accounts]
 
         # Check owners are the same
         contract_owners = my_safe_contract.functions.getOwners().call()
@@ -254,6 +256,22 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             signatures,
         )
 
+        with self.assertRaises(SafeMultisigTxExists):
+            self.transaction_service.create_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                nonce,
+                signatures,
+            )
+
         tx_receipt = w3.eth.waitForTransactionReceipt(safe_multisig_tx.ethereum_tx.tx_hash)
         self.assertTrue(tx_receipt['status'])
         self.assertEqual(w3.toChecksumAddress(tx_receipt['from']), sender)
@@ -273,19 +291,36 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         # Send again the tx and check that works
         nonce += 1
         value = 0
-        safe_multisig_tx_hash = safe.build_multisig_tx(to,
-                                                       value,
-                                                       data,
-                                                       operation,
-                                                       safe_tx_gas,
-                                                       data_gas,
-                                                       gas_price,
-                                                       gas_token,
-                                                       refund_receiver,
-                                                       safe_nonce=nonce).safe_tx_hash
+        safe_tx = safe.build_multisig_tx(to,
+                                         value,
+                                         data,
+                                         operation,
+                                         safe_tx_gas,
+                                         data_gas,
+                                         gas_price,
+                                         gas_token,
+                                         refund_receiver,
+                                         safe_nonce=nonce)
 
-        signatures = [account.signHash(safe_multisig_tx_hash) for account in accounts]
+        # Use invalid signatures
+        with self.assertRaises(InvalidOwners):
+            signatures = [Account.create().signHash(safe_tx.safe_tx_hash) for _ in range(len(accounts))]
+            self.transaction_service.create_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                nonce,
+                signatures,
+            )
 
+        signatures = [account.signHash(safe_tx.safe_tx_hash) for account in accounts]
         safe_multisig_tx = self.transaction_service.create_multisig_tx(
             my_safe_address,
             to,

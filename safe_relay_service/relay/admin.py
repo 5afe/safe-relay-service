@@ -208,7 +208,7 @@ class SafeFundingAdmin(admin.ModelAdmin):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'ethereum_tx_id', 'to', 'value', 'nonce', 'data')
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value')
     list_filter = ('operation',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')

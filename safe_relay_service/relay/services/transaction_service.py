@@ -58,6 +58,10 @@ class NotEnoughFundsForMultisigTx(TransactionServiceException):
     pass
 
 
+class InvalidOwners(TransactionServiceException):
+    pass
+
+
 class InvalidMasterCopyAddress(TransactionServiceException):
     pass
 
@@ -288,7 +292,7 @@ class TransactionService:
                            gas_price: int,
                            gas_token: str,
                            refund_receiver: str,
-                           nonce: int,
+                           safe_nonce: int,
                            signatures: List[Dict[str, int]]) -> SafeMultisigTx:
         """
         :return: Database model of SafeMultisigTx
@@ -301,8 +305,8 @@ class TransactionService:
                                                               defaults={'master_copy': NULL_ADDRESS})
         created = timezone.now()
 
-        if SafeMultisigTx.objects.not_failed().filter(safe=safe_contract, nonce=nonce).exists():
-            raise SafeMultisigTxExists(f'Tx with safe-nonce={nonce} for safe={safe_address} already exists in DB')
+        if SafeMultisigTx.objects.not_failed().filter(safe=safe_contract, nonce=safe_nonce).exists():
+            raise SafeMultisigTxExists(f'Tx with safe-nonce={safe_nonce} for safe={safe_address} already exists in DB')
 
         signature_pairs = [(s['v'], s['r'], s['s']) for s in signatures]
         signatures_packed = signatures_to_bytes(signature_pairs)
@@ -319,7 +323,7 @@ class TransactionService:
                 gas_price,
                 gas_token,
                 refund_receiver,
-                nonce,
+                safe_nonce,
                 signatures_packed
             )
         except SafeServiceException as exc:
@@ -341,7 +345,7 @@ class TransactionService:
                 gas_price=gas_price,
                 gas_token=None if gas_token == NULL_ADDRESS else gas_token,
                 refund_receiver=refund_receiver,
-                nonce=nonce,
+                nonce=safe_nonce,
                 signatures=signatures_packed,
                 safe_tx_hash=safe_tx_hash,
             )
@@ -426,6 +430,10 @@ class TransactionService:
             safe_nonce=safe_nonce,
             safe_version=safe.retrieve_version()
         )
+
+        owners = safe.retrieve_owners()
+        if set(safe_tx.signers) - set(owners):  # All the signers must be owners
+            raise InvalidOwners('Signers=%s are not valid owners of the safe. Owners=%s', safe_tx.signers, owners)
 
         if safe_tx.signers != safe_tx.sorted_signers:
             raise SignaturesNotSorted('Safe-tx-hash=%s - Signatures are not sorted by owner: %s' %

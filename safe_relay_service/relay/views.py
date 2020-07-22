@@ -366,8 +366,8 @@ class SafeMultisigTxView(SafeListApiView):
                 base_gas=data['data_gas'],
                 gas_price=data['gas_price'],
                 gas_token=data['gas_token'],
-                nonce=data['nonce'],
                 refund_receiver=data['refund_receiver'],
+                safe_nonce=data['nonce'],
                 signatures=data['signatures']
             )
             response_serializer = SafeMultisigTxResponseSerializer(safe_multisig_tx)
