@@ -413,10 +413,21 @@ class SafeMultisigTxQuerySet(models.QuerySet):
         else:
             return not_mined_filter
 
+    def successful(self):
+        """
+        :return: Mined and successful transactions
+        """
+        return self.filter(ethereum_tx__status=1)
+
+    def failed(self):
+        """
+        :return: Mined and failed transactions
+        """
+        return self.exclude(ethereum_tx__status=1)
+
     def not_failed(self):
         """
-        Just return not failed or not mined
-        :return:
+        :return: Not failed or not mined
         """
         return self.filter(
             Q(ethereum_tx__status=1) | Q(ethereum_tx__status=None)  # No failed transactions, just success or not mined

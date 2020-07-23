@@ -205,11 +205,35 @@ class SafeFundingAdmin(admin.ModelAdmin):
         return obj.status()
 
 
+class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
+    # Human-readable title which will be displayed in the
+    # right admin sidebar just above the filter options.
+    title = 'Status'
+
+    # Parameter for the filter that will be used in the URL query.
+    parameter_name = 'status'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('SUCCESS', 'Success'),
+            ('FAILED', 'Failed'),
+            ('NOT_MINED', 'Not mined'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'SUCCESS':
+            return queryset.successful()
+        elif self.value() == 'FAILED':
+            return queryset.failed()
+        elif self.value() == 'NOT_MINED':
+            return queryset.pending()
+
+
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'status', 'signers')
-    list_filter = ('operation',)
+    list_filter = ('operation', SafeMultisigTxStatusListFilter)
     list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
