@@ -47,5 +47,5 @@ class Command(BaseCommand):
             multisig_tx = SafeMultisigTx.objects.get(safe_tx_hash=safe_tx_hash)
             self.resend(gas_price, multisig_tx)
         else:
-            for multisig_tx in SafeMultisigTx.objects.pending(older_than=60):
+            for multisig_tx in SafeMultisigTx.objects.pending(older_than=60).select_related('ethereum_tx'):
                 self.resend(gas_price, multisig_tx)

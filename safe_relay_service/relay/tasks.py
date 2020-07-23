@@ -366,10 +366,12 @@ def check_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_pending_transactions', blocking_timeout=1, timeout=60):
             tx_not_mined_alert = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
-            txs = SafeMultisigTx.objects.pending(older_than=tx_not_mined_alert * 60)
-            for tx in txs:
-                logger.error('Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after a while, created=%s',
-                             tx.ethereum_tx_id, tx.safe_tx_hash, tx.created)
+            multisig_txs = SafeMultisigTx.objects.pending(older_than=tx_not_mined_alert * 60)
+            for multisig_tx in multisig_txs:
+                logger.error('Safe=% - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
+                             'a while, created=%s',
+                             multisig_tx.safe_id, multisig_tx.ethereum_tx_id,
+                             multisig_tx.safe_tx_hash, multisig_tx.created)
                 number_txs += 1
     except LockError:
         pass
@@ -387,16 +389,16 @@ def check_and_update_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_and_update_pending_transactions', blocking_timeout=1, timeout=60):
             transaction_service = TransactionServiceProvider()
-            txs = SafeMultisigTx.objects.pending(older_than=15)
-            for tx in txs:
-                ethereum_tx = transaction_service.create_or_update_ethereum_tx(tx.ethereum_tx_id)
+            multisig_txs = SafeMultisigTx.objects.pending(older_than=15).select_related('ethereum_tx')
+            for multisig_tx in multisig_txs:
+                ethereum_tx = transaction_service.create_or_update_ethereum_tx(multisig_tx.ethereum_tx_id)
                 if ethereum_tx and ethereum_tx.block_id:
                     if ethereum_tx.success:
-                        logger.info('Tx with tx-hash=%s was mined on block=%d ', ethereum_tx.tx_hash,
-                                    ethereum_tx.block_id)
+                        logger.info('Safe=%s - Tx with tx-hash=%s was mined on block=%d ',
+                                    multisig_tx.safe_id, ethereum_tx.tx_hash, ethereum_tx.block_id)
                     else:
-                        logger.error('Tx with tx-hash=%s was mined on block=%d and failed', ethereum_tx.tx_hash,
-                                     ethereum_tx.block_id)
+                        logger.error('Safe=%s - Tx with tx-hash=%s was mined on block=%d and failed',
+                                     multisig_tx.safe_id, ethereum_tx.tx_hash, ethereum_tx.block_id)
                     number_txs += 1
     except LockError:
         pass

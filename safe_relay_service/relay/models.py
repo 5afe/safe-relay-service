@@ -417,8 +417,6 @@ class SafeMultisigTxQuerySet(models.QuerySet):
         """
         not_mined_filter = self.filter(
             Q(ethereum_tx__block=None) | Q(ethereum_tx=None)  # Just in case, but ethereum_tx cannot be null
-        ).select_related(
-            'ethereum_tx'
         )
         if older_than:
             return not_mined_filter.filter(
