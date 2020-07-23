@@ -25,6 +25,7 @@ before_script:
   - psql -c 'create database travisci;' -U postgres
   - flake8 --ignore=E501,W503,F841
 script:
+  - python manage.py check
   - coverage run --source=$SOURCE_FOLDER -m py.test -rxXs
 deploy:
   - provider: script

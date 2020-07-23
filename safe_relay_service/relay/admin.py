@@ -208,12 +208,16 @@ class SafeFundingAdmin(admin.ModelAdmin):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'ethereum_tx__status', 'signers')
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'status', 'signers')
     list_filter = ('operation',)
     list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
+
+    def status(self, obj: SafeMultisigTx) -> Optional[int]:
+        if obj.ethereum_tx:
+            return obj.ethereum_tx.status
 
     def signers(self, obj: SafeMultisigTx) -> List[str]:
         return obj.signers()
