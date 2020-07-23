@@ -213,6 +213,7 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
     list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
+    readonly_fields = ('status', 'signers')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
 
     def status(self, obj: SafeMultisigTx) -> Optional[int]:
