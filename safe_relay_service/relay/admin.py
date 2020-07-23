@@ -215,8 +215,9 @@ class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('SUCCESS', 'Success'),
+            ('SUCCESS', 'Successful'),
             ('FAILED', 'Failed'),
+            ('NOT_FAILED', 'Successful or not mined'),
             ('NOT_MINED', 'Not mined'),
         )
 
@@ -225,6 +226,8 @@ class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
             return queryset.successful()
         elif self.value() == 'FAILED':
             return queryset.failed()
+        elif self.value() == 'NOT_FAILED':
+            return queryset.not_failed()
         elif self.value() == 'NOT_MINED':
             return queryset.pending()
 

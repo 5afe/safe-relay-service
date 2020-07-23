@@ -118,6 +118,23 @@ class TestSafeMultisigTxModel(TestCase):
         SafeMultisigTxFactory(safe=safe_contract, nonce=16, ethereum_tx__status=1)
         self.assertEqual(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address), 16)
 
+    def test_failed(self):
+        SafeMultisigTxFactory(ethereum_tx__status=None)
+        SafeMultisigTxFactory(ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.failed().count(), 0)
+        SafeMultisigTxFactory(ethereum_tx__status=0)
+        SafeMultisigTxFactory(ethereum_tx__status=8)
+        self.assertEqual(SafeMultisigTx.objects.failed().count(), 2)
+
+    def test_not_failed(self):
+        SafeMultisigTxFactory(ethereum_tx__status=None)
+        self.assertEqual(SafeMultisigTx.objects.not_failed().count(), 1)
+        SafeMultisigTxFactory(ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.not_failed().count(), 2)
+        SafeMultisigTxFactory(ethereum_tx__status=0)
+        SafeMultisigTxFactory(ethereum_tx__status=8)
+        self.assertEqual(SafeMultisigTx.objects.not_failed().count(), 2)
+
     def test_pending(self):
         self.assertFalse(SafeMultisigTx.objects.pending(0))
 
@@ -132,6 +149,16 @@ class TestSafeMultisigTxModel(TestCase):
         self.assertEqual(SafeMultisigTx.objects.pending(30).count(), 1)
         SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=60), ethereum_tx__block=None)
         self.assertEqual(SafeMultisigTx.objects.pending(30).count(), 2)
+
+    def test_successful(self):
+        SafeMultisigTxFactory(ethereum_tx__status=None)
+        SafeMultisigTxFactory(ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.successful().count(), 1)
+        SafeMultisigTxFactory(ethereum_tx__status=0)
+        SafeMultisigTxFactory(ethereum_tx__status=8)
+        self.assertEqual(SafeMultisigTx.objects.successful().count(), 1)
+        SafeMultisigTxFactory(ethereum_tx__status=1)
+        self.assertEqual(SafeMultisigTx.objects.successful().count(), 2)
 
     def test_get_average_execution_time(self):
         from_date = datetime.datetime(2018, 1, 1, tzinfo=utc)

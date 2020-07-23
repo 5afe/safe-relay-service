@@ -396,6 +396,20 @@ class SafeMultisigTxManager(models.Manager):
 
 
 class SafeMultisigTxQuerySet(models.QuerySet):
+    def failed(self):
+        """
+        :return: Mined and failed transactions
+        """
+        return self.exclude(ethereum_tx__status=None).exclude(ethereum_tx__status=1)
+
+    def not_failed(self):
+        """
+        :return: Not failed or not mined
+        """
+        return self.filter(
+            Q(ethereum_tx__status=1) | Q(ethereum_tx__status=None)  # No failed transactions, just success or not mined
+        )
+
     def pending(self, older_than: int = 0):
         """
         Get multisig txs that have not been mined after `older_than` seconds
@@ -418,20 +432,6 @@ class SafeMultisigTxQuerySet(models.QuerySet):
         :return: Mined and successful transactions
         """
         return self.filter(ethereum_tx__status=1)
-
-    def failed(self):
-        """
-        :return: Mined and failed transactions
-        """
-        return self.exclude(ethereum_tx__status=1)
-
-    def not_failed(self):
-        """
-        :return: Not failed or not mined
-        """
-        return self.filter(
-            Q(ethereum_tx__status=1) | Q(ethereum_tx__status=None)  # No failed transactions, just success or not mined
-        )
 
 
 class SafeMultisigTx(TimeStampedModel):
