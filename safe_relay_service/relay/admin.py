@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from django.contrib import admin
 from django.db.models.expressions import RawSQL
@@ -177,7 +177,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
     raw_id_fields = ('safe',)
     search_fields = ['=safe__address', '=deployer', 'owners']
 
-    def ether_deploy_cost(self, obj: SafeCreation):
+    def ether_deploy_cost(self, obj: SafeCreation) -> float:
         return Web3.fromWei(obj.wei_deploy_cost(), 'ether')
 
 
@@ -190,7 +190,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     raw_id_fields = ('safe',)
     search_fields = ['=safe__address', 'owners', '=tx_hash']
 
-    def ether_deploy_cost(self, obj: SafeCreation):
+    def ether_deploy_cost(self, obj: SafeCreation) -> float:
         return Web3.fromWei(obj.wei_estimated_deploy_cost(), 'ether')
 
 
@@ -201,18 +201,22 @@ class SafeFundingAdmin(admin.ModelAdmin):
     raw_id_fields = ('safe',)
     search_fields = ['=safe__address']
 
-    def safe_status(self, obj: SafeFunding):
+    def safe_status(self, obj: SafeFunding) -> str:
         return obj.status()
 
 
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value')
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'ethereum_tx__status', 'signers')
     list_filter = ('operation',)
+    list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
+
+    def signers(self, obj: SafeMultisigTx) -> List[str]:
+        return obj.signers()
 
 
 @admin.register(SafeTxStatus)

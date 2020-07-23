@@ -451,6 +451,9 @@ class SafeMultisigTx(TimeStampedModel):
                       signatures=self.signatures.tobytes() if self.signatures else b'',
                       safe_nonce=self.nonce)
 
+    def signers(self) -> List[str]:
+        return self.get_safe_tx().signers
+
 
 class SafeTxStatusQuerySet(models.QuerySet):
     def deployed(self):
