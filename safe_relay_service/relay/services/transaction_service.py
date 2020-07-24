@@ -1,3 +1,4 @@
+from datetime import timedelta
 from logging import getLogger
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
@@ -79,6 +80,10 @@ class InvalidGasEstimation(TransactionServiceException):
 
 
 class GasPriceTooLow(TransactionServiceException):
+    pass
+
+
+class UserAbusingService(TransactionServiceException):
     pass
 
 
@@ -438,6 +443,14 @@ class TransactionService:
         if safe_tx.signers != safe_tx.sorted_signers:
             raise SignaturesNotSorted('Safe-tx-hash=%s - Signatures are not sorted by owner: %s' %
                                       (safe_tx.safe_tx_hash.hex(), safe_tx.signers))
+
+        # Check user is not abusing the Transaction Service. If 2 transactions are failed in the last week
+        # we consider the user is trying nasty things
+        failed_transactions_last_week = SafeMultisigTx.objects.failed().last_week().filter(
+            safe_id=safe_address
+        ).count()
+        if failed_transactions_last_week > 1:
+            raise UserAbusingService()
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
