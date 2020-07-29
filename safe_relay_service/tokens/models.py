@@ -67,16 +67,16 @@ class Token(models.Model):
         return '%s - %s' % (self.name, self.address)
 
     def get_eth_value(self) -> float:
+        multiplier = 1e18 / 10 ** self.decimals
         if self.fixed_eth_conversion:  # `None` or `0` are ignored
             # Ether has 18 decimals, but maybe the token has a different number
-            multiplier = 1e18 / 10**self.decimals
             return round(multiplier * float(self.fixed_eth_conversion), 10)
         else:
             prices = [price_oracle_ticker.price for price_oracle_ticker in self.price_oracle_tickers.all()]
             prices = [price for price in prices if price is not None and price > 0]
             if prices:
                 # Get the average price of the price oracles
-                return sum(prices) / len(prices)
+                return multiplier * (sum(prices) / len(prices))
             else:
                 raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
 
