@@ -402,14 +402,6 @@ class SafeMultisigTxQuerySet(models.QuerySet):
         """
         return self.exclude(ethereum_tx__status=None).exclude(ethereum_tx__status=1)
 
-    def last_week(self):
-        """
-        :return: Transactions for last week
-        """
-        return self.filter(
-            created__gte=timezone.now() - timedelta(weeks=1)
-        )
-
     def not_failed(self):
         """
         :return: Not failed or not mined

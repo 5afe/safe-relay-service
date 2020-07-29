@@ -126,16 +126,6 @@ class TestSafeMultisigTxModel(TestCase):
         SafeMultisigTxFactory(ethereum_tx__status=8)
         self.assertEqual(SafeMultisigTx.objects.failed().count(), 2)
 
-    def test_last_week(self):
-        SafeMultisigTxFactory()
-        self.assertEqual(SafeMultisigTx.objects.last_week().count(), 1)
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(weeks=2))
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(weeks=3))
-        self.assertEqual(SafeMultisigTx.objects.last_week().count(), 1)
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(days=6))
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(days=2))
-        self.assertEqual(SafeMultisigTx.objects.last_week().count(), 3)
-
     def test_not_failed(self):
         SafeMultisigTxFactory(ethereum_tx__status=None)
         self.assertEqual(SafeMultisigTx.objects.not_failed().count(), 1)

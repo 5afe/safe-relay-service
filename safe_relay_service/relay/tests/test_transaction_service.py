@@ -19,8 +19,7 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             RefundMustBeEnabled,
                                             SafeDoesNotExist,
                                             SafeMultisigTxExists,
-                                            SignaturesNotSorted,
-                                            UserAbusingService)
+                                            SignaturesNotSorted)
 from .factories import SafeContractFactory, SafeMultisigTxFactory
 from .relay_test_case import RelayTestCaseMixin
 
@@ -44,7 +43,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold)
         my_safe_address = safe_creation.safe_address
         my_safe_contract = get_safe_contract(w3, my_safe_address)
-        safe_contract_db = SafeContractFactory(address=my_safe_address)
+        SafeContractFactory(address=my_safe_address)
 
         to = funder
         value = safe_balance // 4
@@ -321,36 +320,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
                 signatures,
             )
 
-        # Use valid signatures
         signatures = [account.signHash(safe_tx.safe_tx_hash) for account in accounts]
-
-        # Create failed transactions for that Safe
-        failed_txs = [SafeMultisigTxFactory(safe=safe_contract_db, ethereum_tx__status=3),
-                      SafeMultisigTxFactory(safe=safe_contract_db, ethereum_tx__status=5)]
-        with self.assertRaises(UserAbusingService):
-            self.transaction_service.create_multisig_tx(
-                my_safe_address,
-                to,
-                value,
-                data,
-                operation,
-                safe_tx_gas,
-                data_gas,
-                gas_price,
-                gas_token,
-                refund_receiver,
-                nonce,
-                signatures,
-            )
-
-        for failed_tx in failed_txs:
-            failed_tx.delete()
-
-        # Create more failed transactions but for other Safes, it won't affect ours
-        SafeMultisigTxFactory(ethereum_tx__status=0)
-        SafeMultisigTxFactory(ethereum_tx__status=2)
-        SafeMultisigTxFactory(ethereum_tx__status=3)
-
         safe_multisig_tx = self.transaction_service.create_multisig_tx(
             my_safe_address,
             to,
