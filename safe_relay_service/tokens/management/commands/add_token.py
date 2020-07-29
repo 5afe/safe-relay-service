@@ -41,4 +41,3 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f'Created token {info.name} on address {token_address}'))
             except InvalidERC20Info:
                 self.stdout.write(self.style.ERROR(f'Token with address {token_address} is not valid'))
-
