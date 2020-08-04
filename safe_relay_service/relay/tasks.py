@@ -368,7 +368,7 @@ def check_pending_transactions() -> int:
             tx_not_mined_alert = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
             multisig_txs = SafeMultisigTx.objects.pending(older_than=tx_not_mined_alert * 60)
             for multisig_tx in multisig_txs:
-                logger.error('Safe=% - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
+                logger.error('Safe=%s - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
                              'a while, created=%s',
                              multisig_tx.safe_id, multisig_tx.ethereum_tx_id,
                              multisig_tx.safe_tx_hash, multisig_tx.created)
