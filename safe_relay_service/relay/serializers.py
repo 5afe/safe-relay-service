@@ -23,9 +23,6 @@ from .services import StatsServiceProvider
 logger = logging.getLogger(__name__)
 
 
-RELAY_SENDER_ADDRESS = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address
-
-
 class ThresholdValidatorSerializerMixin:
     def validate(self, data):
         super().validate(data)
@@ -65,9 +62,10 @@ class SafeRelayMultisigTxSerializer(SafeMultisigTxSerializer):
     signatures = serializers.ListField(child=SafeSignatureSerializer())
 
     def validate_refund_receiver(self, refund_receiver):
-        if refund_receiver and refund_receiver not in (NULL_ADDRESS, RELAY_SENDER_ADDRESS):
+        relay_sender_address = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address
+        if refund_receiver and refund_receiver not in (NULL_ADDRESS, relay_sender_address):
             raise ValidationError(f'Refund Receiver must be empty, 0x00...00 address or Relay Service Sender Address: '
-                                  f'${RELAY_SENDER_ADDRESS}')
+                                  f'${relay_sender_address}')
         return refund_receiver
 
 
