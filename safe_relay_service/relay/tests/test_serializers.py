@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.test import TestCase
 
 from eth_account import Account
@@ -171,7 +172,7 @@ class TestSerializers(TestCase):
             "gas_price": gas_price,
             "gas_token": gas_token,
             "nonce": nonce,
-            "refund_receiver": accounts[0].address,  # Refund must be empty or NULL_ADDRESS
+            "refund_receiver": accounts[0].address,  # Refund receiver must be empty or relay service sender
             "signatures": [
                 {
                     'r': 5,
@@ -181,6 +182,10 @@ class TestSerializers(TestCase):
         }
         serializer = SafeRelayMultisigTxSerializer(data=data)
         self.assertFalse(serializer.is_valid())
+
+        data['refund_receiver'] = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address
+        serializer = SafeRelayMultisigTxSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
 
         data['refund_receiver'] = NULL_ADDRESS
         serializer = SafeRelayMultisigTxSerializer(data=data)

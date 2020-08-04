@@ -220,13 +220,15 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        response = response.json()
+        response_json = response.json()
         for field in ('safeTxGas', 'dataGas', 'gasPrice'):
-            self.assertTrue(isinstance(response[field], str))
-            self.assertGreater(int(response[field]), 0)
+            self.assertTrue(isinstance(response_json[field], str))
+            self.assertGreater(int(response_json[field]), 0)
 
-        self.assertIsNone(response['lastUsedNonce'])
-        self.assertEqual(response['gasToken'], NULL_ADDRESS)
+        expected_refund_receiver = Account.from_key(settings.SAFE_TX_SENDER_PRIVATE_KEY).address
+        self.assertIsNone(response_json['lastUsedNonce'])
+        self.assertEqual(response_json['gasToken'], NULL_ADDRESS)
+        self.assertEqual(response_json['refundReceiver'], expected_refund_receiver)
 
         to = Account.create().address
         data = {
@@ -239,6 +241,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
                                     data=data,
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['refund_receiver'], expected_refund_receiver)
 
     def test_safe_signal_v2(self):
         safe_address = Account.create().address

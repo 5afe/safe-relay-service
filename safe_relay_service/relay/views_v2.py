@@ -88,8 +88,9 @@ class SafeCreationView(CreateAPIView):
 class SafeMultisigTxEstimateView(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeMultisigEstimateTxSerializer
+    serializer_response_class = SafeMultisigEstimateTxResponseV2Serializer
 
-    @swagger_auto_schema(responses={200: SafeMultisigEstimateTxResponseV2Serializer(),
+    @swagger_auto_schema(responses={200: serializer_response_class(),
                                     400: 'Data not valid',
                                     404: 'Safe not found',
                                     422: 'Safe address checksum not valid/Tx not valid'})
@@ -109,7 +110,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
             transaction_estimation = TransactionServiceProvider().estimate_tx(address, data['to'], data['value'],
                                                                               data['data'], data['operation'],
                                                                               data['gas_token'])
-            response_serializer = SafeMultisigEstimateTxResponseV2Serializer(transaction_estimation)
+            response_serializer = self.serializer_response_class(transaction_estimation)
             return Response(status=status.HTTP_200_OK, data=response_serializer.data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=serializer.errors)

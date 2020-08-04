@@ -90,6 +90,7 @@ class TransactionEstimationWithNonce(NamedTuple):
     gas_price: int
     gas_token: str
     last_used_nonce: int
+    refund_receiver: str
 
 
 class TransactionGasTokenEstimation(NamedTuple):
@@ -133,14 +134,14 @@ class TransactionService:
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.tx_sender_account = Account.from_key(tx_sender_private_key)
 
-    @staticmethod
-    def _check_refund_receiver(refund_receiver: str) -> bool:
+    def _check_refund_receiver(self, refund_receiver: str) -> bool:
         """
-        We only support tx.origin as refund receiver right now
-        In the future we can also accept transactions where it is set to our service account to receive the payments.
+        Support tx.origin or relay tx sender as refund receiver.
         This would prevent that anybody can front-run our service
+        :param refund_receiver: Payment refund receiver as Ethereum checksummed address
+        :return: True if refund_receiver is ok, False otherwise
         """
-        return refund_receiver == NULL_ADDRESS
+        return refund_receiver in (NULL_ADDRESS, self.tx_sender_account.address)
 
     @staticmethod
     def _is_valid_gas_token(address: Optional[str]) -> float:
@@ -249,7 +250,8 @@ class TransactionService:
         # Can throw RelayServiceException
         gas_price = self._estimate_tx_gas_price(gas_token)
         return TransactionEstimationWithNonce(safe_tx_gas, safe_tx_base_gas, safe_tx_base_gas, safe_tx_operational_gas,
-                                              gas_price, gas_token or NULL_ADDRESS, last_used_nonce)
+                                              gas_price, gas_token or NULL_ADDRESS, last_used_nonce,
+                                              self.tx_sender_account.address)
 
     def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: str,
                                    operation: int) -> TransactionEstimationWithNonceAndGasTokens:
