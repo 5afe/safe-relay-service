@@ -174,36 +174,23 @@ class TransactionService:
             raise RefundMustBeEnabled('Tx internal gas price cannot be 0 or less, it was %d' % safe_gas_price)
 
         minimum_accepted_gas_price = self._get_minimum_gas_price()
-        if gas_token and gas_token != NULL_ADDRESS:
-            try:
-                gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                estimated_gas_price = gas_token_model.calculate_gas_price(minimum_accepted_gas_price)
-                if safe_gas_price < estimated_gas_price:
-                    raise GasPriceTooLow('Required gas-price>=%d to use gas-token' % estimated_gas_price)
-                # We use gas station tx gas price. We cannot use internal tx's because is calculated
-                # based on the gas token
-            except Token.DoesNotExist:
-                logger.warning('Cannot retrieve gas token from db: Gas token %s not valid', gas_token)
-                raise InvalidGasToken('Gas token %s not valid' % gas_token)
-        else:
-            if safe_gas_price < minimum_accepted_gas_price:
-                raise GasPriceTooLow('Required gas-price>=%d' % minimum_accepted_gas_price)
+        estimated_gas_price = self._estimate_tx_gas_price(minimum_accepted_gas_price, gas_token)
+        if safe_gas_price < estimated_gas_price:
+            raise GasPriceTooLow('Required gas-price>=%d with gas-token=%s' % (estimated_gas_price, gas_token))
         return True
 
-    def _estimate_tx_gas_price(self, gas_token: Optional[str] = None) -> int:
-        base_gas_price: int = self._get_configured_gas_price()
-        gas_price: int
+    def _estimate_tx_gas_price(self, base_gas_price: int, gas_token: Optional[str] = None) -> int:
         if gas_token and gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                gas_price = gas_token_model.calculate_gas_price(base_gas_price)
+                estimated_gas_price = gas_token_model.calculate_gas_price(base_gas_price)
             except Token.DoesNotExist:
                 raise InvalidGasToken('Gas token %s not found' % gas_token)
         else:
-            gas_price = base_gas_price
+            estimated_gas_price = base_gas_price
 
         # FIXME Remove 2 / 3, workaround to prevent frontrunning
-        return int(gas_price * 2 / 3)
+        return int(estimated_gas_price * 2 / 3)
 
     def _get_configured_gas_price(self) -> int:
         """
@@ -215,8 +202,7 @@ class TransactionService:
         """
         :return: Minimum gas price accepted for txs set by the user
         """
-        # FIXME Remove 2 / 3, workaround to prevent frontrunning
-        return int(self.gas_station.get_gas_prices().safe_low * 2 / 3)
+        return self.gas_station.get_gas_prices().safe_low
 
     def get_last_used_nonce(self, safe_address: str) -> Optional[int]:
         safe = Safe(safe_address, self.ethereum_client)
@@ -231,10 +217,10 @@ class TransactionService:
         except BadFunctionCallOutput:  # If Safe does not exist
             raise SafeDoesNotExist(f'Safe={safe_address} does not exist')
 
-    def estimate_tx(self, safe_address: str, to: str, value: int, data: str, operation: int,
+    def estimate_tx(self, safe_address: str, to: str, value: int, data: bytes, operation: int,
                     gas_token: Optional[str]) -> TransactionEstimationWithNonce:
         """
-        :return: TransactionEstimation with costs and last used nonce of safe
+        :return: TransactionEstimation with costs using the provided gas token and last used nonce of the Safe
         :raises: InvalidGasToken: If Gas Token is not valid
         """
         if not self._is_valid_gas_token(gas_token):
@@ -253,13 +239,18 @@ class TransactionService:
             safe_tx_operational_gas = safe.estimate_tx_operational_gas(len(data) if data else 0)
 
         # Can throw RelayServiceException
-        gas_price = self._estimate_tx_gas_price(gas_token)
+        gas_price = self._estimate_tx_gas_price(self._get_configured_gas_price(), gas_token)
         return TransactionEstimationWithNonce(safe_tx_gas, safe_tx_base_gas, safe_tx_base_gas, safe_tx_operational_gas,
                                               gas_price, gas_token or NULL_ADDRESS, last_used_nonce,
                                               self.tx_sender_account.address)
 
-    def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: str,
+    def estimate_tx_for_all_tokens(self, safe_address: str, to: str, value: int, data: bytes,
                                    operation: int) -> TransactionEstimationWithNonceAndGasTokens:
+        """
+        :return: TransactionEstimation with costs using ether and every gas token supported by the service,
+        with the last used nonce of the Safe
+        :raises: InvalidGasToken: If Gas Token is not valid
+        """
         safe = Safe(safe_address, self.ethereum_client)
         last_used_nonce = self.get_last_used_nonce(safe_address)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
@@ -272,12 +263,13 @@ class TransactionService:
 
         # Calculate `base_gas` for ether and calculate for tokens using the ether token price
         ether_safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, NULL_ADDRESS, safe_tx_gas)
-        gas_price = self._estimate_tx_gas_price(NULL_ADDRESS)
+        base_gas_price = self._get_configured_gas_price()
+        gas_price = self._estimate_tx_gas_price(base_gas_price, NULL_ADDRESS)
         gas_token_estimations = [TransactionGasTokenEstimation(ether_safe_tx_base_gas, gas_price, NULL_ADDRESS)]
         token_gas_difference = 50000  # 50K gas more expensive than ether
         for token in Token.objects.gas_tokens():
             try:
-                gas_price = self._estimate_tx_gas_price(token.address)
+                gas_price = self._estimate_tx_gas_price(base_gas_price, token.address)
                 gas_token_estimations.append(
                     TransactionGasTokenEstimation(ether_safe_tx_base_gas + token_gas_difference,
                                                   gas_price, token.address)
@@ -474,9 +466,9 @@ class TransactionService:
             return ethereum_tx
         except EthereumTx.DoesNotExist:
             tx = self.ethereum_client.get_transaction(tx_hash)
+            tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
             if tx:
                 if tx_receipt:
-                    tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
                     ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
                     return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
                 return EthereumTx.objects.create_from_tx(tx, tx_hash)
