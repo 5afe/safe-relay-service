@@ -190,16 +190,20 @@ class TransactionService:
                 raise GasPriceTooLow('Required gas-price>=%d' % minimum_accepted_gas_price)
         return True
 
-    def _estimate_tx_gas_price(self, gas_token: Optional[str] = None):
-        gas_price_fast = self._get_configured_gas_price()
+    def _estimate_tx_gas_price(self, gas_token: Optional[str] = None) -> int:
+        base_gas_price: int = self._get_configured_gas_price()
+        gas_price: int
         if gas_token and gas_token != NULL_ADDRESS:
             try:
                 gas_token_model = Token.objects.get(address=gas_token, gas=True)
-                return gas_token_model.calculate_gas_price(gas_price_fast)
+                gas_price = gas_token_model.calculate_gas_price(base_gas_price)
             except Token.DoesNotExist:
                 raise InvalidGasToken('Gas token %s not found' % gas_token)
         else:
-            return gas_price_fast
+            gas_price = base_gas_price
+
+        # FIXME Remove 2 / 3, workaround to prevent frontrunning
+        return int(gas_price * 2 / 3)
 
     def _get_configured_gas_price(self) -> int:
         """
@@ -211,7 +215,8 @@ class TransactionService:
         """
         :return: Minimum gas price accepted for txs set by the user
         """
-        return self.gas_station.get_gas_prices().safe_low
+        # FIXME Remove 2 / 3, workaround to prevent frontrunning
+        return int(self.gas_station.get_gas_prices().safe_low * 2 / 3)
 
     def get_last_used_nonce(self, safe_address: str) -> Optional[int]:
         safe = Safe(safe_address, self.ethereum_client)
