@@ -96,7 +96,6 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                                 safe_address, safe_creation.wei_deploy_cost(), deployer_address)
                     tx_hash = FundingServiceProvider().send_eth_to(deployer_address,
                                                                    safe_creation.wei_deploy_cost(),
-                                                                   gas_price=safe_creation.gas_price,
                                                                    retry=True)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
