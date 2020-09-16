@@ -5,9 +5,9 @@ from django.db.models.expressions import RawSQL
 
 from web3 import Web3
 
-from .models import (EthereumBlock, EthereumEvent, EthereumTx, SafeContract,
-                     SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
-                     SafeTxStatus)
+from .models import (BannedSigner, EthereumBlock, EthereumEvent, EthereumTx,
+                     SafeContract, SafeCreation, SafeCreation2, SafeFunding,
+                     SafeMultisigTx, SafeTxStatus)
 
 
 class EthereumTxForeignClassMixinAdmin:
@@ -256,3 +256,9 @@ class SafeTxStatusAdmin(admin.ModelAdmin):
     list_display = ('safe_id', 'initial_block_number', 'tx_block_number', 'erc_20_block_number')
     raw_id_fields = ('safe',)
     search_fields = ['=safe__address']
+
+
+@admin.register(BannedSigner)
+class BannedSignerAdmin(admin.ModelAdmin):
+    list_display = ('address',)
+    search_fields = ['=address']
