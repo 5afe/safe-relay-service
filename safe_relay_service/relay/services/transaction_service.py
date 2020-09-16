@@ -169,7 +169,7 @@ class TransactionService:
         Check that `safe_gas_price` is not too low, so that the relay gets a full refund
         for the tx. Gas_price must be always > 0, if not refunding would be disabled
         If a `gas_token` is used we need to calculate the `gas_price` in Eth
-        Gas price must be at least >= _current standard gas price_ > 0
+        Gas price must be at least >= _minimum_gas_price_ > 0
         :param gas_token: Address of token is used, `NULL_ADDRESS` or `None` if it's ETH
         :return:
         :exception GasPriceTooLow
@@ -201,13 +201,13 @@ class TransactionService:
         """
         :return: Gas price for txs
         """
-        return self.gas_station.get_gas_prices().standard
+        return self.gas_station.get_gas_prices().fast
 
     def _get_minimum_gas_price(self) -> int:
         """
         :return: Minimum gas price accepted for txs set by the user
         """
-        return self.gas_station.get_gas_prices().safe_low
+        return self.gas_station.get_gas_prices().standard
 
     def get_last_used_nonce(self, safe_address: str) -> Optional[int]:
         safe = Safe(safe_address, self.ethereum_client)
