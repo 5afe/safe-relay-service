@@ -584,3 +584,10 @@ class EthereumEvent(models.Model):
 
     def is_erc721(self) -> bool:
         return 'tokenId' in self.arguments
+
+
+class BannedSigner(models.Model):
+    address = EthereumAddressField(primary_key=True)
+
+    def __str__(self):
+        return self.address

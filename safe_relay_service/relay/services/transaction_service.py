@@ -20,7 +20,8 @@ from safe_relay_service.gas_station.gas_station import (GasStation,
 from safe_relay_service.tokens.models import Token
 from safe_relay_service.tokens.price_oracles import CannotGetTokenPriceFromApi
 
-from ..models import EthereumBlock, EthereumTx, SafeContract, SafeMultisigTx
+from ..models import (BannedSigner, EthereumBlock, EthereumTx, SafeContract,
+                      SafeMultisigTx)
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
 logger = getLogger(__name__)
@@ -79,6 +80,10 @@ class InvalidGasEstimation(TransactionServiceException):
 
 
 class GasPriceTooLow(TransactionServiceException):
+    pass
+
+
+class SignerIsBanned(TransactionServiceException):
     pass
 
 
@@ -431,12 +436,16 @@ class TransactionService:
         )
 
         owners = safe.retrieve_owners()
-        if set(safe_tx.signers) - set(owners):  # All the signers must be owners
+        signers = safe_tx.signers
+        if set(signers) - set(owners):  # All the signers must be owners
             raise InvalidOwners('Signers=%s are not valid owners of the safe. Owners=%s', safe_tx.signers, owners)
 
-        if safe_tx.signers != safe_tx.sorted_signers:
+        if signers != safe_tx.sorted_signers:
             raise SignaturesNotSorted('Safe-tx-hash=%s - Signatures are not sorted by owner: %s' %
                                       (safe_tx.safe_tx_hash.hex(), safe_tx.signers))
+
+        if banned_signers := BannedSigner.objects.filter(address__in=signers):
+            raise SignerIsBanned(f'Signers {list(banned_signers)} are banned')
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                lock_timeout=60 * 2) as tx_nonce:

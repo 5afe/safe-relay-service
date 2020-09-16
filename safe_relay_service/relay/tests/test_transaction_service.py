@@ -10,6 +10,7 @@ from gnosis.safe import Safe, SafeOperation
 
 from safe_relay_service.tokens.tests.factories import TokenFactory
 
+from ..models import BannedSigner
 from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             InvalidMasterCopyAddress,
                                             InvalidOwners,
@@ -19,8 +20,10 @@ from ..services.transaction_service import (GasPriceTooLow, InvalidGasToken,
                                             RefundMustBeEnabled,
                                             SafeDoesNotExist,
                                             SafeMultisigTxExists,
-                                            SignaturesNotSorted)
-from .factories import SafeContractFactory, SafeMultisigTxFactory
+                                            SignaturesNotSorted,
+                                            SignerIsBanned)
+from .factories import (BannedSignerFactory, SafeContractFactory,
+                        SafeMultisigTxFactory)
 from .relay_test_case import RelayTestCaseMixin
 
 
@@ -237,6 +240,26 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
                 nonce,
                 reversed(signatures)
             )
+
+        with self.assertRaises(SignerIsBanned):
+            for account in accounts:
+                BannedSignerFactory(address=account.address)
+            self.transaction_service.create_multisig_tx(
+                my_safe_address,
+                to,
+                value,
+                data,
+                operation,
+                safe_tx_gas,
+                data_gas,
+                gas_price,
+                gas_token,
+                refund_receiver,
+                nonce,
+                signatures
+            )
+        BannedSigner.objects.all().delete()
+        self.assertEqual(BannedSigner.objects.count(), 0)
 
         sender = self.transaction_service.tx_sender_account.address
         sender_balance = w3.eth.getBalance(sender)

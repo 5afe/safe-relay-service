@@ -13,9 +13,9 @@ from gnosis.eth.constants import (ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS,
                                   SIGNATURE_S_MAX_VALUE, SIGNATURE_S_MIN_VALUE,
                                   SIGNATURE_V_MAX_VALUE, SIGNATURE_V_MIN_VALUE)
 
-from ..models import (EthereumBlock, EthereumEvent, EthereumTx, SafeContract,
-                      SafeCreation, SafeCreation2, SafeFunding, SafeMultisigTx,
-                      SafeTxStatus)
+from ..models import (BannedSigner, EthereumBlock, EthereumEvent, EthereumTx,
+                      SafeContract, SafeCreation, SafeCreation2, SafeFunding,
+                      SafeMultisigTx, SafeTxStatus)
 
 logger = getLogger(__name__)
 
@@ -156,3 +156,10 @@ class EthereumEventFactory(factory.DjangoModelFactory):
                                                  'from': o.from_ if o.from_ else Account.create().address,
                                                  'tokenId' if o.erc721 else 'value': o.value}
                                       )
+
+
+class BannedSignerFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = BannedSigner
+
+    address = factory.LazyFunction(lambda: Account.create().address)
