@@ -12,6 +12,8 @@ from redis.exceptions import LockError
 from gnosis.eth import EthereumClientProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
 
+from safe_relay_service.gas_station.gas_station import GasStationProvider
+
 from .models import (SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                      SafeMultisigTx)
 from .repositories.redis_repository import RedisRepository
@@ -357,7 +359,7 @@ def find_erc_20_721_transfers_task() -> int:
 @app.shared_task(soft_time_limit=60)
 def check_pending_transactions() -> int:
     """
-    Find txs that have not been mined after a while
+    Find txs that have not been mined after a while and resend again
     :return: Number of pending transactions
     """
     number_txs = 0
@@ -365,12 +367,26 @@ def check_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_pending_transactions', blocking_timeout=1, timeout=60):
             tx_not_mined_alert = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
-            multisig_txs = SafeMultisigTx.objects.pending(older_than=tx_not_mined_alert * 60)
+            multisig_txs = SafeMultisigTx.objects.pending(
+                older_than=tx_not_mined_alert * 60
+            ).select_related(
+                'ethereum_tx'
+            )
             for multisig_tx in multisig_txs:
-                logger.error('Safe=%s - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
-                             'a while, created=%s',
-                             multisig_tx.safe_id, multisig_tx.ethereum_tx_id,
-                             multisig_tx.safe_tx_hash, multisig_tx.created)
+                gas_price = GasStationProvider().get_gas_prices().fast
+                old_fee = multisig_tx.ethereum_tx.fee
+                ethereum_tx = TransactionServiceProvider().resend(gas_price, multisig_tx)
+                if ethereum_tx:
+                    logger.error('Safe=%s - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
+                                 'a while, created=%s. Sent again with tx-hash=%s. Old fee=%d and new fee=%d',
+                                 multisig_tx.safe_id, multisig_tx.ethereum_tx_id,
+                                 multisig_tx.safe_tx_hash, multisig_tx.created, ethereum_tx.tx_hash,
+                                 old_fee, ethereum_tx.fee)
+                else:
+                    logger.error('Safe=%s - Tx with tx-hash=%s and safe-tx-hash=%s has not been mined after '
+                                 'a while, created=%s',
+                                 multisig_tx.safe_id, multisig_tx.ethereum_tx_id,
+                                 multisig_tx.safe_tx_hash, multisig_tx.created)
                 number_txs += 1
     except LockError:
         pass

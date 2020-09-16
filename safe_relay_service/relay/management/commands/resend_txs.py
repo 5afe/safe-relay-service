@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
-from ...models import EthereumTx, SafeMultisigTx
+from ...models import SafeMultisigTx
 from ...services import TransactionServiceProvider
 
 
@@ -27,12 +27,7 @@ class Command(BaseCommand):
                 f"{multisig_tx.ethereum_tx_id} tx gas price is {multisig_tx.ethereum_tx.gas_price} < {gas_price}. "
                 f"Resending with new gas price {gas_price}"
             ))
-            safe_tx = multisig_tx.get_safe_tx(self.tx_service.ethereum_client)
-            tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 25000
-            tx_hash, tx = safe_tx.execute(self.tx_service.tx_sender_account.key, tx_gas=tx_gas,
-                                          tx_gas_price=gas_price, tx_nonce=multisig_tx.ethereum_tx.nonce)
-            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
-            multisig_tx.save(update_fields=['ethereum_tx'])
+            self.tx_service.resend(gas_price, multisig_tx)
         else:
             self.stdout.write(self.style.NOTICE(
                 f"{multisig_tx.ethereum_tx_id} tx gas price is {multisig_tx.ethereum_tx.gas_price} > {gas_price}. "

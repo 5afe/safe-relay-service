@@ -320,6 +320,10 @@ class EthereumTx(TimeStampedModel):
         if self.status is not None:
             return self.status == 1
 
+    @property
+    def fee(self) -> int:
+        return self.gas * self.gas_price
+
 
 class SafeMultisigTxManager(models.Manager):
     def get_last_nonce_for_safe(self, safe_address: str) -> Optional[int]:

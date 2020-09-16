@@ -460,6 +460,32 @@ class TransactionService:
                         safe_address, tx_nonce, tx_hash.hex(), safe_tx.safe_tx_hash.hex(), safe_tx.safe_nonce)
             return tx_hash, safe_tx.safe_tx_hash, tx
 
+    def resend(self, gas_price: int, multisig_tx: SafeMultisigTx) -> Optional[EthereumTx]:
+        """
+        Resend transaction with new gas price if `gas_price` is higher than transaction gas price
+        :param gas_price:
+        :param multisig_tx:
+        :return: If a new transaction is sent is returned, `None` if not
+        """
+        if multisig_tx.ethereum_tx.gas_price < gas_price:
+            assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
+            logger.info(
+                '%s tx gas price is %d < %d. Resending with new gas price %d',
+                multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price, gas_price
+            )
+            safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
+            tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 25000
+            tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                          tx_nonce=multisig_tx.ethereum_tx.nonce)
+            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
+            multisig_tx.save(update_fields=['ethereum_tx'])
+            return multisig_tx.ethereum_tx
+        else:
+            logger.info(
+                '%s tx gas price is %d > %d. Nothing to do here',
+                multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
+            )
+
     # TODO Refactor and test
     def create_or_update_ethereum_tx(self, tx_hash: str) -> Optional[EthereumTx]:
         try:
