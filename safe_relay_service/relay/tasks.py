@@ -394,8 +394,6 @@ def check_pending_transactions() -> int:
         pass
     return number_txs
 
-
-<<<<<<< 4c4cf7cc8d80a057947321b9214dc3e21aff6d7f
 @app.shared_task(soft_time_limit=60)
 def check_and_update_pending_transactions() -> int:
     """
