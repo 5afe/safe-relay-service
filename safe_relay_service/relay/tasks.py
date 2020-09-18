@@ -20,7 +20,7 @@ from .models import (SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                      SafeMultisigTx)
 from .repositories.redis_repository import RedisRepository
 from .services import (Erc20EventsServiceProvider, FundingServiceProvider,
-                       InternalTxServiceProvider, NotificationServiceProvider,
+                       NotificationServiceProvider,
                        SafeCreationServiceProvider, TransactionServiceProvider,
                        CirclesService, GraphQLService)
 from .services.safe_creation_service import NotEnoughFundingForCreation
