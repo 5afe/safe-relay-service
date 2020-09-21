@@ -201,7 +201,7 @@ class TransactionService:
             estimated_gas_price = base_gas_price
 
         # FIXME Remove 2 / 3, workaround to prevent frontrunning
-        return int(estimated_gas_price * 2 / 3)
+        return int(estimated_gas_price)
 
     def _get_configured_gas_price(self) -> int:
         """
