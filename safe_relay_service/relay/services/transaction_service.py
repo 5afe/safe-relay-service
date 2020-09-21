@@ -312,7 +312,7 @@ class TransactionService:
             gas_token
         )
         return (
-            transaction_estimation.safe_tx_gas + transaction_estimation.base_gas
+            (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 500
         ) * transaction_estimation.gas_price
 
     def create_multisig_tx(self,
