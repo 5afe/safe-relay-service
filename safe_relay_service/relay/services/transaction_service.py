@@ -184,7 +184,7 @@ class TransactionService:
         minimum_accepted_gas_price = self._get_minimum_gas_price()
 
         if gas_token and gas_token != NULL_ADDRESS:
-            estimated_gas_price = self._estimate_tx_gas_price(self._get_minimum_gas_price(), gas_token: gas_token)
+            estimated_gas_price = self._estimate_tx_gas_price(self._get_minimum_gas_price(), gas_token=gas_token)
             if safe_gas_price < estimated_gas_price:
                 raise GasPriceTooLow('Required gas-price>=%d to use gas-token' % estimated_gas_price)
             # We use gas station tx gas price. We cannot use internal tx's because is calculated
