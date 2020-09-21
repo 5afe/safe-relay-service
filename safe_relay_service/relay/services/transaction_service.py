@@ -300,10 +300,7 @@ class TransactionService:
         value = 0
         operation = 0
         # Tx data from Circles Token contract signup method
-        data = ("0x519c6377000000000000000000000000000000000000000000000"
-                "0000000000000000020000000000000000000000000000000000000"
-                "0000000000000000000000000007436972636c65730000000000000"
-                "0000000000000000000000000000000000000")
+        data = ("0xb7bc0f73")
         transaction_estimation = self.estimate_tx(
             safe_address,
             settings.CIRCLES_HUB_ADDRESS,
