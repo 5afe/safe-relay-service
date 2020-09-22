@@ -25,5 +25,5 @@ packaging==20.4
 psycopg2-binary==2.8.5
 redis==3.5.3
 requests==2.24.0
-sgqlc=11.0
+sgqlc==11.0
 web3==5.12.0
