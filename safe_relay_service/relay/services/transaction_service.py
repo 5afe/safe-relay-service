@@ -479,7 +479,6 @@ class TransactionService:
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
             multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
             multisig_tx.full_clean(validate_unique=False)
-            multisig_tx.clean_fields()
             multisig_tx.save(update_fields=['ethereum_tx'])
             return multisig_tx.ethereum_tx
         else:
