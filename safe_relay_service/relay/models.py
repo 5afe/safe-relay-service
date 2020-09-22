@@ -298,18 +298,19 @@ class EthereumTxManager(models.Manager):
 
 class EthereumTx(TimeStampedModel):
     objects = EthereumTxManager()
-    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
+    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, blank=True, default=None,
                               related_name='txs')  # If mined
     tx_hash = Sha3HashField(unique=True, primary_key=True)
-    gas_used = Uint256Field(null=True, default=None)  # If mined
-    status = models.IntegerField(null=True, default=None, db_index=True)  # If mined. Old txs don't have `status`
-    transaction_index = models.PositiveIntegerField(null=True, default=None)  # If mined
+    gas_used = Uint256Field(null=True, blank=True, default=None)  # If mined
+    status = models.IntegerField(null=True, blank=True,
+                                 default=None, db_index=True)  # If mined. Old txs don't have `status`
+    transaction_index = models.PositiveIntegerField(null=True, blank=True, default=None)  # If mined
     _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
-    data = models.BinaryField(null=True)
+    data = models.BinaryField(null=True, blank=True)
     nonce = Uint256Field()
-    to = EthereumAddressField(null=True, db_index=True)
+    to = EthereumAddressField(null=True, blank=True, db_index=True)
     value = Uint256Field()
 
     def __str__(self):
@@ -440,18 +441,18 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager.from_queryset(SafeMultisigTxQuerySet)()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
-    to = EthereumAddressField(null=True, db_index=True)
+    to = EthereumAddressField(null=True, blank=True, db_index=True)
     value = Uint256Field()
-    data = models.BinaryField(null=True)
+    data = models.BinaryField(null=True, blank=True)
     operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
     safe_tx_gas = Uint256Field()
     data_gas = Uint256Field()
     gas_price = Uint256Field()
-    gas_token = EthereumAddressField(null=True)
-    refund_receiver = EthereumAddressField(null=True)
+    gas_token = EthereumAddressField(null=True, blank=True)
+    refund_receiver = EthereumAddressField(null=True, blank=True)
     signatures = models.BinaryField()
     nonce = Uint256Field()
-    safe_tx_hash = Sha3HashField(unique=True, null=True)
+    safe_tx_hash = Sha3HashField(unique=True, null=True, blank=True)
 
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,

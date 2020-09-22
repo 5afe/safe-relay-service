@@ -478,6 +478,8 @@ class TransactionService:
             tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
             multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
+            multisig_tx.full_clean(validate_unique=False)
+            multisig_tx.clean_fields()
             multisig_tx.save(update_fields=['ethereum_tx'])
             return multisig_tx.ethereum_tx
         else:

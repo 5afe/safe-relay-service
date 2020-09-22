@@ -95,6 +95,12 @@ class TestEthereumEventModel(TestCase):
 
 
 class TestSafeMultisigTxModel(TestCase):
+    def test_ethereum_tx_hex(self):
+        multisig_tx = SafeMultisigTxFactory()
+        self.assertIsInstance(multisig_tx.ethereum_tx_id, HexBytes)
+        multisig_tx.clean_fields()
+        self.assertIsInstance(multisig_tx.ethereum_tx_id, str)
+
     def test_get_last_nonce_for_safe(self):
         safe_address = Account.create().address
         self.assertIsNone(SafeMultisigTx.objects.get_last_nonce_for_safe(safe_address))
