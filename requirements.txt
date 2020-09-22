@@ -25,5 +25,6 @@ packaging==20.4
 psycopg2-binary==2.8.6
 redis==3.5.3
 requests==2.24.0
+sgqlc==11.0
 vine==1.3.0
-web3==5.12.2
+web3==5.12.0
