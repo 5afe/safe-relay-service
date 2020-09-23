@@ -1,4 +1,3 @@
-from django.conf import settings
 from typing import NamedTuple, Tuple
 
 from django.core.management.base import BaseCommand
@@ -28,15 +27,15 @@ class CeleryTaskConfiguration(NamedTuple):
 class Command(BaseCommand):
     help = 'Setup Safe relay required tasks'
     tasks = [
-             CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_balance_of_accounts_task',
-                                     'Check Balance of relay accounts', 1, IntervalSchedule.HOURS),
-             CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_erc_20_721_transfers_task',
-                                     'Process ERC20/721 transfers for Safes', 2, IntervalSchedule.MINUTES),
-             CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_pending_transactions',
-                                     'Check transactions not mined after a while', 10, IntervalSchedule.MINUTES),
-             CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_and_update_pending_transactions',
-                                     'Check and update transactions when mined', 1, IntervalSchedule.MINUTES),
-             ]
+        CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_balance_of_accounts_task',
+                                'Check Balance of relay accounts', 1, IntervalSchedule.HOURS),
+        CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_erc_20_721_transfers_task',
+                                'Process ERC20/721 transfers for Safes', 2, IntervalSchedule.MINUTES),
+        CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_pending_transactions',
+                                'Check transactions not mined after a while', 10, IntervalSchedule.MINUTES),
+        CeleryTaskConfiguration('safe_relay_service.relay.tasks.check_and_update_pending_transactions',
+                                'Check and update transactions when mined', 1, IntervalSchedule.MINUTES),
+    ]
 
     tasks_to_delete = [
         CeleryTaskConfiguration('safe_relay_service.relay.tasks.find_internal_txs_task',

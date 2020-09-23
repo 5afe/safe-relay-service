@@ -14,8 +14,6 @@ from gnosis.eth.constants import NULL_ADDRESS
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
-from safe_relay_service.relay.services.circles_service import CirclesService
-
 from .models import (SafeContract, SafeCreation, SafeCreation2, SafeFunding,
                      SafeMultisigTx)
 from .repositories.redis_repository import RedisRepository
@@ -394,6 +392,7 @@ def check_pending_transactions() -> int:
         pass
     return number_txs
 
+
 @app.shared_task(soft_time_limit=60)
 def check_and_update_pending_transactions() -> int:
     """
@@ -419,6 +418,7 @@ def check_and_update_pending_transactions() -> int:
     except LockError:
         pass
     return number_txs
+
 
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=6)
 def begin_circles_onboarding_task(self, safe_address: str) -> None:
