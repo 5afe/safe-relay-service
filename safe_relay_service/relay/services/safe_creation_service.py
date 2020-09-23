@@ -171,7 +171,7 @@ class SafeCreationService:
         current_block_number = self.ethereum_client.current_block_number
 
         logger.info('trying to create safe tx with safe=%s and proxy=%s',
-            self.safe_contract_address, self.proxy_factory.address)
+                    self.safe_contract_address, self.proxy_factory.address)
 
         safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
                                                       self.proxy_factory.address, salt_nonce, owners, threshold,

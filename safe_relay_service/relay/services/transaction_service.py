@@ -416,7 +416,7 @@ class TransactionService:
         # Make sure refund receiver is set to 0x0 so that the contract refunds the gas costs to tx.origin
         if not self._check_refund_receiver(refund_receiver):
             raise InvalidRefundReceiver(refund_receiver)
-        
+
         # Make sure we only pay gas fees with Circles Tokens
         if not self._is_valid_gas_token(gas_token):
             raise InvalidGasToken(gas_token)
