@@ -4,9 +4,9 @@ set -euo pipefail
 
 # DEBUG set in .env_docker_compose
 if [ ${DEBUG:-0} = 1 ]; then
-    log_level="debug"
+    log_level="DEBUG"
 else
-    log_level="info"
+    log_level="INFO"
 fi
 
 sleep 10  # Wait for migrations
