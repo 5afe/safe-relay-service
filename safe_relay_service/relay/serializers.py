@@ -140,6 +140,10 @@ class SafeCreation2ResponseSerializer(serializers.Serializer):
     gas_price_estimated = serializers.CharField()
 
 
+class SafeAddressPredictionResponseSerializer(serializers.Serializer):
+    safe = EthereumAddressField()
+
+
 class SafeFundingResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = SafeFunding
