@@ -5,6 +5,7 @@ from django.utils import timezone
 import factory.fuzzy
 from eth_account import Account
 from ethereum.utils import checksum_encode, mk_contract_address
+from factory.django import DjangoModelFactory
 from hexbytes import HexBytes
 from web3 import Web3
 
@@ -20,7 +21,7 @@ from ..models import (BannedSigner, EthereumBlock, EthereumEvent, EthereumTx,
 logger = getLogger(__name__)
 
 
-class SafeContractFactory(factory.DjangoModelFactory):
+class SafeContractFactory(DjangoModelFactory):
     class Meta:
         model = SafeContract
 
@@ -28,7 +29,7 @@ class SafeContractFactory(factory.DjangoModelFactory):
     master_copy = factory.LazyFunction(lambda: Account.create().address)
 
 
-class SafeCreationFactory(factory.DjangoModelFactory):
+class SafeCreationFactory(DjangoModelFactory):
     class Meta:
         model = SafeCreation
 
@@ -53,7 +54,7 @@ class SafeCreationFactory(factory.DjangoModelFactory):
     signed_tx = factory.Sequence(lambda n: HexBytes('%x' % (n + 5000)))
 
 
-class SafeCreation2Factory(factory.DjangoModelFactory):
+class SafeCreation2Factory(DjangoModelFactory):
     class Meta:
         model = SafeCreation2
 
@@ -76,14 +77,14 @@ class SafeCreation2Factory(factory.DjangoModelFactory):
     block_number = None
 
 
-class SafeFundingFactory(factory.DjangoModelFactory):
+class SafeFundingFactory(DjangoModelFactory):
     class Meta:
         model = SafeFunding
 
     safe = factory.SubFactory(SafeContractFactory)
 
 
-class EthereumBlockFactory(factory.DjangoModelFactory):
+class EthereumBlockFactory(DjangoModelFactory):
     class Meta:
         model = EthereumBlock
 
@@ -94,7 +95,7 @@ class EthereumBlockFactory(factory.DjangoModelFactory):
     block_hash = factory.Sequence(lambda n: Web3.keccak(text='block%d' % n))
 
 
-class EthereumTxFactory(factory.DjangoModelFactory):
+class EthereumTxFactory(DjangoModelFactory):
     class Meta:
         model = EthereumTx
 
@@ -112,7 +113,7 @@ class EthereumTxFactory(factory.DjangoModelFactory):
     value = factory.fuzzy.FuzzyInteger(0, 1000)
 
 
-class SafeMultisigTxFactory(factory.DjangoModelFactory):
+class SafeMultisigTxFactory(DjangoModelFactory):
     class Meta:
         model = SafeMultisigTx
 
@@ -131,14 +132,14 @@ class SafeMultisigTxFactory(factory.DjangoModelFactory):
     safe_tx_hash = factory.Sequence(lambda n: Web3.keccak(text='safe_tx_hash%d' % n))
 
 
-class SafeTxStatusFactory(factory.DjangoModelFactory):
+class SafeTxStatusFactory(DjangoModelFactory):
     class Meta:
         model = SafeTxStatus
 
     safe = factory.SubFactory(SafeContractFactory)
 
 
-class EthereumEventFactory(factory.DjangoModelFactory):
+class EthereumEventFactory(DjangoModelFactory):
     class Meta:
         model = EthereumEvent
 
@@ -158,7 +159,7 @@ class EthereumEventFactory(factory.DjangoModelFactory):
                                       )
 
 
-class BannedSignerFactory(factory.DjangoModelFactory):
+class BannedSignerFactory(DjangoModelFactory):
     class Meta:
         model = BannedSigner
 

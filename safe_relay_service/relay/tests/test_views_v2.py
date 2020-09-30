@@ -243,6 +243,18 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['refund_receiver'], expected_refund_receiver)
 
+        data = {
+            'to': to,
+            'value': initial_funding // 2,
+            'data': None,
+            'operation': 2
+        }
+        response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
+                                    data=data,
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Please use Gnosis Safe CreateLib', str(response.data['non_field_errors']))
+
     def test_safe_signal_v2(self):
         safe_address = Account.create().address
 
