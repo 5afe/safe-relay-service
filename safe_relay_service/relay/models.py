@@ -193,6 +193,16 @@ class SafeCreation2(TimeStampedModel):
         """
         return self.gas_estimated * self.gas_price_estimated
 
+    def gas_used(self) -> Optional[int]:
+        """
+        :return: Gas used by the transaction if it was executed
+        """
+        if self.tx_hash:
+            try:
+                return EthereumTx.objects.get(tx_hash=self.tx_hash).gas_used
+            except EthereumTx.DoesNotExist:
+                return None
+
 
 class SafeFundingQuerySet(models.QuerySet):
     def pending_just_to_deploy(self):

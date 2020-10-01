@@ -184,14 +184,18 @@ class SafeCreationAdmin(admin.ModelAdmin):
 @admin.register(SafeCreation2)
 class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
+    list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost')
     list_filter = ('safe__master_copy', 'threshold', 'payment_token')
     ordering = ['-created']
     raw_id_fields = ('safe',)
+    readonly_fields = ('gas_estimated', 'gas_used')
     search_fields = ['=safe__address', 'owners', '=tx_hash']
 
-    def ether_deploy_cost(self, obj: SafeCreation) -> float:
+    def ether_deploy_cost(self, obj: SafeCreation2) -> float:
         return Web3.fromWei(obj.wei_estimated_deploy_cost(), 'ether')
+
+    def gas_used(self, obj: SafeCreation2) -> Optional[int]:
+        return obj.gas_used()
 
 
 @admin.register(SafeFunding)
