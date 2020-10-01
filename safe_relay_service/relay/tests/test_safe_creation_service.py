@@ -106,6 +106,18 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
         self.assertEqual(safe_creation_estimate.payment_token, NULL_ADDRESS)
         estimated_payment = safe_creation_estimate.payment
 
+        # Compare with safe_creation
+        salt_nonce = 4815162342
+        owners = [Account.create().address for _ in range(number_owners)]
+        threshold = 1
+        safe_creation_2 = self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold,
+                                                                     payment_token=payment_token)
+        self.assertAlmostEqual(safe_creation_2.gas_estimated,
+                               safe_creation_estimate.gas, delta=1000)
+        # Compare with estimation for all tokens (position 0 is ether)
+        self.assertAlmostEqual(self.safe_creation_service.estimate_safe_creation_for_all_tokens(number_owners)[0].gas,
+                               safe_creation_estimate.gas, delta=1000)
+
         number_owners = 8
         payment_token = None
         safe_creation_estimate = self.safe_creation_service.estimate_safe_creation2(number_owners, payment_token)

@@ -170,9 +170,14 @@ class SafeCreationService:
         gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
         logger.debug('Building safe create2 tx with gas price %d', gas_price)
-        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
-                                                      self.proxy_factory.address, salt_nonce, owners, threshold,
-                                                      gas_price, payment_token,
+        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client,
+                                                      self.safe_contract_address,
+                                                      self.proxy_factory.address,
+                                                      salt_nonce,
+                                                      owners,
+                                                      threshold,
+                                                      gas_price,
+                                                      payment_token,
                                                       fallback_handler=self.default_callback_handler,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
@@ -297,8 +302,11 @@ class SafeCreationService:
         gas_price = self._get_configured_gas_price()
         fixed_creation_cost = self.safe_fixed_creation_cost
         return Safe.estimate_safe_creation_2(self.ethereum_client,
-                                             self.safe_contract_address, self.proxy_factory.address,
-                                             number_owners, gas_price, payment_token,
+                                             self.safe_contract_address,
+                                             self.proxy_factory.address,
+                                             number_owners,
+                                             gas_price,
+                                             payment_token,
                                              fallback_handler=self.default_callback_handler,
                                              payment_token_eth_value=payment_token_eth_value,
                                              fixed_creation_cost=fixed_creation_cost)
