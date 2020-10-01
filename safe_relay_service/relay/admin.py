@@ -181,11 +181,28 @@ class SafeCreationAdmin(admin.ModelAdmin):
         return Web3.fromWei(obj.wei_deploy_cost(), 'ether')
 
 
+class SafeCreation2DeployedListFilter(admin.SimpleListFilter):
+    title = 'Deployment transaction sent'
+    parameter_name = 'deployment'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('YES', 'Safes with deployment transaction sent'),
+            ('NO', 'Safes without deployment transaction sent'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'YES':
+            return queryset.exclude(tx_hash=None)
+        elif self.value() == 'NO':
+            return queryset.filter(tx_hash=None)
+
+
 @admin.register(SafeCreation2)
 class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
     list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost')
-    list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    list_filter = (SafeCreation2DeployedListFilter, 'threshold', 'safe__master_copy', 'payment_token')
     ordering = ['-created']
     raw_id_fields = ('safe',)
     readonly_fields = ('gas_estimated', 'gas_used')
