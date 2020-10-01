@@ -291,6 +291,7 @@ def check_create2_deployed_safes_task() -> None:
                         safe_creation2.block_number = block_number
                         safe_creation2.save(update_fields=['block_number'])
                         send_create_notification.delay(safe_address, safe_creation2.owners)
+                        TransactionServiceProvider().create_or_update_ethereum_tx(safe_creation2.tx_hash)
                 else:
                     # If safe was not included in any block after 30 minutes (mempool limit is 30 minutes)
                     # try to increase a little the gas price
