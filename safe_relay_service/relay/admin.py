@@ -266,8 +266,9 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
 
     def refund_benefit_eth(self, obj: SafeMultisigTx) -> Optional[float]:
-        if refund_benefit := obj.refund_benefit() is not None:
-            return Web3.fromWei(abs(refund_benefit), 'ether') * (-1 if refund_benefit < 0 else 1)
+        if (refund_benefit := obj.refund_benefit()) is not None:
+            refund_benefit_eth = Web3.fromWei(abs(refund_benefit), 'ether') * (-1 if refund_benefit < 0 else 1)
+            return '{:.5f}'.format(refund_benefit_eth)
 
     def status(self, obj: SafeMultisigTx) -> Optional[int]:
         if obj.ethereum_tx:
