@@ -256,7 +256,7 @@ class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'refund_benefit', 'to', 'value', 'status',
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'refund_benefit_eth', 'to', 'value', 'status',
                     'signers')
     list_filter = ('operation', SafeMultisigTxStatusListFilter)
     list_select_related = ('ethereum_tx',)
@@ -265,8 +265,9 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
     readonly_fields = ('status', 'signers')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
 
-    def refund_benefit(self, obj: SafeMultisigTx) -> Optional[int]:
-        return obj.refund_benefit()
+    def refund_benefit_eth(self, obj: SafeMultisigTx) -> Optional[float]:
+        if refund_benefit := obj.refund_benefit() is not None:
+            return Web3.fromWei(abs(refund_benefit), 'ether') * (-1 if refund_benefit < 0 else 1)
 
     def status(self, obj: SafeMultisigTx) -> Optional[int]:
         if obj.ethereum_tx:
