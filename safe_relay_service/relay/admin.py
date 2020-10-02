@@ -256,13 +256,17 @@ class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'status', 'signers')
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'refund_benefit', 'to', 'value', 'status',
+                    'signers')
     list_filter = ('operation', SafeMultisigTxStatusListFilter)
     list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
     readonly_fields = ('status', 'signers')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
+
+    def refund_benefit(self, obj: SafeMultisigTx) -> Optional[int]:
+        return obj.refund_benefit()
 
     def status(self, obj: SafeMultisigTx) -> Optional[int]:
         if obj.ethereum_tx:

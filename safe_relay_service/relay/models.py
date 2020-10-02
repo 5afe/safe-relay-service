@@ -15,7 +15,7 @@ from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
 from gnosis.eth import EthereumClient
-from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
+from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation, SafeTx
@@ -474,6 +474,17 @@ class SafeMultisigTx(TimeStampedModel):
                       self.refund_receiver,
                       signatures=self.signatures.tobytes() if self.signatures else b'',
                       safe_nonce=self.nonce)
+
+    def refund_benefit(self) -> Optional[int]:
+        """
+        :return: Difference of the calculated payment fee and the actual executed payment fee. It will be `None`
+        if transaction was not mined yet or if a `gas_token` was used (not easy to calculate the ether conversion
+        at that point)
+        """
+        if self.ethereum_tx_id and (not self.gas_token or self.gas_token == NULL_ADDRESS) and self.ethereum_tx.gas_used:
+            payment_fee = min(self.gas_price, self.ethereum_tx.gas_price)
+            executed_fee = self.ethereum_tx.gas_used * self.ethereum_tx.gas_price
+            return payment_fee - executed_fee
 
     def signers(self) -> List[str]:
         return self.get_safe_tx().signers
