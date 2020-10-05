@@ -178,6 +178,7 @@ class SafeCreationService:
                                                       threshold,
                                                       gas_price,
                                                       payment_token,
+                                                      payment_receiver=self.funder_account.address,
                                                       fallback_handler=self.default_callback_handler,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
@@ -307,6 +308,7 @@ class SafeCreationService:
                                              number_owners,
                                              gas_price,
                                              payment_token,
+                                             payment_receiver=self.funder_account.address,
                                              fallback_handler=self.default_callback_handler,
                                              payment_token_eth_value=payment_token_eth_value,
                                              fixed_creation_cost=fixed_creation_cost)

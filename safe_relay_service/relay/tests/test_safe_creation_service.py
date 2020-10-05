@@ -40,6 +40,7 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
         safe_address = safe_creation_2.safe_id
         self.assertFalse(self.ethereum_client.is_contract(safe_address))
         self.assertIsNone(safe_creation_2.tx_hash)
+        self.assertEqual(safe_creation_2.payment_receiver, self.safe_creation_service.funder_account.address)
         with self.assertRaisesMessage(NotEnoughFundingForCreation, str(safe_creation_2.payment)):
             self.safe_creation_service.deploy_create2_safe_tx(safe_address)
         self.send_ether(safe_address, safe_creation_2.payment)
