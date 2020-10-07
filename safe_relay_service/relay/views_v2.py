@@ -167,3 +167,26 @@ class SafeSignalView(APIView):
             # Manually start custom Circles onboarding task
             begin_circles_onboarding_task.delay(address)
             return Response(status=status.HTTP_202_ACCEPTED)
+
+class OrganizationSignalView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeFunding2ResponseSerializer
+
+    @swagger_auto_schema(responses={202: 'Task was queued',
+                                    404: 'Safe not found',
+                                    422: 'Safe address checksum not valid'})
+    def put(self, request, address, format=None):
+        """
+        Force check of a safe balance to start the safe creation
+        """
+        if not Web3.isChecksumAddress(address):
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        else:
+            try:
+                SafeCreation2.objects.get(safe=address)
+            except SafeCreation2.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            # Manually start custom Circles onboarding task
+            circles_onboarding_safe_task.delay(address)
+            return Response(status=status.HTTP_202_ACCEPTED)
