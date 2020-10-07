@@ -22,7 +22,8 @@ from .serializers import (SafeCreation2ResponseSerializer,
                           SafeFunding2ResponseSerializer,
                           SafeMultisigEstimateTxResponseV2Serializer)
 from .services.safe_creation_service import SafeCreationV1_0_0ServiceProvider
-from .tasks import begin_circles_onboarding_task
+from .tasks import (begin_circles_onboarding_task,
+                    circles_onboarding_organization_task)
 
 logger = getLogger(__name__)
 
