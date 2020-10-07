@@ -31,5 +31,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Deploying proxy factory using deployer account, '
                                                  'proxy factory %s not found' % proxy_factory_address))
             proxy_factory_address = ProxyFactory.deploy_proxy_factory_contract(ethereum_client,
-                                                              deployer_account=deployer_account).contract_address
+                                                                               deployer_account=deployer_account).contract_address
             self.stdout.write(self.style.SUCCESS('Proxy factory has been deployed on %s' % proxy_factory_address))

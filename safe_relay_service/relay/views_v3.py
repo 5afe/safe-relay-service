@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from gnosis.eth.constants import NULL_ADDRESS
 
 from .serializers import (SafeCreation2ResponseSerializer,
+                          SafeAddressPredictionResponseSerializer,
                           SafeCreation2Serializer,
                           SafeCreationEstimateResponseSerializer,
                           SafeCreationEstimateV2Serializer)
@@ -36,6 +37,34 @@ class SafeCreationEstimateView(CreateAPIView):
             safe_creation_estimate_response_data = SafeCreationEstimateResponseSerializer(safe_creation_estimates,
                                                                                           many=True)
             return Response(status=status.HTTP_200_OK, data=safe_creation_estimate_response_data.data)
+        else:
+            return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
+
+
+class SafeAddressPredictionView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = SafeCreation2Serializer
+
+    @swagger_auto_schema(responses={201: SafeAddressPredictionResponseSerializer(),
+                                    400: 'Invalid data',
+                                    422: 'Cannot process data'})
+    def post(self, request, *args, **kwargs):
+        """
+        Predicts the safe address
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            salt_nonce, owners, threshold, payment_token = (serializer.data['salt_nonce'], serializer.data['owners'],
+                                                            serializer.data['threshold'],
+                                                            serializer.data['payment_token'])
+
+            safe_creation_service = SafeCreationServiceProvider()
+            safe_prediction = safe_creation_service.predict_address(salt_nonce, owners, threshold, payment_token)
+            safe_prediction_response_data = SafeAddressPredictionResponseSerializer(data={
+                'safe': safe_prediction,
+            })
+            safe_prediction_response_data.is_valid(raise_exception=True)
+            return Response(status=status.HTTP_200_OK, data=safe_prediction_response_data.data)
         else:
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY, data=serializer.errors)
 
