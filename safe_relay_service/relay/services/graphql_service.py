@@ -40,7 +40,7 @@ class GraphQLService:
         try:
             # Check if we have enough incoming trust connections
             response = self.endpoint(query)
-            safes = response['data']['users']['safes']
+            safes = response['data']['users'][0]['safes']
             has_deployed = False
             for safe in safes:
                 if safe.deployed:
