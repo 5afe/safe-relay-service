@@ -183,11 +183,12 @@ class OrganizationSignalView(APIView):
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
+            safe_creation = None
             try:
-                SafeCreation2.objects.get(safe=address)
+                safe_creation = SafeCreation2.objects.get(safe=address)
             except SafeCreation2.DoesNotExist:
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
-            # Manually start custom Circles onboarding task
-            circles_onboarding_safe_task.delay(address)
+            # Manually start custom Circles organization onboarding task
+            circles_onboarding_organization_task.delay(address, safe_creation.owners[0])
             return Response(status=status.HTTP_202_ACCEPTED)
