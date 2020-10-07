@@ -29,3 +29,25 @@ class GraphQLService:
         except BaseException as error:
             logger.error('Error "{}" after checking trust connections for {}'.format(str(error), safe_address))
             return False
+
+    def check_trust_connections_by_user(self, user_address: str):
+        query = ('{'
+                 '  users(where: {id: "' + user_address.lower() + '" }) {'
+                 '    id safes { id deployed }'
+                 '  }'
+                 '}')
+
+        try:
+            # Check if we have enough incoming trust connections
+            response = self.endpoint(query)
+            safes = response['data']['users']['safes']
+            has_deployed = False
+            for safe in safes:
+                if safe.deployed
+                   has_deployed = True
+                   break
+            logger.info('Found user {} has a deployed safe'.format(user_address))
+            return has_deployed
+        except BaseException as error:
+            logger.error('Error "{}" after checking trust connections for {}'.format(str(error), safe_address))
+            return False
