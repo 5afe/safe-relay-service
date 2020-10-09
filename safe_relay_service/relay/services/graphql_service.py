@@ -40,7 +40,10 @@ class GraphQLService:
         try:
             # Check if we have enough incoming trust connections
             response = self.endpoint(query)
-            safes = response['data']['users'][0]['safes']
+            users = response['data']['users']
+            if (len(users) == 0):
+                return False
+            safes = users[0]['safes']
             has_deployed = False
             for safe in safes:
                 if safe['deployed']:
@@ -49,5 +52,5 @@ class GraphQLService:
             logger.info('Found user {} has a deployed safe'.format(user_address))
             return has_deployed
         except BaseException as error:
-            logger.error('Error "{}" after checking trust connections for {}'.format(str(error), safe_address))
+            logger.error('Error "{}" after checking trust connections for {}'.format(str(error), user_address))
             return False
