@@ -486,7 +486,7 @@ def circles_onboarding_safe_task(safe_address: str) -> None:
         pass
 
 @app.shared_task(soft_time_limit=LOCK_TIMEOUT, max_retries=3)
-def circles_onboarding_organization_task(safe_address: str, owner_address: str) -> None:
+def circles_onboarding_organization_task(self, safe_address: str, owner_address: str) -> None:
     """
     Check if create2 Safe is being created by a trusted user
     :param safe_address: Address of the safe to-be-created
