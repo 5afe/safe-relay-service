@@ -485,8 +485,8 @@ def circles_onboarding_safe_task(safe_address: str) -> None:
     except LockError:
         pass
 
-@app.shared_task(soft_time_limit=LOCK_TIMEOUT, max_retries=3)
-def circles_onboarding_organization_task(safe_address: str, owner_address: str) -> None:
+@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+def circles_onboarding_organization_task(self, safe_address: str, owner_address: str) -> None:
     """
     Check if create2 Safe is being created by a trusted user
     :param safe_address: Address of the safe to-be-created
@@ -515,6 +515,7 @@ def circles_onboarding_organization_task(safe_address: str, owner_address: str) 
                     FundingServiceProvider().send_eth_to(safe_address,
                                                          safe_deploy_cost,
                                                          gas=24000)
+                    raise self.retry(countdown=30)
                 else:
                     logger.info('Owner {} does not have a deployed safe'.format(owner_address))
     except LockError:
