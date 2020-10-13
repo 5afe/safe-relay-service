@@ -23,7 +23,7 @@ from .serializers import (SafeCreation2ResponseSerializer,
                           SafeMultisigEstimateTxResponseV2Serializer)
 from .services.safe_creation_service import SafeCreationV1_0_0ServiceProvider
 from .tasks import (begin_circles_onboarding_task,
-                    circles_onboarding_organization_task)
+                    begin_circles_onboarding_organization_task)
 
 logger = getLogger(__name__)
 
@@ -170,6 +170,7 @@ class SafeSignalView(APIView):
             begin_circles_onboarding_task.delay(address)
             return Response(status=status.HTTP_202_ACCEPTED)
 
+
 class OrganizationSignalView(APIView):
     permission_classes = (AllowAny,)
     serializer_class = SafeFunding2ResponseSerializer
@@ -179,7 +180,8 @@ class OrganizationSignalView(APIView):
                                     422: 'Safe address checksum not valid'})
     def put(self, request, address, format=None):
         """
-        Force check of a safe balance to start the safe creation
+        Force check of a safe balance to start the safe creation for a Circles
+        organization
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -191,5 +193,5 @@ class OrganizationSignalView(APIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
             # Manually start custom Circles organization onboarding task
-            circles_onboarding_organization_task.delay(address, safe_creation.owners[0])
+            begin_circles_onboarding_organization_task.delay(address, safe_creation.owners[0])
             return Response(status=status.HTTP_202_ACCEPTED)

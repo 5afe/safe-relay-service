@@ -301,8 +301,30 @@ class TransactionService:
         """
         value = 0
         operation = 0
-        # Tx data from Circles Token contract signup method
+        # Tx data from Circles Hub contract signup method
         data = ("0xb7bc0f73")
+        transaction_estimation = self.estimate_tx(
+            safe_address,
+            settings.CIRCLES_HUB_ADDRESS,
+            value,
+            data,
+            operation,
+            gas_token
+        )
+        return int((
+            (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 500
+        ) * transaction_estimation.gas_price)
+
+    def estimate_circles_organization_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+        """
+        Estimates gas costs of Circles organization deployment method
+        :param safe_address:
+        :param gas_token:
+        """
+        value = 0
+        operation = 0
+        # Tx data from Circles Hub contract organizationSignup method
+        data = ("0x3fbd653c")
         transaction_estimation = self.estimate_tx(
             safe_address,
             settings.CIRCLES_HUB_ADDRESS,
