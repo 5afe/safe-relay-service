@@ -293,16 +293,15 @@ class TransactionService:
         return TransactionEstimationWithNonceAndGasTokens(last_used_nonce, safe_tx_gas, safe_tx_operational_gas,
                                                           gas_token_estimations)
 
-    def estimate_circles_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+    def estimate_circles_hub_method(self, data, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
         """
-        Estimates gas costs of Circles token deployment method
+        Estimates gas costs of Hub contract method
+        :param data:
         :param safe_address:
         :param gas_token:
         """
         value = 0
         operation = 0
-        # Tx data from Circles Hub contract signup method
-        data = ("0xb7bc0f73")
         transaction_estimation = self.estimate_tx(
             safe_address,
             settings.CIRCLES_HUB_ADDRESS,
@@ -315,27 +314,35 @@ class TransactionService:
             (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 500
         ) * transaction_estimation.gas_price)
 
+    def estimate_circles_trust_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+        """
+        Estimates gas costs of Circles trust method
+        :param safe_address:
+        :param gas_token:
+        """
+        # Tx data from Circles Hub contract `trust` method (with trust limit 100)
+        data = ("0x9951d62f" + ('0' * 24) + safe_address + ('0' * 62) + "64")
+        return self.estimate_circles_hub_method(data, safe_address, gas_token)
+
+    def estimate_circles_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+        """
+        Estimates gas costs of Circles token deployment method
+        :param safe_address:
+        :param gas_token:
+        """
+        # Tx data from Circles Hub contract `signup` method
+        data = ("0xb7bc0f73")
+        return self.estimate_circles_hub_method(data, safe_address, gas_token)
+
     def estimate_circles_organization_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
         """
         Estimates gas costs of Circles organization deployment method
         :param safe_address:
         :param gas_token:
         """
-        value = 0
-        operation = 0
         # Tx data from Circles Hub contract organizationSignup method
         data = ("0x3fbd653c")
-        transaction_estimation = self.estimate_tx(
-            safe_address,
-            settings.CIRCLES_HUB_ADDRESS,
-            value,
-            data,
-            operation,
-            gas_token
-        )
-        return int((
-            (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 500
-        ) * transaction_estimation.gas_price)
+        return self.estimate_circles_hub_method(data, safe_address, gas_token)
 
     def create_multisig_tx(self,
                            safe_address: str,
