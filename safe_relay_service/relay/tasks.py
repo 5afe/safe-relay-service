@@ -522,7 +522,7 @@ def circles_onboarding_token_task(safe_address: str) -> None:
             logger.info('Fund Token {}'.format(safe_address))
             FundingServiceProvider().send_eth_to(
                 safe_address,
-                payment,
+                payment - safe_balance,
                 gas=24000,
                 retry=True
             )
@@ -623,7 +623,11 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
 
             # Do nothing if the signup is already funded
             transaction_service = TransactionServiceProvider()
-            payment = transaction_service.estimate_circles_organization_signup_tx(safe_address)
+
+            # Sum `organizationSignup` and three `trust` transactions costs as
+            # the organization needs to trust at least one user in the
+            # beginning to receive more funds. We make it three just to be safe.
+            payment = transaction_service.estimate_circles_organization_signup_tx(safe_address) + (transaction_service.estimate_circles_trust_tx(safe_address) * 3)
             safe_balance = ethereum_client.get_balance(safe_address)
             logger.info('Found %d balance for organization deployment of safe=%s. Required=%d',
                         safe_balance, safe_address, payment)
@@ -635,7 +639,7 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
             logger.info('Fund Organization {}'.format(safe_address))
             FundingServiceProvider().send_eth_to(
                 safe_address,
-                payment,
+                payment - safe_balance,
                 gas=24000,
                 retry=True
             )
