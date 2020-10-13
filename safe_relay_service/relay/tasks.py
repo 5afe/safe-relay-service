@@ -608,6 +608,10 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
 
     assert check_checksum(safe_address)
 
+    # Additional funds for organization deployments (it should at least cover
+    # one `trust` method call) next to the `organizationSignup` method
+    ADDITIONAL_START_FUNDS = 109808000000000
+
     try:
         redis = RedisRepository().redis
         lock_name = f'locks:circles_onboarding_organization_signup_task:{safe_address}'
@@ -624,10 +628,10 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
             # Do nothing if the signup is already funded
             transaction_service = TransactionServiceProvider()
 
-            # Sum `organizationSignup` and three `trust` transactions costs as
-            # the organization needs to trust at least one user in the
-            # beginning to receive more funds. We make it three just to be safe.
-            payment = transaction_service.estimate_circles_organization_signup_tx(safe_address) + (transaction_service.estimate_circles_trust_tx(safe_address) * 3)
+            # Sum `organizationSignup` and additional `trust` transactions
+            # costs as the organization needs to trust at least one user in the
+            # beginning to receive more funds
+            payment = transaction_service.estimate_circles_organization_signup_tx(safe_address) + ADDITIONAL_START_FUNDS
             safe_balance = ethereum_client.get_balance(safe_address)
             logger.info('Found %d balance for organization deployment of safe=%s. Required=%d',
                         safe_balance, safe_address, payment)
