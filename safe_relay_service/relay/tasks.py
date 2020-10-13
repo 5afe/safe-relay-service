@@ -485,6 +485,7 @@ def circles_onboarding_safe_task(safe_address: str) -> None:
     except LockError:
         pass
 
+
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
 def circles_onboarding_organization_task(self, safe_address: str, owner_address: str) -> None:
     """
@@ -520,7 +521,6 @@ def circles_onboarding_organization_task(self, safe_address: str, owner_address:
                     logger.info('Owner {} does not have a deployed safe'.format(owner_address))
     except LockError:
         pass
-
 
 
 @app.shared_task(soft_time_limit=LOCK_TIMEOUT)
