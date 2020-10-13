@@ -610,7 +610,7 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
 
     # Additional funds for organization deployments (it should at least cover
     # one `trust` method call) next to the `organizationSignup` method
-    ADDITIONAL_START_FUNDS = 109808000000000
+    ADDITIONAL_START_FUNDS = 100000000000000
 
     try:
         redis = RedisRepository().redis

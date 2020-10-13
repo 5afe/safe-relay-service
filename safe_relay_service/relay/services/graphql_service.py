@@ -47,8 +47,8 @@ class GraphQLService:
             has_deployed = False
             for safe in safes:
                 if safe['deployed']:
-                   has_deployed = True
-                   break
+                    has_deployed = True
+                    break
             logger.info('Found user {} has a deployed safe'.format(user_address))
             return has_deployed
         except BaseException as error:
