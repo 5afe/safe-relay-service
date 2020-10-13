@@ -62,3 +62,17 @@ class CirclesService:
         }
         call_result = self.ethereum_client.w3.eth.call(call_args)
         return HexBytes(call_result).hex() != NULL_ADDRESS + MAPPING_NULL_PREFIX
+
+    def is_organization_deployed(self, safe_address: str) -> bool:
+        """
+        Checks if Safe address has a deployed Organization connected to it
+        :param safe_address:
+        :return: true if Circles Organization exists otherwise false
+        """
+        call_args = {
+            'to': settings.CIRCLES_HUB_ADDRESS,
+            # Calling organization mapping of Hub contract;
+            'data': '0x5a1f7406' + self.pack_address(safe_address)
+        }
+        call_result = self.ethereum_client.w3.eth.call(call_args)
+        return HexBytes(call_result).hex() != NULL_ADDRESS + MAPPING_NULL_PREFIX
