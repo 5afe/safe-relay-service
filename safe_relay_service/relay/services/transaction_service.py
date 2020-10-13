@@ -293,7 +293,7 @@ class TransactionService:
         return TransactionEstimationWithNonceAndGasTokens(last_used_nonce, safe_tx_gas, safe_tx_operational_gas,
                                                           gas_token_estimations)
 
-    def estimate_circles_hub_method(self, data, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
+    def estimate_circles_hub_method(self, data: bytes, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
         """
         Estimates gas costs of Hub contract method
         :param data:
@@ -321,7 +321,7 @@ class TransactionService:
         :param gas_token:
         """
         # Tx data from Circles Hub contract `trust` method (with trust limit 100)
-        data = ("0x9951d62f" + ('0' * 24) + safe_address + ('0' * 62) + "64")
+        data = ("0x9951d62f" + ('0' * 24) + safe_address[2:] + ('0' * 62) + "64")
         return self.estimate_circles_hub_method(data, safe_address, gas_token)
 
     def estimate_circles_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
