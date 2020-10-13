@@ -82,7 +82,7 @@ curl 'http://localhost:8000/api/v1/about/'
 Services come with a basic administration web ui (provided by Django). A user must be created first to
 get access:
 ```bash
-docker exec -it safe-transaction-service_web_1 bash
+docker exec -it safe-relay-service_worker_1 bash
 python manage.py createsuperuser
 ```
 
