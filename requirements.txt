@@ -1,4 +1,4 @@
-django==3.0.10
+django==3.1.2
 cachetools==4.1.1
 celery==4.4.7
 django-authtools==1.7.0
@@ -15,7 +15,7 @@ django-timezone-field==4.0
 docutils==0.16
 drf-yasg[validation]==1.17.1
 ethereum==2.3.2
-gnosis-py==2.6.4
+gnosis-py==2.6.6
 gunicorn[gevent]==20.0.4
 hexbytes==0.2.1
 lxml==4.5.2
@@ -24,4 +24,4 @@ packaging==20.4
 psycopg2-binary==2.8.6
 redis==3.5.3
 requests==2.24.0
-web3==5.12.1
+web3==5.12.2
