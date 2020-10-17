@@ -477,6 +477,7 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
                             'check trust connections {}'.format(safe_address))
                 # If we have enough trust connections, fund safe
                 if GraphQLService().check_trust_connections(safe_address):
+                    ethereum_client = EthereumClientProvider()
                     logger.info('Fund Safe deployment for {}'.format(safe_address))
                     safe_creation = SafeCreation2.objects.get(safe=safe_address)
                     # Estimate costs of safe creation
