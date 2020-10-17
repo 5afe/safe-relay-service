@@ -447,16 +447,14 @@ def begin_circles_onboarding_task(self, safe_address: str) -> None:
             if not safe_creation2.tx_hash:
                 logger.info('Safe does not exist yet, start deploying it {}'.format(safe_address))
                 circles_onboarding_safe_task.delay(safe_address)
-                # Retry later to check for enough funding and successful deployment
-                raise self.retry(countdown=30)
             else:
                 logger.info('Safe exists, we are done with safe {}'.format(safe_address))
     except LockError:
         pass
 
 
-@app.shared_task(soft_time_limit=LOCK_TIMEOUT, max_retries=3)
-def circles_onboarding_safe_task(safe_address: str) -> None:
+@app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=3)
+def circles_onboarding_safe_task(self, safe_address: str) -> None:
     """
     Check if create2 Safe has enough incoming trust connections to fund and
     deploy it
@@ -499,6 +497,8 @@ def circles_onboarding_safe_task(safe_address: str) -> None:
                     FundingServiceProvider().send_eth_to(safe_address,
                                                          payment,
                                                          gas=24000)
+                    # Retry later to check for enough funding and successful deployment
+                    raise self.retry(countdown=30)
                 else:
                     logger.info('Not enough trust connections for funding deployment {}'.format(safe_address))
     except LockError:
