@@ -477,14 +477,16 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
                             'check trust connections {}'.format(safe_address))
                 # If we have enough trust connections, fund safe
                 if GraphQLService().check_trust_connections(safe_address):
-                    ethereum_client = EthereumClientProvider()
                     logger.info('Fund Safe deployment for {}'.format(safe_address))
+                    ethereum_client = EthereumClientProvider()
                     safe_creation = SafeCreation2.objects.get(safe=safe_address)
                     # Estimate costs of safe creation
                     safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
+                    logger.info('Estimating %d for safe creation', safe_deploy_cost)
                     # Estimate costs of token creation
                     transaction_service = TransactionServiceProvider()
                     token_deploy_cost = transaction_service.estimate_circles_signup_tx(safe_address)
+                    logger.info('Estimating %d for token deployment', token_deploy_cost)
                     # Find total onboarding costs
                     payment = safe_deploy_cost + token_deploy_cost
                     # Get current safe balance
