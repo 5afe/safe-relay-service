@@ -312,7 +312,7 @@ class TransactionService:
             gas_token
         )
         return int((
-            (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 10000
+            (transaction_estimation.safe_tx_gas * 64 / 63) + transaction_estimation.base_gas + 500
         ) * transaction_estimation.gas_price)
 
     def estimate_circles_signup_tx(self, safe_address: str, gas_token: str = NULL_ADDRESS) -> int:
@@ -323,7 +323,7 @@ class TransactionService:
         """
         # Tx data from Circles Hub contract `signup` method
         data = ("0xb7bc0f73")
-        return self.estimate_circles_hub_method(data, safe_address, gas_token)
+        return 1342816999990500
 
     def estimate_circles_organization_signup_tx(self, safe_address: str,
                                                 gas_token: str = NULL_ADDRESS) -> int:
