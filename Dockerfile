@@ -50,6 +50,6 @@ EXPOSE 8888
 RUN chmod +x *.sh
 
 # Replace settings with ours
-COPY settings ./config/settings
+COPY ./config/settings ./config/settings
 
 ENTRYPOINT ["./wait-for-db.sh", "/tini", "--"]
