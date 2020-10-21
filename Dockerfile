@@ -18,6 +18,9 @@ RUN apt-get update \
 
 WORKDIR safe-relay-service
 
+# Install Safe relay service
+COPY . .
+
 RUN set -ex \
       && buildDeps=" \
       build-essential \
@@ -37,9 +40,6 @@ RUN set -ex \
 RUN pip check
 
 EXPOSE 8888
-
-# Install Safe relay service
-COPY . .
 
 # Copy all run scripts
 # COPY run.sh .
