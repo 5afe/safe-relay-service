@@ -34,7 +34,7 @@ jobs:
           echo ::set-output name=tag::${GITHUB_REF/refs\/tags\//}
         id: parse_ref
       - name: Tag and push
-        env: |
+        env:
           IMAGE_VERSION: ${{ steps.parse_ref.outputs.tag }}
         run: |
           docker tag relayer:${IMAGE_VERSION} registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION}
