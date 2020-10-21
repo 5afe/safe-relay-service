@@ -23,20 +23,21 @@ jobs:
           doctl auth init -t ${CIRCLES_CI_DO_TOKEN}
       - name: Checkout
         uses: actions/checkout@main
-      - name: Docker build
-        run: |
-          docker build .
-      - name: Registry login
-        run: |
-          doctl registry login
       - name: Get ref
         run: |
           echo ::set-output name=tag::${GITHUB_REF/refs\/tags\//}
         id: parse_ref
-      - name: Tag and push
+      - name: Docker build and tag
         env:
           IMAGE_VERSION: ${{ steps.parse_ref.outputs.tag }}
         run: |
-          docker tag relayer:${IMAGE_VERSION} registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION}
+          docker build -t registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION} .
+      - name: Registry login
+        run: |
+          doctl registry login
+      - name: Docker push
+        env:
+          IMAGE_VERSION: ${{ steps.parse_ref.outputs.tag }}
+        run: |
           docker push registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION}
 
