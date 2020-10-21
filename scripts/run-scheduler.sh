@@ -9,6 +9,8 @@ else
     log_level="info"
 fi
 
+# Wait for db migrations
 sleep 10
-echo "==> $(date +%H:%M:%S) ==> Running Celery beat <=="
+
+echo "==> Running Celery beat <=="
 exec celery beat -A safe_relay_service.taskapp -S django_celery_beat.schedulers:DatabaseScheduler --loglevel $log_level
