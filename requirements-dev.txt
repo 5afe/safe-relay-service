@@ -1,5 +1,0 @@
--r requirements.txt
--r requirements-test.txt
-ipython
-isort
-ipdb
