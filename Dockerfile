@@ -1,7 +1,5 @@
 FROM python:3.8-slim
 
-ARG GIT_COMMIT
-
 ENV PYTHONUNBUFFERED 1
 ENV TINI_VERSION v0.19.0
 
@@ -21,6 +19,7 @@ WORKDIR safe-relay-service
 # Install Safe relay service
 COPY . .
 
+# Install Safe relay service dependencies
 RUN set -ex \
       && buildDeps=" \
       build-essential \
@@ -39,17 +38,8 @@ RUN set -ex \
 
 RUN pip check
 
+RUN chmod +x scripts/*.sh
+
 EXPOSE 8888
 
-# Copy all run scripts
-# COPY run.sh .
-# COPY run-worker.sh .
-# COPY run-scheduler.sh .
-# COPY wait-for-db.sh .
-
-RUN chmod +x *.sh
-
-# Replace settings with ours
-COPY ./config/settings ./config/settings
-
-ENTRYPOINT ["./wait-for-db.sh", "/tini", "--"]
+ENTRYPOINT ["./scripts/wait-for-db.sh", "/tini", "--"]
