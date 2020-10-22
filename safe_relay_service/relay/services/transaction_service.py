@@ -333,7 +333,7 @@ class TransactionService:
         except SafeServiceException as exc:
             raise TransactionServiceException(str(exc)) from exc
 
-        ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
+        ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
 
         try:
             return SafeMultisigTx.objects.create(
@@ -479,7 +479,7 @@ class TransactionService:
             tx_gas = safe_tx.recommended_gas()
             tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
-            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
+            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
             multisig_tx.full_clean(validate_unique=False)
             multisig_tx.save(update_fields=['ethereum_tx'])
             return multisig_tx.ethereum_tx
@@ -508,8 +508,10 @@ class TransactionService:
             if tx:
                 if tx_receipt:
                     ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
-                    return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
-                return EthereumTx.objects.create_from_tx(tx, tx_hash)
+                    return EthereumTx.objects.create_from_tx_dict(tx, tx_hash,
+                                                                  tx_receipt=tx_receipt.gasUsed,
+                                                                  ethereum_block=ethereum_block)
+                return EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
 
     # TODO Refactor and test
     def get_or_create_ethereum_block(self, block_number: int):

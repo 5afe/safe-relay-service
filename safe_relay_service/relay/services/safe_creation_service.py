@@ -241,7 +241,7 @@ class SafeCreationService:
                 gas=safe_creation2.gas_estimated + 50000,  # Just in case
                 gas_price=safe_creation2.gas_price_estimated,
                 nonce=tx_nonce)
-            EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+            EthereumTx.objects.create_from_tx_dict(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
             safe_creation2.save(update_fields=['tx_hash'])
             logger.info('Send transaction to deploy Safe=%s with tx-hash=%s',
@@ -284,7 +284,7 @@ class SafeCreationService:
             gas=safe_creation2.gas_estimated + 50000,  # Just in case
             gas_price=gas_price,
             nonce=ethereum_tx.nonce)  # Replace old transaction
-        EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+        EthereumTx.objects.create_from_tx_dict(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
         safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
         safe_creation2.save(update_fields=['tx_hash'])
         logger.info('Send again transaction to deploy Safe=%s with tx-hash=%s',

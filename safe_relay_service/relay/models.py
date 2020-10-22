@@ -290,16 +290,20 @@ class EthereumBlock(models.Model):
 
 
 class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
-                       ethereum_block: Optional[EthereumBlock] = None):
+    def create_from_tx_dict(self, tx: Dict[str, Any], tx_hash: Union[bytes, str],
+                            tx_receipt: Optional[Dict[str, Any]] = None,
+                            ethereum_block: Optional[EthereumBlock] = None) -> 'EthereumTx':
+        data = HexBytes(tx.get('data') or tx.get('input'))
         return super().create(
             block=ethereum_block,
             tx_hash=tx_hash,
             _from=tx['from'],
             gas=tx['gas'],
             gas_price=tx['gasPrice'],
-            gas_used=gas_used,
-            data=HexBytes(tx.get('data') or tx.get('input')),
+            gas_used=tx_receipt and tx_receipt['gasUsed'],
+            status=tx_receipt and tx_receipt.get('status'),
+            transaction_index=tx_receipt and tx_receipt['transactionIndex'],
+            data=data if data else None,
             nonce=tx['nonce'],
             to=tx.get('to'),
             value=tx['value'],
