@@ -526,7 +526,7 @@ class TransactionService:
         :param multisig_tx:
         :return: If a new transaction is sent is returned, `None` if not
         """
-        if multisig_tx.ethereum_tx.gas_price < gas_price:
+        if multisig_tx.ethereum_tx.gas_price <= gas_price:
             assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
             logger.info(
                 '%s tx gas price is %d < %d. Resending with new gas price %d',
