@@ -230,9 +230,9 @@ class SafeCreationService:
         self._check_safe_balance(safe_creation2)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
+        proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
-            proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
             ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(
                 self.funder_account,
                 safe_creation2.master_copy,

@@ -12,7 +12,7 @@ from web3.exceptions import BadFunctionCallOutput
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe import ProxyFactory, Safe
-from gnosis.safe.exceptions import SafeServiceException
+from gnosis.safe.exceptions import InvalidMultisigTx, SafeServiceException
 from gnosis.safe.signatures import signatures_to_bytes
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
@@ -447,12 +447,12 @@ class TransactionService:
         if banned_signers := BannedSigner.objects.filter(address__in=signers):
             raise SignerIsBanned(f'Signers {list(banned_signers)} are banned')
 
+        logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
+        # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
+        tx_gas = safe_tx.recommended_gas()
+        safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
-            logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
-            # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
-            tx_gas = safe_tx.recommended_gas()
-            safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
             logger.info('Safe=%s safe-nonce=%d `call()` was successful', safe_address, safe_nonce)
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
@@ -465,8 +465,8 @@ class TransactionService:
         Resend transaction with `gas_price` if it's higher or equal than transaction gas price. Setting equal
         `gas_price` is allowed as sometimes a transaction can be out of the mempool but `gas_price` does not need
         to be increased when resending
-        :param gas_price:
-        :param multisig_tx:
+        :param gas_price: New gas price for the transaction. Must be >= old gas price
+        :param multisig_tx: Multisig Tx not mined to be sent again
         :return: If a new transaction is sent is returned, `None` if not
         """
         if multisig_tx.ethereum_tx.gas_price <= gas_price:
@@ -477,8 +477,24 @@ class TransactionService:
             )
             safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
             tx_gas = safe_tx.recommended_gas()
-            tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
-                                          tx_nonce=multisig_tx.ethereum_tx.nonce)
+            try:
+                tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                              tx_nonce=multisig_tx.ethereum_tx.nonce)
+            except ValueError:
+                # ValueError({'code': -32010, 'message': 'Transaction nonce is too low. Try incrementing the nonce.'})
+                try:
+                    # Check that transaction is still valid
+                    safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
+                except InvalidMultisigTx:
+                    # TODO First do it manually and check that everything is working as expected
+                    # multisig_tx.delete()  # Transaction is not valid anymore
+                    return None
+                # Send transaction again with a new nonce
+                with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
+                                       lock_timeout=60 * 2) as tx_nonce:
+                    tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                                  tx_nonce=tx_nonce)
+
             multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
             multisig_tx.full_clean(validate_unique=False)
             multisig_tx.save(update_fields=['ethereum_tx'])
