@@ -1,4 +1,4 @@
-name: Relayer Tag Build
+name: Build docker and upload to registry
 
 on:
   push:
