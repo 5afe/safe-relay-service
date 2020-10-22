@@ -469,41 +469,52 @@ class TransactionService:
         :param multisig_tx: Multisig Tx not mined to be sent again
         :return: If a new transaction is sent is returned, `None` if not
         """
-        if multisig_tx.ethereum_tx.gas_price <= gas_price:
-            assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
-            logger.info(
-                '%s tx gas price was %d. Resending with new gas price %d',
-                multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
-            )
-            safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
-            tx_gas = safe_tx.recommended_gas()
-            try:
-                tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
-                                              tx_nonce=multisig_tx.ethereum_tx.nonce)
-            except ValueError:
-                # ValueError({'code': -32010, 'message': 'Transaction nonce is too low. Try incrementing the nonce.'})
-                try:
-                    # Check that transaction is still valid
-                    safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
-                except InvalidMultisigTx:
-                    # TODO First do it manually and check that everything is working as expected
-                    # multisig_tx.delete()  # Transaction is not valid anymore
-                    return None
-                # Send transaction again with a new nonce
-                with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
-                                       lock_timeout=60 * 2) as tx_nonce:
-                    tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
-                                                  tx_nonce=tx_nonce)
-
-            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
-            multisig_tx.full_clean(validate_unique=False)
-            multisig_tx.save(update_fields=['ethereum_tx'])
-            return multisig_tx.ethereum_tx
-        else:
+        if multisig_tx.ethereum_tx.gas_price > gas_price:
             logger.info(
                 '%s tx gas price is %d > %d. Nothing to do here',
                 multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
             )
+            return None
+
+        assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
+        safe = Safe(multisig_tx.safe_id, self.ethereum_client)
+        try:
+            if safe.retrieve_nonce() > multisig_tx.nonce:
+                multisig_tx.delete()  # Transaction is not valid anymore
+                return None
+        except (ValueError, BadFunctionCallOutput):
+            logger.error('Something is wrong with Safe %s, cannot retrieve nonce', multisig_tx.safe_id,
+                         exc_info=True)
+            return None
+
+        logger.info(
+            '%s tx gas price was %d. Resending with new gas price %d',
+            multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
+        )
+        safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
+        tx_gas = safe_tx.recommended_gas()
+        try:
+            tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                          tx_nonce=multisig_tx.ethereum_tx.nonce)
+        except ValueError:
+            # ValueError({'code': -32010, 'message': 'Transaction nonce is too low. Try incrementing the nonce.'})
+            try:
+                # Check that transaction is still valid
+                safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
+            except InvalidMultisigTx:
+                # Maybe there's a transaction with a lower nonce that must be mined before
+                # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
+                return None
+            # Send transaction again with a new nonce
+            with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
+                                   lock_timeout=60 * 2) as tx_nonce:
+                tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                              tx_nonce=tx_nonce)
+
+        multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
+        multisig_tx.full_clean(validate_unique=False)
+        multisig_tx.save(update_fields=['ethereum_tx'])
+        return multisig_tx.ethereum_tx
 
     # TODO Refactor and test
     def create_or_update_ethereum_tx(self, tx_hash: str) -> Optional[EthereumTx]:
