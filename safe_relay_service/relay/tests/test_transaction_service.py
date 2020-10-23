@@ -91,7 +91,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         contract_owners = my_safe_contract.functions.getOwners().call()
         self.assertEqual(set(contract_owners), set(owners))
 
-        invalid_proxy = self.deploy_example_erc20(1, NULL_ADDRESS)
+        invalid_proxy = self.deploy_example_erc20(1, Account.create().address)
         with self.assertRaises(InvalidProxyContract):
             SafeContractFactory(address=invalid_proxy.address)
             self.transaction_service.create_multisig_tx(

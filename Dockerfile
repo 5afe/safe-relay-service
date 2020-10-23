@@ -38,6 +38,7 @@ RUN set -ex \
 
 RUN pip check
 
+<<<<<<< HEAD
 
 COPY scripts/run.sh .
 COPY scripts/run-worker.sh .
@@ -49,3 +50,10 @@ RUN chmod +x ./*.sh
 EXPOSE 8888
 
 ENTRYPOINT ["./wait-for-db.sh", "/tini", "--"]
+=======
+RUN chmod +x scripts/*.sh
+
+EXPOSE 8888
+
+ENTRYPOINT ["./scripts/wait-for-db.sh", "/tini", "--"]
+>>>>>>> chore/rebase-gnosis

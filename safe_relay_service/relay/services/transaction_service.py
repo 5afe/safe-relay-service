@@ -13,7 +13,7 @@ from web3.exceptions import BadFunctionCallOutput
 from gnosis.eth import EthereumClient, EthereumClientProvider
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe import ProxyFactory, Safe
-from gnosis.safe.exceptions import SafeServiceException
+from gnosis.safe.exceptions import InvalidMultisigTx, SafeServiceException
 from gnosis.safe.signatures import signatures_to_bytes
 
 from safe_relay_service.gas_station.gas_station import (GasStation,
@@ -384,7 +384,7 @@ class TransactionService:
         except SafeServiceException as exc:
             raise TransactionServiceException(str(exc)) from exc
 
-        ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
+        ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
 
         try:
             return SafeMultisigTx.objects.create(
@@ -506,12 +506,12 @@ class TransactionService:
         if banned_signers := BannedSigner.objects.filter(address__in=signers):
             raise SignerIsBanned(f'Signers {list(banned_signers)} are banned')
 
+        logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
+        # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
+        tx_gas = safe_tx.recommended_gas()
+        safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
         with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
-            logger.info('Safe=%s safe-nonce=%d Check `call()` before sending transaction', safe_address, safe_nonce)
-            # Set `gasLimit` for `call()`. It will use the same that it will be used later for execution
-            tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 75000
-            safe_tx.call(tx_sender_address=tx_sender_address, tx_gas=tx_gas, block_identifier=block_identifier)
             logger.info('Safe=%s safe-nonce=%d `call()` was successful', safe_address, safe_nonce)
             tx_hash, tx = safe_tx.execute(tx_sender_private_key, tx_gas=tx_gas, tx_gas_price=tx_gas_price,
                                           tx_nonce=tx_nonce, block_identifier=block_identifier)
@@ -521,29 +521,59 @@ class TransactionService:
 
     def resend(self, gas_price: int, multisig_tx: SafeMultisigTx) -> Optional[EthereumTx]:
         """
-        Resend transaction with new gas price if `gas_price` is higher than transaction gas price
-        :param gas_price:
-        :param multisig_tx:
+        Resend transaction with `gas_price` if it's higher or equal than transaction gas price. Setting equal
+        `gas_price` is allowed as sometimes a transaction can be out of the mempool but `gas_price` does not need
+        to be increased when resending
+        :param gas_price: New gas price for the transaction. Must be >= old gas price
+        :param multisig_tx: Multisig Tx not mined to be sent again
         :return: If a new transaction is sent is returned, `None` if not
         """
-        if multisig_tx.ethereum_tx.gas_price <= gas_price:
-            assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
-            logger.info(
-                '%s tx gas price is %d < %d. Resending with new gas price %d',
-                multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price, gas_price
-            )
-            safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
-            tx_gas = safe_tx.base_gas + safe_tx.safe_tx_gas + 25000
-            tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
-                                          tx_nonce=multisig_tx.ethereum_tx.nonce)
-            multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx(tx, tx_hash)
-            multisig_tx.save(update_fields=['ethereum_tx'])
-            return multisig_tx.ethereum_tx
-        else:
+        if multisig_tx.ethereum_tx.gas_price > gas_price:
             logger.info(
                 '%s tx gas price is %d > %d. Nothing to do here',
                 multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
             )
+            return None
+
+        assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
+        safe = Safe(multisig_tx.safe_id, self.ethereum_client)
+        try:
+            if safe.retrieve_nonce() > multisig_tx.nonce:
+                multisig_tx.delete()  # Transaction is not valid anymore
+                return None
+        except (ValueError, BadFunctionCallOutput):
+            logger.error('Something is wrong with Safe %s, cannot retrieve nonce', multisig_tx.safe_id,
+                         exc_info=True)
+            return None
+
+        logger.info(
+            '%s tx gas price was %d. Resending with new gas price %d',
+            multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
+        )
+        safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
+        tx_gas = safe_tx.recommended_gas()
+        try:
+            tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                          tx_nonce=multisig_tx.ethereum_tx.nonce)
+        except ValueError:
+            # ValueError({'code': -32010, 'message': 'Transaction nonce is too low. Try incrementing the nonce.'})
+            try:
+                # Check that transaction is still valid
+                safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
+            except InvalidMultisigTx:
+                # Maybe there's a transaction with a lower nonce that must be mined before
+                # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
+                return None
+            # Send transaction again with a new nonce
+            with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
+                                   lock_timeout=60 * 2) as tx_nonce:
+                tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                              tx_nonce=tx_nonce)
+
+        multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
+        multisig_tx.full_clean(validate_unique=False)
+        multisig_tx.save(update_fields=['ethereum_tx'])
+        return multisig_tx.ethereum_tx
 
     # TODO Refactor and test
     def create_or_update_ethereum_tx(self, tx_hash: str) -> Optional[EthereumTx]:
@@ -553,10 +583,10 @@ class TransactionService:
                 tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
                 if tx_receipt:
                     ethereum_tx.block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
-                    ethereum_tx.gas_used = tx_receipt.gasUsed
+                    ethereum_tx.gas_used = tx_receipt['gasUsed']
                     ethereum_tx.status = tx_receipt.get('status')
                     ethereum_tx.transaction_index = tx_receipt['transactionIndex']
-                    ethereum_tx.save()
+                    ethereum_tx.save(update_fields=['block', 'gas_used', 'status', 'transaction_index'])
             return ethereum_tx
         except EthereumTx.DoesNotExist:
             tx = self.ethereum_client.get_transaction(tx_hash)
@@ -564,8 +594,10 @@ class TransactionService:
             if tx:
                 if tx_receipt:
                     ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
-                    return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
-                return EthereumTx.objects.create_from_tx(tx, tx_hash)
+                    return EthereumTx.objects.create_from_tx_dict(tx, tx_hash,
+                                                                  tx_receipt=tx_receipt.gasUsed,
+                                                                  ethereum_block=ethereum_block)
+                return EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
 
     # TODO Refactor and test
     def get_or_create_ethereum_block(self, block_number: int):

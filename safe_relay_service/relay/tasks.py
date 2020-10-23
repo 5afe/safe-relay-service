@@ -282,10 +282,10 @@ def check_create2_deployed_safes_task() -> None:
             confirmations = 6
             current_block_number = ethereum_client.current_block_number
             for safe_creation2 in SafeCreation2.objects.pending_to_check():
-                tx_receipt = ethereum_client.get_transaction_receipt(safe_creation2.tx_hash)
                 safe_address = safe_creation2.safe_id
-                if tx_receipt and tx_receipt['blockNumber'] is not None:
-                    block_number = tx_receipt['blockNumber']
+                ethereum_tx = TransactionServiceProvider().create_or_update_ethereum_tx(safe_creation2.tx_hash)
+                if ethereum_tx and ethereum_tx.block_id is not None:
+                    block_number = ethereum_tx.block_id
                     if (current_block_number - block_number) >= confirmations:
                         logger.info('Safe=%s with tx-hash=%s was confirmed in block-number=%d',
                                     safe_address, safe_creation2.tx_hash, block_number)

@@ -81,7 +81,9 @@ class TransactionScanService(ABC):
             tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
             ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
             tx = self.ethereum_client.get_transaction(tx_hash)
-            return EthereumTx.objects.create_from_tx(tx, tx_hash, tx_receipt.gasUsed, ethereum_block)
+            return EthereumTx.objects.create_from_tx_dict(tx, tx_hash,
+                                                          tx_receipt=tx_receipt,
+                                                          ethereum_block=ethereum_block)
 
     def get_or_create_ethereum_block(self, block_number: int):
         try:

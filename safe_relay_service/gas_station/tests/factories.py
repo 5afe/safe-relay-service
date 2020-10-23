@@ -1,9 +1,10 @@
 import factory.fuzzy
+from factory.django import DjangoModelFactory
 
 from ..models import GasPrice
 
 
-class GasPriceFactory(factory.DjangoModelFactory):
+class GasPriceFactory(DjangoModelFactory):
     class Meta:
         model = GasPrice
 

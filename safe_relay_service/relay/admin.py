@@ -181,17 +181,38 @@ class SafeCreationAdmin(admin.ModelAdmin):
         return Web3.fromWei(obj.wei_deploy_cost(), 'ether')
 
 
+class SafeCreation2DeployedListFilter(admin.SimpleListFilter):
+    title = 'Deployment transaction sent'
+    parameter_name = 'deployment'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('YES', 'Safes with deployment transaction sent'),
+            ('NO', 'Safes without deployment transaction sent'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'YES':
+            return queryset.exclude(tx_hash=None)
+        elif self.value() == 'NO':
+            return queryset.filter(tx_hash=None)
+
+
 @admin.register(SafeCreation2)
 class SafeCreation2Admin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost', )
-    list_filter = ('safe__master_copy', 'threshold', 'payment_token')
+    list_display = ('created', 'safe', 'threshold', 'payment', 'payment_token', 'ether_deploy_cost')
+    list_filter = (SafeCreation2DeployedListFilter, 'threshold', 'safe__master_copy', 'payment_token')
     ordering = ['-created']
     raw_id_fields = ('safe',)
+    readonly_fields = ('gas_estimated', 'gas_used')
     search_fields = ['=safe__address', 'owners', '=tx_hash']
 
-    def ether_deploy_cost(self, obj: SafeCreation) -> float:
+    def ether_deploy_cost(self, obj: SafeCreation2) -> float:
         return Web3.fromWei(obj.wei_estimated_deploy_cost(), 'ether')
+
+    def gas_used(self, obj: SafeCreation2) -> Optional[int]:
+        return obj.gas_used()
 
 
 @admin.register(SafeFunding)
@@ -235,13 +256,19 @@ class SafeMultisigTxStatusListFilter(admin.SimpleListFilter):
 @admin.register(SafeMultisigTx)
 class SafeMultisigTxAdmin(admin.ModelAdmin):
     date_hierarchy = 'created'
-    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'to', 'value', 'status', 'signers')
+    list_display = ('created', 'safe_id', 'nonce', 'ethereum_tx_id', 'refund_benefit_eth', 'to', 'value', 'status',
+                    'signers')
     list_filter = ('operation', SafeMultisigTxStatusListFilter)
     list_select_related = ('ethereum_tx',)
     ordering = ['-created']
     raw_id_fields = ('safe', 'ethereum_tx')
     readonly_fields = ('status', 'signers')
     search_fields = ['=safe__address', '=ethereum_tx__tx_hash', 'to']
+
+    def refund_benefit_eth(self, obj: SafeMultisigTx) -> Optional[float]:
+        if (refund_benefit := obj.refund_benefit()) is not None:
+            refund_benefit_eth = Web3.fromWei(abs(refund_benefit), 'ether') * (-1 if refund_benefit < 0 else 1)
+            return '{:.5f}'.format(refund_benefit_eth)
 
     def status(self, obj: SafeMultisigTx) -> Optional[int]:
         if obj.ethereum_tx:

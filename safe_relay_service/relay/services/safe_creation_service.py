@@ -170,9 +170,15 @@ class SafeCreationService:
         gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
 
-        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
-                                                      self.proxy_factory.address, salt_nonce, owners, threshold,
-                                                      gas_price, payment_token,
+        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client,
+                                                      self.safe_contract_address,
+                                                      self.proxy_factory.address,
+                                                      salt_nonce,
+                                                      owners,
+                                                      threshold,
+                                                      gas_price,
+                                                      payment_token,
+                                                      payment_receiver=self.funder_account.address,
                                                       fallback_handler=self.default_callback_handler,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
@@ -194,13 +200,15 @@ class SafeCreationService:
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
-
-        logger.info('trying to create safe tx with safe=%s and proxy=%s',
-                    self.safe_contract_address, self.proxy_factory.address)
-
-        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client, self.safe_contract_address,
-                                                      self.proxy_factory.address, salt_nonce, owners, threshold,
-                                                      gas_price, payment_token,
+        safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client,
+                                                      self.safe_contract_address,
+                                                      self.proxy_factory.address,
+                                                      salt_nonce,
+                                                      owners,
+                                                      threshold,
+                                                      gas_price,
+                                                      payment_token,
+                                                      payment_receiver=self.funder_account.address,
                                                       fallback_handler=self.default_callback_handler,
                                                       payment_token_eth_value=payment_token_eth_value,
                                                       fixed_creation_cost=self.safe_fixed_creation_cost)
@@ -251,9 +259,9 @@ class SafeCreationService:
         self._check_safe_balance(safe_creation2)
 
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
+        proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
-            proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
             ethereum_tx_sent = proxy_factory.deploy_proxy_contract_with_nonce(
                 self.funder_account,
                 safe_creation2.master_copy,
@@ -262,7 +270,7 @@ class SafeCreationService:
                 gas=safe_creation2.gas_estimated + 50000,  # Just in case
                 gas_price=safe_creation2.gas_price_estimated,
                 nonce=tx_nonce)
-            EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+            EthereumTx.objects.create_from_tx_dict(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
             safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
             safe_creation2.save(update_fields=['tx_hash'])
             logger.info('Send transaction to deploy Safe=%s with tx-hash=%s',
@@ -305,7 +313,7 @@ class SafeCreationService:
             gas=safe_creation2.gas_estimated + 50000,  # Just in case
             gas_price=gas_price,
             nonce=ethereum_tx.nonce)  # Replace old transaction
-        EthereumTx.objects.create_from_tx(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
+        EthereumTx.objects.create_from_tx_dict(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
         safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
         safe_creation2.save(update_fields=['tx_hash'])
         logger.info('Send again transaction to deploy Safe=%s with tx-hash=%s',
@@ -324,8 +332,12 @@ class SafeCreationService:
         gas_price = self._get_configured_gas_price()
         fixed_creation_cost = self.safe_fixed_creation_cost
         return Safe.estimate_safe_creation_2(self.ethereum_client,
-                                             self.safe_contract_address, self.proxy_factory.address,
-                                             number_owners, gas_price, payment_token,
+                                             self.safe_contract_address,
+                                             self.proxy_factory.address,
+                                             number_owners,
+                                             gas_price,
+                                             payment_token,
+                                             payment_receiver=self.funder_account.address,
                                              fallback_handler=self.default_callback_handler,
                                              payment_token_eth_value=payment_token_eth_value,
                                              fixed_creation_cost=fixed_creation_cost)

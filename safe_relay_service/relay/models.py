@@ -15,7 +15,7 @@ from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
 
 from gnosis.eth import EthereumClient
-from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC
+from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation, SafeTx
@@ -193,6 +193,16 @@ class SafeCreation2(TimeStampedModel):
         """
         return self.gas_estimated * self.gas_price_estimated
 
+    def gas_used(self) -> Optional[int]:
+        """
+        :return: Gas used by the transaction if it was executed
+        """
+        if self.tx_hash:
+            try:
+                return EthereumTx.objects.get(tx_hash=self.tx_hash).gas_used
+            except EthereumTx.DoesNotExist:
+                return None
+
 
 class SafeFundingQuerySet(models.QuerySet):
     def pending_just_to_deploy(self):
@@ -280,16 +290,20 @@ class EthereumBlock(models.Model):
 
 
 class EthereumTxManager(models.Manager):
-    def create_from_tx(self, tx: Dict[str, Any], tx_hash: Union[bytes, str], gas_used: Optional[int] = None,
-                       ethereum_block: Optional[EthereumBlock] = None):
+    def create_from_tx_dict(self, tx: Dict[str, Any], tx_hash: Union[bytes, str],
+                            tx_receipt: Optional[Dict[str, Any]] = None,
+                            ethereum_block: Optional[EthereumBlock] = None) -> 'EthereumTx':
+        data = HexBytes(tx.get('data') or tx.get('input'))
         return super().create(
             block=ethereum_block,
             tx_hash=tx_hash,
             _from=tx['from'],
             gas=tx['gas'],
             gas_price=tx['gasPrice'],
-            gas_used=gas_used,
-            data=HexBytes(tx.get('data') or tx.get('input')),
+            gas_used=tx_receipt and tx_receipt['gasUsed'],
+            status=tx_receipt and tx_receipt.get('status'),
+            transaction_index=tx_receipt and tx_receipt['transactionIndex'],
+            data=data if data else None,
             nonce=tx['nonce'],
             to=tx.get('to'),
             value=tx['value'],
@@ -298,18 +312,19 @@ class EthereumTxManager(models.Manager):
 
 class EthereumTx(TimeStampedModel):
     objects = EthereumTxManager()
-    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, default=None,
+    block = models.ForeignKey(EthereumBlock, on_delete=models.CASCADE, null=True, blank=True, default=None,
                               related_name='txs')  # If mined
     tx_hash = Sha3HashField(unique=True, primary_key=True)
-    gas_used = Uint256Field(null=True, default=None)  # If mined
-    status = models.IntegerField(null=True, default=None, db_index=True)  # If mined. Old txs don't have `status`
-    transaction_index = models.PositiveIntegerField(null=True, default=None)  # If mined
+    gas_used = Uint256Field(null=True, blank=True, default=None)  # If mined
+    status = models.IntegerField(null=True, blank=True,
+                                 default=None, db_index=True)  # If mined. Old txs don't have `status`
+    transaction_index = models.PositiveIntegerField(null=True, blank=True, default=None)  # If mined
     _from = EthereumAddressField(null=True, db_index=True)
     gas = Uint256Field()
     gas_price = Uint256Field()
-    data = models.BinaryField(null=True)
+    data = models.BinaryField(null=True, blank=True)
     nonce = Uint256Field()
-    to = EthereumAddressField(null=True, db_index=True)
+    to = EthereumAddressField(null=True, blank=True, db_index=True)
     value = Uint256Field()
 
     def __str__(self):
@@ -440,18 +455,18 @@ class SafeMultisigTx(TimeStampedModel):
     objects = SafeMultisigTxManager.from_queryset(SafeMultisigTxQuerySet)()
     safe = models.ForeignKey(SafeContract, on_delete=models.CASCADE, related_name='multisig_txs')
     ethereum_tx = models.ForeignKey(EthereumTx, on_delete=models.CASCADE, related_name='multisig_txs')
-    to = EthereumAddressField(null=True, db_index=True)
+    to = EthereumAddressField(null=True, blank=True, db_index=True)
     value = Uint256Field()
-    data = models.BinaryField(null=True)
+    data = models.BinaryField(null=True, blank=True)
     operation = models.PositiveSmallIntegerField(choices=[(tag.value, tag.name) for tag in SafeOperation])
     safe_tx_gas = Uint256Field()
     data_gas = Uint256Field()
     gas_price = Uint256Field()
-    gas_token = EthereumAddressField(null=True)
-    refund_receiver = EthereumAddressField(null=True)
+    gas_token = EthereumAddressField(null=True, blank=True)
+    refund_receiver = EthereumAddressField(null=True, blank=True)
     signatures = models.BinaryField()
     nonce = Uint256Field()
-    safe_tx_hash = Sha3HashField(unique=True, null=True)
+    safe_tx_hash = Sha3HashField(unique=True, null=True, blank=True)
 
     def __str__(self):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
@@ -463,6 +478,17 @@ class SafeMultisigTx(TimeStampedModel):
                       self.refund_receiver,
                       signatures=self.signatures.tobytes() if self.signatures else b'',
                       safe_nonce=self.nonce)
+
+    def refund_benefit(self) -> Optional[int]:
+        """
+        :return: Difference of the calculated payment fee and the actual executed payment fee. It will be `None`
+        if transaction was not mined yet or if a `gas_token` was used (not easy to calculate the ether conversion
+        at that point)
+        """
+        if self.ethereum_tx_id and (not self.gas_token or self.gas_token == NULL_ADDRESS) and self.ethereum_tx.gas_used:
+            payment_fee = min(self.gas_price, self.ethereum_tx.gas_price)
+            executed_fee = self.ethereum_tx.gas_used * self.ethereum_tx.gas_price
+            return payment_fee - executed_fee
 
     def signers(self) -> List[str]:
         return self.get_safe_tx().signers
