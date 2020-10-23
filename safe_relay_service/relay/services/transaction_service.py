@@ -239,9 +239,7 @@ class TransactionService:
 
         last_used_nonce = self.get_last_used_nonce(safe_address)
         safe = Safe(safe_address, self.ethereum_client)
-        logger.info("called estimate with to: %s value: %d data: %s and operation: %d", to, value, data, operation)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
-        logger.info(safe_tx_gas)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
 
         # For Safe contracts v1.0.0 operational gas is not used (`base_gas` has all the related costs already)
@@ -456,9 +454,6 @@ class TransactionService:
         # Check enough funds to pay for the gas
         if not safe.check_funds_for_tx_gas(safe_tx_gas, base_gas, gas_price, gas_token):
             safe_balance = self.ethereum_client.get_balance(safe_address)
-            logger.info("found balance %d at safe %s", safe_balance, safe_address)
-            logger.info("called with params: safe tx gas: %d base gas: %d gas price: %d gas token: %s", safe_tx_gas, base_gas, gas_price, gas_token)
-            logger.info("Looking for %d", (safe_tx_gas + base_gas) * gas_price)
             raise NotEnoughFundsForMultisigTx
 
         threshold = safe.retrieve_threshold()
