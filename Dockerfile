@@ -38,8 +38,14 @@ RUN set -ex \
 
 RUN pip check
 
-RUN chmod +x scripts/*.sh
+
+COPY scripts/run.sh .
+COPY scripts/run-worker.sh .
+COPY scripts/run-scheduler.sh .
+COPY scripts/wait-for-db.sh .
+
+RUN chmod +x ./*.sh
 
 EXPOSE 8888
 
-ENTRYPOINT ["./scripts/wait-for-db.sh", "/tini", "--"]
+ENTRYPOINT ["./wait-for-db.sh", "/tini", "--"]
