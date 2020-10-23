@@ -453,7 +453,6 @@ class TransactionService:
 
         # Check enough funds to pay for the gas
         if not safe.check_funds_for_tx_gas(safe_tx_gas, base_gas, gas_price, gas_token):
-            safe_balance = self.ethereum_client.get_balance(safe_address)
             raise NotEnoughFundsForMultisigTx
 
         threshold = safe.retrieve_threshold()
