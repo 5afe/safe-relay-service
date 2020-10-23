@@ -13,11 +13,6 @@ python manage.py setup_gas_station
 echo "==> $(date +%H:%M:%S) ==> Setting up service... "
 python manage.py setup_service
 
-if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
-  echo "==> $(date +%H:%M:%S) ==> Deploy Safe master copy..."
-  python manage.py deploy_safe_contracts
-fi
-
 echo "==> Collecting statics ... "
 rm -rf $DOCKER_SHARED_DIR/*
 STATIC_ROOT=$DOCKER_SHARED_DIR/staticfiles python manage.py collectstatic --noinput

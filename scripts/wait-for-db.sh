@@ -4,7 +4,7 @@ set -e
 
 CMD="$@"
 
-while ! PGPASSWORD=$POSTGRES_PASSWORD pg_isready -h $POSTGRES_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_RELAYER" > /dev/null 2> /dev/null; do
+while ! PGPASSWORD=$POSTGRES_PASSWORD pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_RELAYER" > /dev/null 2> /dev/null; do
   echo "Waiting for database to be ready ..."
   sleep 5
 done

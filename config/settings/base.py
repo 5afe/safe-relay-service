@@ -1,7 +1,7 @@
 import environ
 import socket
 
-ROOT_DIR = environ.Path(__file__) - 3 # (safe_relay_service/config/settings/base.py - 3 = safe-relay-service/)
+ROOT_DIR = environ.Path(__file__) - 3  # (safe_relay_service/config/settings/base.py - 3 = safe-relay-service/)
 APPS_DIR = ROOT_DIR.path('safe_relay_service')
 
 env = environ.Env()
@@ -25,7 +25,7 @@ USE_TZ = True
 
 # DATABASES
 
-psql_url = 'psql://' + env('POSTGRES_USER') + ':' + env('POSTGRES_PASSWORD') + '@' + env('POSTGRES_HOST') + '/' + env('POSTGRES_DATABASE_RELAYER')
+psql_url = 'psql://' + env('POSTGRES_USER') + ':' + env('POSTGRES_PASSWORD') + '@' + env('POSTGRES_HOST') + ':' + env('POSTGRES_PORT') + '/' + env('POSTGRES_DATABASE_RELAYER')
 
 DATABASES = {
     'default': env.db('RELAYER_DATABASE', default=psql_url),
@@ -79,7 +79,7 @@ MIDDLEWARE = [
 
 # STATIC
 
-STATIC_ROOT = '/usr/share/nginx/html/relayer';
+STATIC_ROOT = '/usr/share/nginx/html/relayer'
 
 STATIC_URL = '/static/'
 
@@ -232,7 +232,7 @@ LOGGING = {
     }
 }
 
-REDIS_URL = env('RELAYER_REDIS_URL', default='redis://localhost:6379/0')
+REDIS_URL = env('RELAYER_REDIS_URL', default='redis://redis:6379/0')
 
 # ETHEREUM
 
