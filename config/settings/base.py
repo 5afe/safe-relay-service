@@ -25,7 +25,7 @@ USE_TZ = True
 
 # DATABASES
 
-psql_url = 'psql://' + env('POSTGRES_USER') + ':' + env('POSTGRES_PASSWORD') + '@db:5432/' + env('POSTGRES_DATABASE_RELAYER')
+psql_url = 'psql://' + env('POSTGRES_USER') + ':' + env('POSTGRES_PASSWORD') + '@' + env('POSTGRES_HOST') + '/' + env('POSTGRES_DATABASE_RELAYER')
 
 DATABASES = {
     'default': env.db('RELAYER_DATABASE', default=psql_url),
