@@ -38,12 +38,11 @@ RUN set -ex \
 
 RUN pip check
 
+# Copy runtime scripts into root
 COPY scripts/run.sh .
 COPY scripts/run-worker.sh .
 COPY scripts/run-scheduler.sh .
 COPY scripts/wait-for-db.sh .
-
-RUN chmod +x ./*.sh
 
 EXPOSE 8888
 
