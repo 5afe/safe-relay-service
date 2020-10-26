@@ -300,7 +300,7 @@ SAFE_V1_0_0_CONTRACT_ADDRESS = env('SAFE_V1_0_0_CONTRACT_ADDRESS', default='0xb6
 SAFE_V0_0_1_CONTRACT_ADDRESS = env('SAFE_V0_0_1_CONTRACT_ADDRESS', default='0x8942595A2dC5181Df0465AF0D7be08c8f23C93af')
 SAFE_VALID_CONTRACT_ADDRESSES = set(env.list('SAFE_VALID_CONTRACT_ADDRESSES',
                                              default=['0xaE32496491b53841efb51829d6f886387708F99B',
-                                                      '0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A'
+                                                      '0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A',
                                                       '0x8942595A2dC5181Df0465AF0D7be08c8f23C93af',
                                                       '0xAC6072986E985aaBE7804695EC2d8970Cf7541A2'])
                                     ) | {SAFE_CONTRACT_ADDRESS,
