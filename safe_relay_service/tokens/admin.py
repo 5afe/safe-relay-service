@@ -33,6 +33,8 @@ class TokenAdmin(admin.ModelAdmin):
     readonly_fields = ('eth_value', 'price_oracle_ticker_pairs')
 
     def eth_value(self, obj: Token):
+        if self.decimals is None:  # Add token admin page
+            return .0
         try:
             return obj.get_eth_value()
         except CannotGetTokenPriceFromApi:
