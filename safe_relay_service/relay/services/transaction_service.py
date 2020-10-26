@@ -239,9 +239,7 @@ class TransactionService:
 
         last_used_nonce = self.get_last_used_nonce(safe_address)
         safe = Safe(safe_address, self.ethereum_client)
-        logger.info("called estimate with to: %s value: %d data: %s and operation: %d", to, value, data, operation)
         safe_tx_gas = safe.estimate_tx_gas(to, value, data, operation)
-        logger.info(safe_tx_gas)
         safe_tx_base_gas = safe.estimate_tx_base_gas(to, value, data, operation, gas_token, safe_tx_gas)
 
         # For Safe contracts v1.0.0 operational gas is not used (`base_gas` has all the related costs already)
