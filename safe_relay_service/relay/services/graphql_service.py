@@ -8,7 +8,7 @@ logger = getLogger(__name__)
 class GraphQLService:
 
     def __init__(self):
-        url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_EXTERNAL,
+        url = '{}/subgraphs/name/{}'.format(settings.GRAPH_NODE_ENDPOINT,
                                             settings.SUBGRAPH_NAME)
         self.endpoint = HTTPEndpoint(url)
 

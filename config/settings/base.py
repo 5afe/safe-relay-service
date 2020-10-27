@@ -242,8 +242,8 @@ ETHEREUM_TRACING_NODE_URL = env('ETHEREUM_TRACING_NODE_URL', default=ETHEREUM_NO
 
 GAS_STATION_NUMBER_BLOCKS = env('GAS_STATION_NUMBER_BLOCKS', default=300)
 
-# Safe
-# ------------------------------------------------------------------------------
+# SAFE
+
 SAFE_FUNDER_PRIVATE_KEY = env('SAFE_FUNDER_PRIVATE_KEY', default=None)
 
 # Maximum ether (no wei) for a single transaction (security limit)
@@ -300,11 +300,9 @@ CACHES = {
 # CIRCLES
 
 CIRCLES_HUB_ADDRESS = env('HUB_ADDRESS', default='0x' + '0' * 39 + '2')
-
-GRAPH_NODE_EXTERNAL = env('GRAPH_NODE_EXTERNAL', default='')
-SUBGRAPH_NAME = env('SUBGRAPH_NAME', default='')
-
+GRAPH_NODE_ENDPOINT = env('GRAPH_NODE_ENDPOINT', default='')
 MIN_TRUST_CONNECTIONS = env('MIN_TRUST_CONNECTIONS', default=3)
+SUBGRAPH_NAME = env('SUBGRAPH_NAME', default='')
 
 # DOCKER
 
