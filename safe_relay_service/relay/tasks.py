@@ -499,7 +499,8 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
 
                     FundingServiceProvider().send_eth_to(safe_address,
                                                          payment,
-                                                         gas=24000)
+                                                         gas=24000,
+                                                         retry=true)
                     # Retry later to check for enough funding and successful deployment
                     raise self.retry(countdown=30)
                 else:
