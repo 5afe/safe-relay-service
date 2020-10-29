@@ -509,50 +509,6 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
         pass
 
 
-# @app.shared_task(soft_time_limit=LOCK_TIMEOUT)
-# def circles_onboarding_token_task(safe_address: str) -> None:
-#     """
-#     Check if Safe already has a Circles token, if not, fund it
-#     :param safe_address: Address of the created safe
-#     """
-
-#     assert check_checksum(safe_address)
-
-#     try:
-#         redis = RedisRepository().redis
-#         lock_name = f'locks:circles_onboarding_token_task:{safe_address}'
-#         with redis.lock(lock_name, blocking_timeout=1, timeout=LOCK_TIMEOUT):
-#             logger.info('Fund signup task for {}'.format(safe_address))
-
-#             ethereum_client = EthereumClientProvider()
-
-#             # Do nothing if Token is already deployed
-#             if CirclesService(ethereum_client).is_token_deployed(safe_address):
-#                 logger.info('Token is already deployed for {}'.format(safe_address))
-#                 return
-
-#             # Do nothing if the Token is already funded
-#             transaction_service = TransactionServiceProvider()
-#             payment = transaction_service.estimate_circles_signup_tx(safe_address)
-#             safe_balance = ethereum_client.get_balance(safe_address)
-#             logger.info('Found %d balance for token deployment of safe=%s. Required=%d',
-#                         safe_balance, safe_address, payment)
-#             if safe_balance >= payment:
-#                 logger.info('Token is already funded {}'.format(safe_address))
-#                 return
-
-#             # Otherwise fund Token deployment
-#             logger.info('Fund Token {}'.format(safe_address))
-#             FundingServiceProvider().send_eth_to(
-#                 safe_address,
-#                 payment - safe_balance,
-#                 gas=24000,
-#                 retry=True
-#             )
-#     except LockError:
-#         pass
-
-
 @app.shared_task(bind=True, soft_time_limit=LOCK_TIMEOUT, max_retries=6)
 def begin_circles_onboarding_organization_task(self, safe_address: str, owner_address: str) -> None:
     """
