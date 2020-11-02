@@ -26,4 +26,4 @@ psycopg2-binary==2.8.6
 redis==3.5.3
 requests==2.24.0
 sgqlc==11.0
-web3==5.13.0
+web3==5.12.3
