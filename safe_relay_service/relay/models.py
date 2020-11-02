@@ -3,10 +3,10 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.db.models import (Avg, Case, Count, DurationField, F, Q, Sum,
-                              Value, When)
+from django.db.models import (Avg, Case, Count, DurationField, F, JSONField, Q,
+                              Sum, Value, When)
 from django.db.models.expressions import RawSQL, Subquery, Window
 from django.db.models.functions import Cast, TruncDate
 from django.utils import timezone
