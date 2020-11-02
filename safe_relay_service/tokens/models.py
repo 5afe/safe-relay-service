@@ -4,8 +4,8 @@ from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import JSONField
 
 from gnosis.eth.django.models import EthereumAddressField
 
