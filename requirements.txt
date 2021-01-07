@@ -18,7 +18,7 @@ ethereum==2.3.2
 gnosis-py==2.6.9
 gunicorn[gevent]==20.0.4
 hexbytes==0.2.1
-lxml==4.5.2
+lxml==4.6.2
 numpy==1.19.2
 packaging==20.4
 psycopg2-binary==2.8.6
