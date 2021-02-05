@@ -404,7 +404,7 @@ def check_and_update_pending_transactions() -> int:
         redis = RedisRepository().redis
         with redis.lock('tasks:check_and_update_pending_transactions', blocking_timeout=1, timeout=60):
             transaction_service = TransactionServiceProvider()
-            multisig_txs = SafeMultisigTx.objects.pending(older_than=15).select_related('ethereum_tx')
+            multisig_txs = SafeMultisigTx.objects.pending(older_than=150).select_related('ethereum_tx')
             for multisig_tx in multisig_txs:
                 ethereum_tx = transaction_service.create_or_update_ethereum_tx(multisig_tx.ethereum_tx_id)
                 if ethereum_tx and ethereum_tx.block_id:
