@@ -71,12 +71,12 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         self.assertEqual(check_pending_transactions.delay().get(), 1)
 
     def test_check_and_update_pending_transactions(self):
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=16),
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=151),
                               ethereum_tx__block=None)
         self.assertEqual(check_and_update_pending_transactions.delay().get(), 0)
 
         tx_hash = self.send_ether(Account.create().address, 1)
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=16),
+        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=151),
                               ethereum_tx__tx_hash=tx_hash,
                               ethereum_tx__block=None)
         self.assertEqual(check_and_update_pending_transactions.delay().get(), 1)
