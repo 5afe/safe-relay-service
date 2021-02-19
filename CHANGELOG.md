@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.5] - 2021-02-19
+
+### Changed
+
+- Rebased to latest Gnosis Relayer version (`3.12.1`) including Django JSON Field API updates [0a7c759](https://github.com/gnosis/safe-relay-service/commit/0a7c759ddb0475362eb81c4ec4055a602599eaab)
+
+## [4.1.4] - 2021-02-19
+
+- See `4.1.5`
+
 ## [4.1.3] - 2021-02-15
 
 ### Changed
