@@ -1,4 +1,4 @@
-django==3.1.6
+django==3.1.7
 cachetools==4.2.1
 celery==5.0.5
 django-authtools==1.7.0
@@ -24,4 +24,4 @@ packaging==20.9
 psycopg2-binary==2.8.6
 redis==3.5.3
 requests==2.25.1
-web3==5.16.0
+web3==5.17.0
