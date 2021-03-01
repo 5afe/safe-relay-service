@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.6] - 2021-03-01
+
+### Fixed
+
+- Temporarily use patched `gnosis-py` version to work around `Web3.py` issue [#1888](https://github.com/ethereum/web3.py/issues/1888) [e0c0561](https://github.com/CirclesUBI/safe-relay-service/commit/e0c056190e41baa4634afaf303563d1d55e69bb3)
+
 ## [4.1.5] - 2021-02-19
 
 ### Changed
