@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.7] - 2021-03-11
+
+### Changed
+
+- Rebased to latest Gnosis Relayer version (`3.12.2`) including Web3 hot fix [a6e57aa](https://github.com/gnosis/safe-relay-service/commit/a6e57aa07c38dd782155509906f1d9e42b1486a1)
+
 ## [4.1.6] - 2021-03-01
 
 ### Fixed
