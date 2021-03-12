@@ -6,9 +6,6 @@ on:
       # strict semver regex
       - v[0-9]+.[0-9]+.[0-9]+
 
-env:
-  CIRCLES_CI_DO_TOKEN: ${{ secrets.CIRCLES_CI_DO_TOKEN }}
-
 jobs:
   build-and-push:
     name: build-and-push
@@ -18,26 +15,35 @@ jobs:
         run: |
           sudo snap install doctl
           sudo snap connect doctl:dot-docker
-      - name: Configure auth
+
+      - name: Configure auth for Digital Ocean
         run: |
-          doctl auth init -t ${CIRCLES_CI_DO_TOKEN}
+          doctl auth init -t ${{ secrets.CIRCLES_CI_DO_TOKEN }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v2
+
       - name: Get ref
+        id: parse_ref
         run: |
           echo ::set-output name=tag::${GITHUB_REF/refs\/tags\//}
-        id: parse_ref
-      - name: Docker build and tag
-        env:
-          IMAGE_VERSION: ${{ steps.parse_ref.outputs.tag }}
-        run: |
-          docker build -t registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION} .
-      - name: Registry login
+
+      - name: Digital Ocean Registry login
         run: |
           doctl registry login
-      - name: Docker push
-        env:
-          IMAGE_VERSION: ${{ steps.parse_ref.outputs.tag }}
-        run: |
-          docker push registry.digitalocean.com/circles-registry/relayer:${IMAGE_VERSION}
 
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            registry.digitalocean.com/circles-registry/safe-relay-service:${{ steps.parse_ref.outputs.tag }}
+            joincircles/safe-relay-service:latest
+            joincircles/safe-relay-service:${{ steps.parse_ref.outputs.tag }}
