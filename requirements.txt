@@ -15,7 +15,7 @@ django-timezone-field==4.1.1
 docutils==0.16
 drf-yasg[validation]==1.20.0
 ethereum==2.3.2
-gnosis-py==2.7.13
+gnosis-py==2.8.1
 gunicorn[gevent]==20.0.4
 hexbytes==0.2.1
 lxml==4.6.2

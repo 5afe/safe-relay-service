@@ -19,28 +19,13 @@ class Command(BaseCommand):
         super().__init__(*args, **kwargs)
         self.tx_service = TransactionServiceProvider()
 
-    def resend(self, gas_price: int, multisig_tx: SafeMultisigTx):
-        # TODO Refactor, do it on the service
-        if multisig_tx.ethereum_tx.gas_price < gas_price:
-            assert multisig_tx.ethereum_tx.block_id is None, 'Block is present!'
-            self.stdout.write(self.style.NOTICE(
-                f"{multisig_tx.ethereum_tx_id} tx gas price is {multisig_tx.ethereum_tx.gas_price} < {gas_price}. "
-                f"Resending with new gas price {gas_price}"
-            ))
-            self.tx_service.resend(gas_price, multisig_tx)
-        else:
-            self.stdout.write(self.style.NOTICE(
-                f"{multisig_tx.ethereum_tx_id} tx gas price is {multisig_tx.ethereum_tx.gas_price} > {gas_price}. "
-                f"Nothing to do here"
-            ))
-
     def handle(self, *args, **options):
         gas_price = options['gas_price'] or GasStationProvider().get_gas_prices().fast
         safe_tx_hash = options['safe_tx_hash']
 
         if safe_tx_hash:
             multisig_tx = SafeMultisigTx.objects.get(safe_tx_hash=safe_tx_hash)
-            self.resend(gas_price, multisig_tx)
+            self.tx_service.resend(gas_price, multisig_tx)
         else:
             for multisig_tx in SafeMultisigTx.objects.pending(older_than=60).select_related('ethereum_tx'):
-                self.resend(gas_price, multisig_tx)
+                self.tx_service.resend(gas_price, multisig_tx)
