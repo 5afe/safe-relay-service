@@ -1,4 +1,57 @@
-# Safe Relay Service
+<div align="center">
+	<img width="80" src="https://raw.githubusercontent.com/CirclesUBI/.github/main/assets/logo.svg" />
+</div>
+
+<h1 align="center">safe-relayer-service</h1>
+
+<div align="center">
+ <strong>
+   Relay Tx Service for Gnosis Safe
+ </strong>
+</div>
+
+<br />
+
+<div align="center">
+  <!-- Licence -->
+  <a href="https://github.com/CirclesUBI/circles-core/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/CirclesUBI/circles-core?style=flat-square&color=%23cc1e66" alt="License" height="18">
+  </a>
+  <!-- CI status -->
+  <a href="https://github.com/CirclesUBI/circles-core/actions/workflows/tests.yml">
+   <img src="https://img.shields.io/github/workflow/status/CirclesUBI/safe-relay-service/Build%20docker%20and%20upload%20to%20registry?color=%2347cccb&label=test&style=flat-square " alt="CI Status" height="18">
+  </a>
+  <!-- Discourse -->
+  <a href="https://aboutcircles.com/">
+    <img src="https://img.shields.io/discourse/topics?server=https%3A%2F%2Faboutcircles.com%2F&style=flat-square&color=%23faad26" alt="chat" height="18"/>
+  </a>
+  <!-- Twitter -->
+  <a href="https://twitter.com/CirclesUBI">
+    <img src="https://img.shields.io/twitter/follow/circlesubi.svg?label=twitter&style=flat-square&color=%23f14d48" alt="Follow Circles" height="18">
+  </a>
+</div>
+
+<div align="center">
+  <h3>
+    <a href="https://circlesubi.github.io/circles-core/">
+      API Docs
+    </a>
+    <span> | </span>
+    <a href="https://handbook.joincircles.net">
+      Handbook
+    </a>
+    <span> | </span>
+    <a href="https://github.com/CirclesUBI/safe-relay-service/releases/">
+      Releases
+    </a>
+    <span> | </span>
+    <a href="https://github.com/CirclesUBI/.github/blob/main/CONTRIBUTING.md">
+      Contributing
+    </a>
+  </h3>
+</div>
+
+<br/>
 
 Fork of [Gnosis Safe Relay Service](https://docs.gnosis.io/safe/docs/services_relay/) to provide a relayer service and onboarding user tasks for the [Circles](https://github.com/CirclesUBI/circles-myxogastria/) web-app running on xDai.
 
