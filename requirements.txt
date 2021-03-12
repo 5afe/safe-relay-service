@@ -1,4 +1,3 @@
-django==3.1.7
 cachetools==4.2.1
 celery==5.0.5
 django-authtools==1.7.0
@@ -9,9 +8,10 @@ django-environ==0.4.5
 django-filter==2.4.0
 django-model-utils==4.1.1
 django-redis==4.12.1
+django-timezone-field==4.1.1
+django==3.1.7
 djangorestframework-camel-case==1.2.0
 djangorestframework==3.12.2
-django-timezone-field==4.1.1
 docutils==0.16
 drf-yasg[validation]==1.20.0
 ethereum==2.3.2
@@ -21,6 +21,7 @@ hexbytes==0.2.1
 lxml==4.6.2
 numpy==1.20.1
 packaging==20.9
+psycogreen==1.0.2
 psycopg2-binary==2.8.6
 redis==3.5.3
 requests==2.25.1
