@@ -17,7 +17,7 @@ rm -rf $DOCKER_SHARED_DIR/*
 cp -r staticfiles/ $DOCKER_SHARED_DIR/
 
 echo "==> $(date +%H:%M:%S) ==> Send via Slack info about service version and network"
-python manage.py send_slack_notification &
+python manage.py send_slack_notification
 
 if [ "${DEPLOY_MASTER_COPY_ON_INIT:-0}" = 1 ]; then
   echo "==> $(date +%H:%M:%S) ==> Deploy Safe master copy..."
