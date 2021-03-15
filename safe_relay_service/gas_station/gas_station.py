@@ -10,6 +10,8 @@ import requests
 from web3 import HTTPProvider, Web3
 from web3.middleware import geth_poa_middleware
 
+from gnosis.eth import EthereumClient, EthereumClientProvider
+
 from .models import GasPrice
 
 logger = getLogger(__name__)
@@ -25,7 +27,7 @@ class GasStationProvider:
             if settings.FIXED_GAS_PRICE is not None:
                 cls.instance = GasStationMock(gas_price=settings.FIXED_GAS_PRICE)
             else:
-                cls.instance = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+                cls.instance = GasStation(EthereumClientProvider(), settings.GAS_STATION_NUMBER_BLOCKS)
                 w3 = cls.instance.w3
                 if w3.isConnected() and int(w3.net.version) > 314158:  # Ganache
                     logger.warning('Using mock Gas Station because no `w3.net.version` was detected')
@@ -40,23 +42,17 @@ class GasStationProvider:
 
 class GasStation:
     def __init__(self,
-                 http_provider_uri='http://localhost:8545',
+                 ethereum_client: EthereumClient,
                  number_of_blocks: int = 200,
                  cache_timeout_seconds: int = 10 * 60,
                  constant_gas_increment: int = 1):  # Increase a little for fastest mining for API Calls
 
-        self.http_provider_uri = http_provider_uri
+        self.ethereum_client = ethereum_client
         self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
         self.constant_gas_increment = constant_gas_increment
-        self.w3 = Web3(HTTPProvider(http_provider_uri))
-        try:
-            if self.w3.net.version != 1:
-                self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-            # For tests using dummy connections (like IPC)
-        except (ConnectionError, FileNotFoundError):
-            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        self.w3 = self.ethereum_client.w3
 
     def _get_block_cache_key(self, block_number):
         return 'block:%d' % block_number
@@ -76,16 +72,6 @@ class GasStation:
     def _store_gas_price_in_cache(self, gas_price):
         return cache.set(self._get_gas_price_cache_key(), gas_price)
 
-    def _build_block_request(self, block_number: int, full_transactions: bool = False) -> Dict[str, Any]:
-        block_number_hex = '0x{:x}'.format(block_number)
-        return {"jsonrpc": "2.0",
-                "method": "eth_getBlockByNumber",
-                "params": [block_number_hex, full_transactions],
-                "id": block_number}
-
-    def _do_request(self, rpc_request):
-        return self.http_session.post(self.http_provider_uri, json=rpc_request).json()
-
     def get_tx_gas_prices(self, block_numbers: Iterable[int]) -> List[int]:
         """
         :param block_numbers: Block numbers to retrieve
@@ -101,27 +87,18 @@ class GasStation:
             else:
                 not_cached_block_numbers.append(block_number)
 
-        rpc_request = [self._build_block_request(block_number, full_transactions=True)
-                       for block_number in not_cached_block_numbers]
-
-        requested_blocks = []
-        for rpc_response in self._do_request(rpc_request):
-            block = rpc_response['result']
+        requested_blocks = self.ethereum_client.get_blocks(not_cached_block_numbers, full_transactions=True)
+        for block_number, block in zip(not_cached_block_numbers, requested_blocks):
             if block:
                 requested_blocks.append(block)
-                block_number = int(block['number'], 16)
-                self._store_block_in_cache(block_number, block)
+                self._store_block_in_cache(block['number'], block)
             else:
-                block_number = rpc_response['id']
                 logger.warning('Cannot find block-number=%d, a reorg happened', block_number)
 
-        gas_prices = []
-        for block in requested_blocks + cached_blocks:
-            for transaction in block['transactions']:
-                gas_price = int(transaction['gasPrice'], 16)
-                # Don't include miner transactions (0 gasPrice)
-                if gas_price:
-                    gas_prices.append(gas_price)
+        gas_prices = [transaction['gasPrice']
+                      for block in requested_blocks + cached_blocks
+                      for transaction in block['transactions']
+                      if transaction['gasPrice']]
 
         return gas_prices
 
