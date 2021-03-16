@@ -2,7 +2,7 @@
 	<img width="80" src="https://raw.githubusercontent.com/CirclesUBI/.github/main/assets/logo.svg" />
 </div>
 
-<h1 align="center">safe-relayer-service</h1>
+<h1 align="center">safe-relay-service</h1>
 
 <div align="center">
  <strong>
@@ -18,7 +18,7 @@
     <img src="https://img.shields.io/github/license/CirclesUBI/circles-core?style=flat-square&color=%23cc1e66" alt="License" height="18">
   </a>
   <!-- CI status -->
-  <a href="https://github.com/CirclesUBI/circles-core/actions/workflows/tests.yml">
+  <a href="https://github.com/CirclesUBI/safe-relay-service/actions/workflows/tagbuild.yml">
    <img src="https://img.shields.io/github/workflow/status/CirclesUBI/safe-relay-service/Build%20docker%20and%20upload%20to%20registry?color=%2347cccb&label=test&style=flat-square " alt="CI Status" height="18">
   </a>
   <!-- Discourse -->
@@ -33,10 +33,6 @@
 
 <div align="center">
   <h3>
-    <a href="https://circlesubi.github.io/circles-core/">
-      API Docs
-    </a>
-    <span> | </span>
     <a href="https://handbook.joincircles.net">
       Handbook
     </a>
