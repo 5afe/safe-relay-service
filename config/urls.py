@@ -4,7 +4,6 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import re_path
 from django.views import defaults as default_views
-from django.views.decorators.cache import cache_control
 
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view

@@ -1,14 +1,13 @@
 import math
 from logging import getLogger
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
 
 import numpy as np
 import requests
-from web3 import HTTPProvider, Web3
-from web3.middleware import geth_poa_middleware
+from web3 import Web3
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 
