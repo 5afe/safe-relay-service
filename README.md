@@ -14,8 +14,8 @@
 
 <div align="center">
   <!-- Licence -->
-  <a href="https://github.com/CirclesUBI/circles-core/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/CirclesUBI/circles-core?style=flat-square&color=%23cc1e66" alt="License" height="18">
+  <a href="https://github.com/CirclesUBI/safe-relay-service/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/CirclesUBI/safe-relay-service?style=flat-square&color=%23cc1e66" alt="License" height="18">
   </a>
   <!-- Discourse -->
   <a href="https://aboutcircles.com/">
