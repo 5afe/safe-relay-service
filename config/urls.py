@@ -24,17 +24,16 @@ schema_view = get_schema_view(
 
 
 schema_cache_timeout = 60 * 5  # 5 minutes
-schema_cache_decorator = cache_control(max_age=schema_cache_timeout)
 
 urlpatterns = [
     re_path(r'^$',
-            schema_cache_decorator(schema_view.with_ui('swagger', cache_timeout=0)),
+            schema_view.with_ui('swagger', cache_timeout=schema_cache_timeout),
             name='schema-swagger-ui'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',
-            schema_cache_decorator(schema_view.without_ui(cache_timeout=schema_cache_timeout)),
+            schema_view.without_ui(cache_timeout=schema_cache_timeout),
             name='schema-json'),
     re_path(r'^redoc/$',
-            schema_cache_decorator(schema_view.with_ui('redoc', cache_timeout=schema_cache_timeout)),
+            schema_view.with_ui('redoc', cache_timeout=schema_cache_timeout),
             name='schema-redoc'),
     re_path(settings.ADMIN_URL, admin.site.urls),
     re_path(r'^api/v1/', include('safe_relay_service.relay.urls', namespace='v1')),
