@@ -17,10 +17,6 @@
   <a href="https://github.com/CirclesUBI/circles-core/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/CirclesUBI/circles-core?style=flat-square&color=%23cc1e66" alt="License" height="18">
   </a>
-  <!-- CI status -->
-  <a href="https://github.com/CirclesUBI/safe-relay-service/actions/workflows/tagbuild.yml">
-   <img src="https://img.shields.io/github/workflow/status/CirclesUBI/safe-relay-service/Build%20docker%20and%20upload%20to%20registry?color=%2347cccb&label=test&style=flat-square " alt="CI Status" height="18">
-  </a>
   <!-- Discourse -->
   <a href="https://aboutcircles.com/">
     <img src="https://img.shields.io/discourse/topics?server=https%3A%2F%2Faboutcircles.com%2F&style=flat-square&color=%23faad26" alt="chat" height="18"/>
