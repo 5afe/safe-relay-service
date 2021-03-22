@@ -8,6 +8,7 @@ from django.core.cache import cache
 import numpy as np
 import requests
 from web3 import Web3
+from web3.types import BlockData
 
 from gnosis.eth import EthereumClient, EthereumClientProvider
 
@@ -53,22 +54,22 @@ class GasStation:
         self.constant_gas_increment = constant_gas_increment
         self.w3 = self.ethereum_client.w3
 
-    def _get_block_cache_key(self, block_number):
+    def _get_block_cache_key(self, block_number: int):
         return 'block:%d' % block_number
 
-    def _get_block_from_cache(self, block_number):
+    def _get_block_from_cache(self, block_number: int) -> Optional[BlockData]:
         return cache.get(self._get_block_cache_key(block_number))
 
-    def _store_block_in_cache(self, block_number, block):
+    def _store_block_in_cache(self, block_number: int, block: BlockData):
         return cache.set(self._get_block_cache_key(block_number), block, self.cache_timeout)
 
     def _get_gas_price_cache_key(self):
         return 'gas_price'
 
-    def _get_gas_price_from_cache(self):
+    def _get_gas_price_from_cache(self) -> Optional[GasPrice]:
         return cache.get(self._get_gas_price_cache_key())
 
-    def _store_gas_price_in_cache(self, gas_price):
+    def _store_gas_price_in_cache(self, gas_price: GasPrice):
         return cache.set(self._get_gas_price_cache_key(), gas_price)
 
     def get_tx_gas_prices(self, block_numbers: Iterable[int]) -> List[int]:
