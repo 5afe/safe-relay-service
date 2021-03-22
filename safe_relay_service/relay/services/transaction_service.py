@@ -524,6 +524,7 @@ class TransactionService:
                                                   tx_nonce=tx_nonce)
             else:
                 logger.error('Problem resending transaction', exc_info=True)
+                return None
 
         multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
         multisig_tx.full_clean(validate_unique=False)
