@@ -480,9 +480,10 @@ class TransactionService:
 
         if multisig_tx.ethereum_tx.gas_price > gas_price:
             logger.info(
-                '%s tx gas price is %d > %d. Maybe transaction was removed from mempool. Resending with new gas price',
+                '%s tx gas price is %d > %d. Tx should be mined soon',
                 multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
             )
+            return None
         safe = Safe(multisig_tx.safe_id, self.ethereum_client)
         try:
             safe_nonce = safe.retrieve_nonce()
