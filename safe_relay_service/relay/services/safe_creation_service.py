@@ -170,6 +170,19 @@ class SafeCreationService:
         gas_price: int = self._get_configured_gas_price()
         current_block_number = self.ethereum_client.current_block_number
 
+        logger.info('Safe.build_safe_create2_tx params: %s %s %s %s %s %s %s %s %s %s %s',
+                    self.safe_contract_address,
+                    self.proxy_factory.address,
+                    salt_nonce,
+                    owners,
+                    threshold,
+                    gas_price,
+                    payment_token,
+                    self.funder_account.address,
+                    self.default_callback_handler,
+                    payment_token_eth_value,
+                    self.safe_fixed_creation_cost)
+
         safe_creation_tx = Safe.build_safe_create2_tx(self.ethereum_client,
                                                       self.safe_contract_address,
                                                       self.proxy_factory.address,
