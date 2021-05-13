@@ -141,7 +141,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         nonce = 0
 
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,
@@ -201,7 +201,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold, initial_funding_wei=safe_balance)
         my_safe_address = safe_creation.safe_address
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,
@@ -361,7 +361,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         gas_token = estimation_json['gasToken']
 
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,
