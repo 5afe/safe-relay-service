@@ -9,7 +9,8 @@ from packaging.version import Version
 from redis import Redis
 from web3.exceptions import BadFunctionCallOutput
 
-from gnosis.eth import EthereumClient, EthereumClientProvider
+from gnosis.eth import (EthereumClient, EthereumClientProvider, InvalidNonce,
+                        NonceTooLow)
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe import ProxyFactory, Safe
 from gnosis.safe.exceptions import InvalidMultisigTx, SafeServiceException
@@ -508,24 +509,24 @@ class TransactionService:
         try:
             tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
-        except ValueError as exc:
-            if exc.args and isinstance(exc.args[0], dict) and 'nonce' in exc.args[0].get('message', ''):
-                # ValueError({'code': -32010, 'message': 'Transaction nonce is too low. Try incrementing the nonce.'})
-                try:
-                    # Check that transaction is still valid
-                    safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
-                except InvalidMultisigTx:
-                    # Maybe there's a transaction with a lower nonce that must be mined before
-                    # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
-                    return None
-                # Send transaction again with a new nonce
-                with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
-                                       lock_timeout=60 * 2) as tx_nonce:
-                    tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
-                                                  tx_nonce=tx_nonce)
-            else:
-                logger.error('Problem resending transaction', exc_info=True)
+        except InvalidNonce:
+            try:
+                # Check that transaction is still valid
+                safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
+            except InvalidMultisigTx:
+                # Maybe there's a transaction with a lower nonce that must be mined before
+                # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
                 return None
+            # Send transaction again with a new nonce
+            with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
+                                   lock_timeout=60 * 2) as tx_nonce:
+                tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
+                                              tx_nonce=tx_nonce)
+                logger.error('Nonce problem, sending transaction for Safe %s with a new nonce %d and tx-hash %s',
+                             multisig_tx.safe_id, tx_nonce, tx_hash.hex(), exc_info=True)
+        except ValueError:
+            logger.error('Problem resending transaction', exc_info=True)
+            return None
 
         multisig_tx.ethereum_tx = EthereumTx.objects.create_from_tx_dict(tx, tx_hash)
         multisig_tx.full_clean(validate_unique=False)
