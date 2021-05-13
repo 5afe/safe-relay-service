@@ -9,8 +9,7 @@ from packaging.version import Version
 from redis import Redis
 from web3.exceptions import BadFunctionCallOutput
 
-from gnosis.eth import (EthereumClient, EthereumClientProvider, InvalidNonce,
-                        NonceTooLow)
+from gnosis.eth import EthereumClient, EthereumClientProvider, InvalidNonce
 from gnosis.eth.constants import NULL_ADDRESS
 from gnosis.safe import ProxyFactory, Safe
 from gnosis.safe.exceptions import InvalidMultisigTx, SafeServiceException

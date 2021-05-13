@@ -6,7 +6,6 @@ from django.conf import settings
 from django.core.cache import cache
 
 import numpy as np
-import requests
 from web3 import Web3
 from web3.types import BlockData
 
@@ -48,7 +47,6 @@ class GasStation:
                  constant_gas_increment: int = 1):  # Increase a little for fastest mining for API Calls
 
         self.ethereum_client = ethereum_client
-        self.http_session = requests.session()
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
         self.constant_gas_increment = constant_gas_increment
