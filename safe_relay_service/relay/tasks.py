@@ -622,7 +622,7 @@ def circles_onboarding_organization_signup_task(safe_address: str) -> None:
             FundingServiceProvider().send_eth_to(
                 safe_address,
                 payment - safe_balance,
-                gas=24000,
+                gas=30000,
                 retry=True
             )
     except LockError:
