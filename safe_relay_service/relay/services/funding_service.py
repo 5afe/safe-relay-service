@@ -57,6 +57,7 @@ class FundingService:
 
         with EthereumNonceLock(self.redis, self.ethereum_client, self.funder_account.address,
                                lock_timeout=60 * 2) as tx_nonce:
+            logger.info('Fund safe=%s with %d', to, value)
             return self.ethereum_client.send_eth_to(self.funder_account.key, to, gas_price, value,
                                                     gas=gas,
                                                     retry=retry,
