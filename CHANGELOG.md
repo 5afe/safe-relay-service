@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.9] - 2021-05-25
+
+### Fixed
+
+- Fix organization funding gas limit [#46](https://github.com/CirclesUBI/safe-relay-service/pull/46)
+
+## [4.1.8] - 2021-05-05
+
+### Changed
+
+- Added more logging for safe address prediction v4.1.8 [61870cc](https://github.com/CirclesUBI/safe-relay-service/commit/61870cc1659c970a1b083dd6bde44744d5187aca)
+
 ## [4.1.7] - 2021-03-11
 
 ### Changed
