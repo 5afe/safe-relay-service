@@ -96,5 +96,5 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
         self.assertNotEqual(multisig_tx.ethereum_tx_id, old_multisig_tx.ethereum_tx_id)
         self.assertEqual(multisig_tx.ethereum_tx.gas_price, new_gas_price)
         self.assertEqual(w3.eth.getBalance(to), value)  # Tx is executed again
-        self.assertEqual(multisig_tx.get_safe_tx().__dict__,
-                         old_multisig_tx.get_safe_tx().__dict__)
+        self.assertEqual(multisig_tx.get_safe_tx(self.ethereum_client).__dict__,
+                         old_multisig_tx.get_safe_tx(self.ethereum_client).__dict__)
