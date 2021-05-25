@@ -476,6 +476,7 @@ class TransactionService:
                 '%s tx was already mined on block %d',
                 multisig_tx.ethereum_tx_id, transaction_receipt['blockNumber']
             )
+            # TODO Resend tx if deleted from mempool
             return None
 
         if multisig_tx.ethereum_tx.gas_price > gas_price:
@@ -508,6 +509,8 @@ class TransactionService:
         try:
             tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
+            logger.info('Tx with old tx-hash %s was resent with a new tx-hash %s',
+                        multisig_tx.ethereum_tx_id, tx_hash.hex())
         except InvalidNonce:
             try:
                 # Check that transaction is still valid

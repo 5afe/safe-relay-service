@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         # Positional arguments
-        parser.add_argument('--gas-price', help='Resend all txs below this gas-price using this gas price')
+        parser.add_argument('--gas-price', help='Resend all txs below this gas-price using this gas price', type=int)
         parser.add_argument('--safe-tx-hash', help='Resend tx with safe tx hash')
 
     def __init__(self, *args, **kwargs):
