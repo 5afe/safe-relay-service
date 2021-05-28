@@ -95,6 +95,9 @@ class SafeCreationService:
     def __init__(self, gas_station: GasStation, ethereum_client: EthereumClient, redis: Redis,
                  safe_contract_address: str, proxy_factory_address: str, default_callback_handler: str,
                  safe_funder_private_key: str, safe_fixed_creation_cost: int):
+        """
+        :warning: Changing the value of any of the parameters of the build_safe_create2_tx function will affect the safe address prediction
+        """
         self.gas_station = gas_station
         self.ethereum_client = ethereum_client
         self.redis = redis
@@ -163,8 +166,8 @@ class SafeCreationService:
         :param payment_token: Address of the payment token, otherwise `ether` is used
         :rtype: str
         :raises: InvalidPaymentToken
+        :warning: Changing the value of any of the parameters of the build_safe_create2_tx function will affect the safe address prediction 
         """
-
         payment_token = payment_token or NULL_ADDRESS
         payment_token_eth_value = self._get_token_eth_value_or_raise(payment_token)
         gas_price: int = self._get_configured_gas_price()
