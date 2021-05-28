@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
+from web3.types import TxParams
 
 from gnosis.eth import EthereumClient
 from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS
@@ -339,6 +340,17 @@ class EthereumTx(TimeStampedModel):
     @property
     def fee(self) -> int:
         return self.gas * self.gas_price
+
+    def as_tx_dict(self) -> TxParams:
+        return {
+            "data": bytes(self.data) if self.data else b'',
+            "from": self._from,
+            "gas": self.gas,
+            "gasPrice": self.gas_price,
+            "nonce": self.nonce,
+            "to": self.to,
+            "value": self.value,
+        }
 
 
 class SafeMultisigTxManager(models.Manager):

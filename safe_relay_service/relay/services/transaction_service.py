@@ -5,6 +5,7 @@ from django.db import IntegrityError
 from django.utils import timezone
 
 from eth_account import Account
+from eth_account.signers.local import LocalAccount
 from packaging.version import Version
 from redis import Redis
 from web3.exceptions import BadFunctionCallOutput
@@ -137,7 +138,7 @@ class TransactionService:
         self.redis = redis
         self.safe_valid_contract_addresses = safe_valid_contract_addresses
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
-        self.tx_sender_account = Account.from_key(tx_sender_private_key)
+        self.tx_sender_account: LocalAccount = Account.from_key(tx_sender_private_key)
 
     def _check_refund_receiver(self, refund_receiver: str) -> bool:
         """
@@ -476,14 +477,30 @@ class TransactionService:
                 '%s tx was already mined on block %d',
                 multisig_tx.ethereum_tx_id, transaction_receipt['blockNumber']
             )
-            # TODO Resend tx if deleted from mempool
             return None
 
-        if multisig_tx.ethereum_tx.gas_price > gas_price:
+        # Check that transaction is still valid
+        safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
+        tx_gas = safe_tx.recommended_gas()
+        try:
+            safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
+        except InvalidMultisigTx:
+            # Maybe there's a transaction with a lower nonce that must be mined before
+            # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
+            return None
+
+        if multisig_tx.ethereum_tx.gas_price >= gas_price:
             logger.info(
-                '%s tx gas price is %d > %d. Tx should be mined soon',
+                '%s tx gas price is %d >= current gas price %d. Tx should be mined soon',
                 multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
             )
+            # Maybe tx was deleted from mempool, resend it
+            tx_params = multisig_tx.ethereum_tx.as_tx_dict()
+            raw_transaction = self.tx_sender_account.sign_transaction(tx_params)['rawTransaction']
+            try:
+                self.ethereum_client.send_raw_transaction(raw_transaction)
+            except ValueError:
+                pass
             return None
         safe = Safe(multisig_tx.safe_id, self.ethereum_client)
         try:
@@ -504,21 +521,12 @@ class TransactionService:
             '%s tx gas price was %d. Resending with new gas price %d',
             multisig_tx.ethereum_tx_id, multisig_tx.ethereum_tx.gas_price, gas_price
         )
-        safe_tx = multisig_tx.get_safe_tx(self.ethereum_client)
-        tx_gas = safe_tx.recommended_gas()
         try:
             tx_hash, tx = safe_tx.execute(self.tx_sender_account.key, tx_gas=tx_gas, tx_gas_price=gas_price,
                                           tx_nonce=multisig_tx.ethereum_tx.nonce)
             logger.info('Tx with old tx-hash %s was resent with a new tx-hash %s',
                         multisig_tx.ethereum_tx_id, tx_hash.hex())
         except InvalidNonce:
-            try:
-                # Check that transaction is still valid
-                safe_tx.call(tx_sender_address=self.tx_sender_account.address, tx_gas=tx_gas)
-            except InvalidMultisigTx:
-                # Maybe there's a transaction with a lower nonce that must be mined before
-                # It doesn't matter, as soon as a transaction with a newer nonce is added it will be deleted
-                return None
             # Send transaction again with a new nonce
             with EthereumNonceLock(self.redis, self.ethereum_client, self.tx_sender_account.address,
                                    lock_timeout=60 * 2) as tx_nonce:
