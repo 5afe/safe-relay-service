@@ -500,7 +500,7 @@ class TransactionService:
             try:
                 self.ethereum_client.send_raw_transaction(raw_transaction)
             except ValueError:
-                pass
+                logger.warning('Error resending transaction', exc_info=True)
             return None
         safe = Safe(multisig_tx.safe_id, self.ethereum_client)
         try:
