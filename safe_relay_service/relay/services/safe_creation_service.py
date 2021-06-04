@@ -285,10 +285,10 @@ class SafeCreationService:
             gas_price=gas_price,
             nonce=ethereum_tx.nonce)  # Replace old transaction
         EthereumTx.objects.create_from_tx_dict(ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash)
-        safe_creation2.tx_hash = ethereum_tx_sent.tx_hash
+        safe_creation2.tx_hash = ethereum_tx_sent.tx_hash.hex()
         safe_creation2.save(update_fields=['tx_hash'])
         logger.info('Send again transaction to deploy Safe=%s with tx-hash=%s',
-                    safe_address, ethereum_tx_sent.tx_hash.hex())
+                    safe_address, safe_creation2.tx_hash)
         return safe_creation2
 
     def estimate_safe_creation2(self, number_owners: int, payment_token: Optional[str] = None) -> SafeCreationEstimate:
