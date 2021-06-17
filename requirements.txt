@@ -15,14 +15,14 @@ djangorestframework==3.12.4
 docutils==0.17.1
 drf-yasg[validation]==1.20.0
 ethereum==2.3.2
-gnosis-py==3.1.1
+gnosis-py==3.1.4
 gunicorn[gevent]==20.1.0
 hexbytes==0.2.1
 lxml==4.6.3
 numpy==1.20.3
 packaging==20.9
 psycogreen==1.0.2
-psycopg2-binary==2.8.6
+psycopg2-binary==2.9.1
 redis==3.5.3
 requests==2.25.1
 web3==5.19.0
