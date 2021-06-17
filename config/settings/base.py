@@ -176,7 +176,6 @@ MANAGERS = ADMINS
 # Celery
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += [
-    'safe_relay_service.taskapp.celery.CeleryConfig',
     'django_celery_beat',
 ]
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url

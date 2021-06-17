@@ -11,4 +11,4 @@ fi
 
 sleep 10  # Wait for migrations
 echo "==> $(date +%H:%M:%S) ==> Running Celery worker <=="
-exec celery -A safe_relay_service.taskapp worker --loglevel $log_level --pool=gevent --autoscale=100,15
+exec celery -A config.celery_app worker --loglevel $log_level --pool=gevent --autoscale=100,15

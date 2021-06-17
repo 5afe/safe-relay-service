@@ -6,5 +6,5 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --force-rm 
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --no-start db redis ganache
 docker restart safe-relay-service_db_1 safe-relay-service_redis_1 safe-relay-service_ganache_1
 sleep 2
-DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env_local python manage.py check
-DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env_local pytest
+DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env.local python manage.py check
+DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env.local pytest
