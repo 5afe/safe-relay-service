@@ -227,11 +227,19 @@ LOGGING = {
         },
         'ignore_check_url': {
             '()': 'safe_relay_service.relay.utils.IgnoreCheckUrl'
-        }
+        },
+        'ignore_succeeded_none': {
+            '()': 'safe_relay_service.utils.celery.IgnoreSucceededNone'
+        },
     },
     'formatters': {
         'verbose': {
             'format': '%(asctime)s [%(levelname)s] [%(processName)s] %(message)s',
+        },
+        'celery_verbose': {
+            'class': 'safe_relay_service.utils.celery.PatchedCeleryFormatter',
+            'format': '%(asctime)s [%(levelname)s] [%(task_id)s/%(task_name)s] %(message)s',
+            # 'format': '%(asctime)s [%(levelname)s] [%(processName)s] [%(task_id)s/%(task_name)s] %(message)s'
         },
     },
     'handlers': {
@@ -244,6 +252,12 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+        },
+        'celery_console': {
+            'level': 'DEBUG',
+            'filters': ['ignore_succeeded_none'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'celery_verbose',
         },
     },
     'loggers': {
