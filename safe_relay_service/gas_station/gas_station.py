@@ -96,7 +96,7 @@ class GasStation:
         gas_prices = [transaction['gasPrice']
                       for block in requested_blocks + cached_blocks
                       for transaction in block['transactions']
-                      if transaction['gasPrice']]
+                      if transaction.get('gasPrice')]
 
         return gas_prices
 
