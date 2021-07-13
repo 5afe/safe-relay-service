@@ -11,7 +11,7 @@ Use this checklist to create a new release of `safe-relay-service` and distribut
 5. Commit the `CHANGELOG.md` changes you've just made.
 6. Create a git based on [semantic versioning](https://semver.org/) using `git tag vX.X.X`.
 7. `git push origin main --tags` to push the tag to GitHub.
-8. [Create](https://github.com/CirclesUBI/safe-relay-service/releases/new) a new release on GitHub, select the tag you've just pushed under *"Tag version"* and use the same for the *"Release title"*. For *"Describe this release"* copy the same information you've entered in `CHANGELOG.md` for this release. See examples [here](https://github.com/CirclesUBI/circles-api/releases).
+8. [Create](https://github.com/CirclesUBI/safe-relay-service/releases/new) a new release on GitHub, select the tag you've just pushed under *"Tag version"* and use the same for the *"Release title"*. For *"Describe this release"* copy the same information you've entered in `CHANGELOG.md` for this release. See examples [here](https://github.com/CirclesUBI/safe-relay-service/releases).
 
 ## Building and uploading Docker image to registry
 
