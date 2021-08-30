@@ -59,7 +59,9 @@ class SafeAddressPredictionView(CreateAPIView):
                                                             serializer.data['payment_token'])
 
             safe_creation_service = SafeCreationServiceProvider()
-            safe_prediction = safe_creation_service.predict_address(salt_nonce, owners, threshold, payment_token)
+            safe_prediction = safe_creation_service.existing_predicted_address(salt_nonce, owners)
+            if safe_prediction == NULL_ADDRESS:
+                safe_prediction = safe_creation_service.predict_address(salt_nonce, owners)
             safe_prediction_response_data = SafeAddressPredictionResponseSerializer(data={
                 'safe': safe_prediction,
             })
