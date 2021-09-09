@@ -155,7 +155,8 @@ class SafeCreationService:
 
     def existing_predicted_address(self, salt_nonce: int, owners: Iterable[str]) -> str:
         """
-        Return a previously predicted Safe address
+        Return a previously predicted Safe address.
+        Note that the prediction parameters are not updated for the SafeCreation2 object
         :param salt_nonce: Random value for solidity `create2` salt
         :param owners: Owners of the new Safe
         :rtype: str
@@ -164,8 +165,6 @@ class SafeCreationService:
             safe_creation = SafeCreation2.objects.filter(owners__contains=owners).order_by('created').first()
             assert salt_nonce == safe_creation.salt_nonce, 'Existing predicted address salt_nonce should be the same!'
             predicted_safe_address = safe_creation.safe_id
-            safe_creation.payment_receiver = self.funder_account.address
-            safe_creation.save(update_fields=['payment_receiver'])
             logger.info('The relayer had already predicted an address for this owner. Safe addr: %s, owner: %s', predicted_safe_address, owners)
             return predicted_safe_address
         except SafeCreation2.DoesNotExist:
