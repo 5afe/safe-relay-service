@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.10] - 2021-09-09
+
+### Changed
+
+- Avoid predicting a new address if there's already one registered [#50](https://github.com/CirclesUBI/safe-relay-service/pull/50)
+
+### Added
+
+- Create RELEASE.md
+
 ## [4.1.9] - 2021-05-25
 
 ### Fixed
