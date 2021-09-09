@@ -162,11 +162,12 @@ class SafeCreationService:
         :rtype: str
         """
         try:
-            safe_creation = SafeCreation2.objects.filter(owners__contains=owners).order_by('created').first()
-            assert salt_nonce == safe_creation.salt_nonce, 'Existing predicted address salt_nonce should be the same!'
-            predicted_safe_address = safe_creation.safe_id
-            logger.info('The relayer had already predicted an address for this owner. Safe addr: %s, owner: %s', predicted_safe_address, owners)
-            return predicted_safe_address
+            # The salt_nonce is deterministicly generated from the owner address
+            safe_creation = SafeCreation2.objects.filter(owners__contains=owners, salt_nonce=salt_nonce).order_by('created').first()
+            if not safe_creation:
+                return NULL_ADDRESS
+            logger.info('The relayer had already predicted an address for this owner. Safe addr: %s, owner: %s', safe_creation.safe_id, owners)
+            return safe_creation.safe_id
         except SafeCreation2.DoesNotExist:
             return NULL_ADDRESS
 
