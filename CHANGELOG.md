@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.11] - 2021-09-09
+
+### Changed
+
+- Migrate ubuntu-16.04 workflows to ubuntu-18.04 [#51](https://github.com/CirclesUBI/safe-relay-service/pull/51)
+
 ## [4.1.10] - 2021-09-09
 
 ### Changed
