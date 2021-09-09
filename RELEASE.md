@@ -6,12 +6,12 @@ Use this checklist to create a new release of `safe-relay-service` and distribut
 
 1. Make sure you are currently on the `main` branch, otherwise run `git checkout main`.
 2. `git pull` to make sure you haven’t missed any last-minute commits. After this point, nothing else is making it into this version.
-3. Read the git history since the last release, for example via `git --no-pager log --oneline --no-decorate v4.1.9^..origin/main` (replace `v4.1.9` with the last published version).
+3. Read the git history since the last release, for example via `git --no-pager log --oneline --no-decorate v4.1.10^..origin/main` (replace `v4.1.9` with the last published version).
 4. Condense the list of changes into something user-readable and write it into the `CHANGELOG.md` file with the release date and version, following the specification here on [how to write a changelog](https://keepachangelog.com/en/1.0.0/). Make sure you add references to the regarding PRs and issues.
 5. Commit the `CHANGELOG.md` changes you've just made.
 6. Create a git based on [semantic versioning](https://semver.org/) using `git tag vX.X.X`.
 7. `git push origin main --tags` to push the tag to GitHub.
-8. [Create](https://github.com/CirclesUBI/safe-relay-service/releases/new) a new release on GitHub, select the tag you've just pushed under *"Tag version"* and use the same for the *"Release title"*. For *"Describe this release"* copy the same information you've entered in `CHANGELOG.md` for this release. See examples [here](https://github.com/CirclesUBI/safe-relay-service/releases).
+8. [Create](https://github.com/CirclesUBI/safe-relay-service/releases/new) a new release on GitHub, select the tag you've just pushed under _"Tag version"_ and use the same for the _"Release title"_. For _"Describe this release"_ copy the same information you've entered in `CHANGELOG.md` for this release. See examples [here](https://github.com/CirclesUBI/safe-relay-service/releases).
 
 ## Building and uploading Docker image to registry
 
