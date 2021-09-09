@@ -50,7 +50,7 @@ class SafeAddressPredictionView(CreateAPIView):
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
         """
-        Predicts the safe address
+        Predicts the safe address. If the relayer already predicted an address for that owner, it doesn't do the prediction again
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
