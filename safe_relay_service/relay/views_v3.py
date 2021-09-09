@@ -50,7 +50,8 @@ class SafeAddressPredictionView(CreateAPIView):
                                     422: 'Cannot process data'})
     def post(self, request, *args, **kwargs):
         """
-        Predicts the safe address
+        Predicts the safe address. If the relayer already predicted an address for that owner, it doesn't do the prediction again.
+        Note that the prediction parameters are not updated for the SafeCreation2 object
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
@@ -59,7 +60,9 @@ class SafeAddressPredictionView(CreateAPIView):
                                                             serializer.data['payment_token'])
 
             safe_creation_service = SafeCreationServiceProvider()
-            safe_prediction = safe_creation_service.predict_address(salt_nonce, owners, threshold, payment_token)
+            safe_prediction = safe_creation_service.existing_predicted_address(salt_nonce, owners)
+            if safe_prediction == NULL_ADDRESS:
+                safe_prediction = safe_creation_service.predict_address(salt_nonce, owners, threshold, payment_token)
             safe_prediction_response_data = SafeAddressPredictionResponseSerializer(data={
                 'safe': safe_prediction,
             })

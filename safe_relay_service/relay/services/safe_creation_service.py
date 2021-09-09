@@ -153,6 +153,25 @@ class SafeCreationService:
             logger.info('Found %d balance for safe=%s with payment-token=%s. Required=%d', safe_balance,
                         safe_address, safe_creation2.payment_token, safe_creation2.payment)
 
+    def existing_predicted_address(self, salt_nonce: int, owners: Iterable[str]) -> str:
+        """
+        Return a previously predicted Safe address.
+        Note that the prediction parameters are not updated for the SafeCreation2 object
+        :param salt_nonce: Random value for solidity `create2` salt
+        :param owners: Owners of the new Safe
+        :rtype: str
+        """
+        try:
+            # The salt_nonce is deterministicly generated from the owner address
+            safe_creation = SafeCreation2.objects.filter(owners__contains=owners, salt_nonce=salt_nonce).order_by('created').first()
+            if not safe_creation:
+                return NULL_ADDRESS
+            logger.info('The relayer had already predicted an address for this owner. Safe addr: %s, owner: %s', safe_creation.safe_id, owners)
+            return safe_creation.safe_id
+        except SafeCreation2.DoesNotExist:
+            return NULL_ADDRESS
+
+
     def predict_address(self, salt_nonce: int, owners: Iterable[str], threshold: int,
                         payment_token: Optional[str]) -> str:
         """
