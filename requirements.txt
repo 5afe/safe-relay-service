@@ -1,4 +1,4 @@
-cachetools==4.2.2
+cachetools==4.2.4
 celery==5.1.2
 django-authtools==1.7.0
 django-celery-beat==2.2.1
