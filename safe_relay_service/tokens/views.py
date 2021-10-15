@@ -12,7 +12,7 @@ from .serializers import TokenSerializer
 
 class TokenView(RetrieveAPIView):
     serializer_class = TokenSerializer
-    lookup_field = 'address'
+    lookup_field = "address"
     queryset = Token.objects.all()
 
     @method_decorator(cache_page(60 * 5))  # Cache 5 minutes
@@ -22,11 +22,15 @@ class TokenView(RetrieveAPIView):
 
 class TokensView(ListAPIView):
     serializer_class = TokenSerializer
-    filter_backends = (django_filters.rest_framework.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
+    filter_backends = (
+        django_filters.rest_framework.DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    )
     filterset_class = TokenFilter
-    search_fields = ('name', 'symbol')
-    ordering_fields = '__all__'
-    ordering = ('relevance', 'name')
+    search_fields = ("name", "symbol")
+    ordering_fields = "__all__"
+    ordering = ("relevance", "name")
     queryset = Token.objects.all()
 
     @method_decorator(cache_page(60 * 5))  # Cache 5 minutes

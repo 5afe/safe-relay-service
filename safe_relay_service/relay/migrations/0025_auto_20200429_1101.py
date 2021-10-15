@@ -6,32 +6,32 @@ from gnosis.eth import EthereumClientProvider
 
 
 def add_status_and_index_to_txs(apps, schema_editor):
-    EthereumTx = apps.get_model('relay', 'EthereumTx')
+    EthereumTx = apps.get_model("relay", "EthereumTx")
     ethereum_client = EthereumClientProvider()
     for ethereum_tx in EthereumTx.objects.filter(status=None):
         tx_receipt = ethereum_client.get_transaction_receipt(ethereum_tx.tx_hash)
         if tx_receipt:
-            ethereum_tx.status = tx_receipt.get('status')
-            ethereum_tx.transaction_index = tx_receipt['transactionIndex']
-            ethereum_tx.save(update_fields=['status', 'transaction_index'])
+            ethereum_tx.status = tx_receipt.get("status")
+            ethereum_tx.transaction_index = tx_receipt["transactionIndex"]
+            ethereum_tx.save(update_fields=["status", "transaction_index"])
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0024_delete_internaltx'),
+        ("relay", "0024_delete_internaltx"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='ethereumtx',
-            name='status',
+            model_name="ethereumtx",
+            name="status",
             field=models.IntegerField(db_index=True, default=None, null=True),
         ),
         migrations.AddField(
-            model_name='ethereumtx',
-            name='transaction_index',
+            model_name="ethereumtx",
+            name="transaction_index",
             field=models.PositiveIntegerField(default=None, null=True),
         ),
-        migrations.RunPython(add_status_and_index_to_txs)
+        migrations.RunPython(add_status_and_index_to_txs),
     ]

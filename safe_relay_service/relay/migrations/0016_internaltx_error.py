@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0015_ethereumtx_gas_used'),
+        ("relay", "0015_ethereumtx_gas_used"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='internaltx',
-            name='error',
+            model_name="internaltx",
+            name="error",
             field=models.CharField(max_length=100, null=True),
         ),
     ]

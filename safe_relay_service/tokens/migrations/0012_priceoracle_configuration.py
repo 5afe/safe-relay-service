@@ -5,27 +5,34 @@ from django.db import migrations
 
 
 def create_uniswap_price_oracle(apps, schema_editor):
-    PriceOracle = apps.get_model('tokens', 'PriceOracle')
+    PriceOracle = apps.get_model("tokens", "PriceOracle")
     # Use uniswap mainnet address
-    PriceOracle.objects.create(name='Uniswap', configuration={'uniswap_exchange_address':
-                                                              '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'})
-    PriceOracle.objects.create(name='Kyber', configuration={'kyber_network_proxy_address':
-                                                            '0x818E6FECD516Ecc3849DAf6845e3EC868087B755',
-                                                            'weth_token_address':
-                                                            '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'})
+    PriceOracle.objects.create(
+        name="Uniswap",
+        configuration={
+            "uniswap_exchange_address": "0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95"
+        },
+    )
+    PriceOracle.objects.create(
+        name="Kyber",
+        configuration={
+            "kyber_network_proxy_address": "0x818E6FECD516Ecc3849DAf6845e3EC868087B755",
+            "weth_token_address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        },
+    )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tokens', '0011_auto_20190225_1646'),
+        ("tokens", "0011_auto_20190225_1646"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='priceoracle',
-            name='configuration',
+            model_name="priceoracle",
+            name="configuration",
             field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
         ),
-        migrations.RunPython(create_uniswap_price_oracle)
+        migrations.RunPython(create_uniswap_price_oracle),
     ]

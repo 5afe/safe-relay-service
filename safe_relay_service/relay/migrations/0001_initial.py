@@ -14,94 +14,200 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='SafeContract',
+            name="SafeContract",
             fields=[
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('address', gnosis.eth.django.models.EthereumAddressField(primary_key=True, serialize=False)),
-                ('master_copy', gnosis.eth.django.models.EthereumAddressField()),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="created",
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="modified",
+                    ),
+                ),
+                (
+                    "address",
+                    gnosis.eth.django.models.EthereumAddressField(
+                        primary_key=True, serialize=False
+                    ),
+                ),
+                ("master_copy", gnosis.eth.django.models.EthereumAddressField()),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='SafeCreation',
+            name="SafeCreation",
             fields=[
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('deployer', gnosis.eth.django.models.EthereumAddressField(primary_key=True, serialize=False)),
-                ('owners', django.contrib.postgres.fields.ArrayField(base_field=gnosis.eth.django.models.EthereumAddressField(), size=None)),
-                ('threshold', gnosis.eth.django.models.Uint256Field()),
-                ('payment', gnosis.eth.django.models.Uint256Field()),
-                ('tx_hash', gnosis.eth.django.models.Sha3HashField(unique=True)),
-                ('gas', gnosis.eth.django.models.Uint256Field()),
-                ('gas_price', gnosis.eth.django.models.Uint256Field()),
-                ('value', gnosis.eth.django.models.Uint256Field()),
-                ('v', models.PositiveSmallIntegerField()),
-                ('r', gnosis.eth.django.models.Uint256Field()),
-                ('s', gnosis.eth.django.models.Uint256Field()),
-                ('data', models.BinaryField(null=True)),
-                ('signed_tx', models.BinaryField(null=True)),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="created",
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="modified",
+                    ),
+                ),
+                (
+                    "deployer",
+                    gnosis.eth.django.models.EthereumAddressField(
+                        primary_key=True, serialize=False
+                    ),
+                ),
+                (
+                    "owners",
+                    django.contrib.postgres.fields.ArrayField(
+                        base_field=gnosis.eth.django.models.EthereumAddressField(),
+                        size=None,
+                    ),
+                ),
+                ("threshold", gnosis.eth.django.models.Uint256Field()),
+                ("payment", gnosis.eth.django.models.Uint256Field()),
+                ("tx_hash", gnosis.eth.django.models.Sha3HashField(unique=True)),
+                ("gas", gnosis.eth.django.models.Uint256Field()),
+                ("gas_price", gnosis.eth.django.models.Uint256Field()),
+                ("value", gnosis.eth.django.models.Uint256Field()),
+                ("v", models.PositiveSmallIntegerField()),
+                ("r", gnosis.eth.django.models.Uint256Field()),
+                ("s", gnosis.eth.django.models.Uint256Field()),
+                ("data", models.BinaryField(null=True)),
+                ("signed_tx", models.BinaryField(null=True)),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='SafeMultisigTx',
+            name="SafeMultisigTx",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('to', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('value', gnosis.eth.django.models.Uint256Field()),
-                ('data', models.BinaryField(null=True)),
-                ('operation', models.PositiveSmallIntegerField(choices=[(0, 'CALL'), (1, 'DELEGATE_CALL'), (2, 'CREATE')])),
-                ('safe_tx_gas', gnosis.eth.django.models.Uint256Field()),
-                ('data_gas', gnosis.eth.django.models.Uint256Field()),
-                ('gas_price', gnosis.eth.django.models.Uint256Field()),
-                ('gas_token', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('signatures', models.BinaryField()),
-                ('gas', gnosis.eth.django.models.Uint256Field()),
-                ('nonce', gnosis.eth.django.models.Uint256Field()),
-                ('tx_hash', gnosis.eth.django.models.Sha3HashField(unique=True)),
-                ('tx_mined', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="created",
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="modified",
+                    ),
+                ),
+                ("to", gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ("value", gnosis.eth.django.models.Uint256Field()),
+                ("data", models.BinaryField(null=True)),
+                (
+                    "operation",
+                    models.PositiveSmallIntegerField(
+                        choices=[(0, "CALL"), (1, "DELEGATE_CALL"), (2, "CREATE")]
+                    ),
+                ),
+                ("safe_tx_gas", gnosis.eth.django.models.Uint256Field()),
+                ("data_gas", gnosis.eth.django.models.Uint256Field()),
+                ("gas_price", gnosis.eth.django.models.Uint256Field()),
+                ("gas_token", gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ("signatures", models.BinaryField()),
+                ("gas", gnosis.eth.django.models.Uint256Field()),
+                ("nonce", gnosis.eth.django.models.Uint256Field()),
+                ("tx_hash", gnosis.eth.django.models.Sha3HashField(unique=True)),
+                ("tx_mined", models.BooleanField(default=False)),
             ],
         ),
         migrations.CreateModel(
-            name='SafeFunding',
+            name="SafeFunding",
             fields=[
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('safe', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, serialize=False, to='relay.SafeContract')),
-                ('safe_funded', models.BooleanField(default=False)),
-                ('deployer_funded', models.BooleanField(db_index=True, default=False)),
-                ('deployer_funded_tx_hash', gnosis.eth.django.models.Sha3HashField(blank=True, null=True, unique=True)),
-                ('safe_deployed', models.BooleanField(db_index=True, default=False)),
-                ('safe_deployed_tx_hash', gnosis.eth.django.models.Sha3HashField(blank=True, null=True, unique=True)),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="created",
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="modified",
+                    ),
+                ),
+                (
+                    "safe",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        serialize=False,
+                        to="relay.SafeContract",
+                    ),
+                ),
+                ("safe_funded", models.BooleanField(default=False)),
+                ("deployer_funded", models.BooleanField(db_index=True, default=False)),
+                (
+                    "deployer_funded_tx_hash",
+                    gnosis.eth.django.models.Sha3HashField(
+                        blank=True, null=True, unique=True
+                    ),
+                ),
+                ("safe_deployed", models.BooleanField(db_index=True, default=False)),
+                (
+                    "safe_deployed_tx_hash",
+                    gnosis.eth.django.models.Sha3HashField(
+                        blank=True, null=True, unique=True
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.AddField(
-            model_name='safemultisigtx',
-            name='safe',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='relay.SafeContract'),
+            model_name="safemultisigtx",
+            name="safe",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="relay.SafeContract"
+            ),
         ),
         migrations.AddField(
-            model_name='safecreation',
-            name='safe',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='relay.SafeContract'),
+            model_name="safecreation",
+            name="safe",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE, to="relay.SafeContract"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='safemultisigtx',
-            unique_together={('safe', 'nonce')},
+            name="safemultisigtx",
+            unique_together={("safe", "nonce")},
         ),
     ]

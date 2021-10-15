@@ -4,21 +4,21 @@ from django.db import migrations
 
 
 def create_price_oracles(apps, schema_editor):
-    PriceOracle = apps.get_model('tokens', 'PriceOracle')
-    PriceOracle.objects.bulk_create([
-        PriceOracle(name='Kraken'),
-        PriceOracle(name='Binance'),
-        PriceOracle(name='DutchX'),
-        PriceOracle(name='Huobi'),
-    ])
+    PriceOracle = apps.get_model("tokens", "PriceOracle")
+    PriceOracle.objects.bulk_create(
+        [
+            PriceOracle(name="Kraken"),
+            PriceOracle(name="Binance"),
+            PriceOracle(name="DutchX"),
+            PriceOracle(name="Huobi"),
+        ]
+    )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tokens', '0006_auto_20181205_1226'),
+        ("tokens", "0006_auto_20181205_1226"),
     ]
 
-    operations = [
-        migrations.RunPython(create_price_oracles)
-    ]
+    operations = [migrations.RunPython(create_price_oracles)]

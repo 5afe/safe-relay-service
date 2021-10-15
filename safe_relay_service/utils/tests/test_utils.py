@@ -14,7 +14,6 @@ class MyClass:
 
 
 class TestSingleton(TestCase):
-
     def test_singleton(self):
         name = faker.name()
         my_class = MyClass(name)

@@ -2,8 +2,7 @@ from django.test import TestCase
 
 from eth_account import Account
 
-from ..services.funding_service import (EtherLimitExceeded,
-                                        FundingServiceProvider)
+from ..services.funding_service import EtherLimitExceeded, FundingServiceProvider
 from .relay_test_case import RelayTestCaseMixin
 
 
@@ -19,6 +18,6 @@ class TestFundingService(RelayTestCaseMixin, TestCase):
 
         with self.assertRaises(EtherLimitExceeded):
             self.funding_service.max_eth_to_send = 1
-            self.funding_service.send_eth_to(to, self.w3.toWei(1.1, 'ether'))
+            self.funding_service.send_eth_to(to, self.w3.toWei(1.1, "ether"))
 
         FundingServiceProvider.del_singleton()

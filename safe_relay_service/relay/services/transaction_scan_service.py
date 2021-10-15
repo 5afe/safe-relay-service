@@ -8,17 +8,29 @@ from web3 import Web3
 
 from gnosis.eth import EthereumClient
 
-from ..models import (EthereumBlock, EthereumTx, SafeContract, SafeCreation,
-                      SafeCreation2, SafeTxStatus)
+from ..models import (
+    EthereumBlock,
+    EthereumTx,
+    SafeContract,
+    SafeCreation,
+    SafeCreation2,
+    SafeTxStatus,
+)
 from ..utils import chunks
 
 logger = getLogger(__name__)
 
 
 class TransactionScanService(ABC):
-    def __init__(self, ethereum_client: EthereumClient, confirmations: int = 10,
-                 block_process_limit: int = 10000, updated_blocks_behind: int = 100,
-                 query_chunk_size: int = 500, safe_creation_threshold: int = 150000):
+    def __init__(
+        self,
+        ethereum_client: EthereumClient,
+        confirmations: int = 10,
+        block_process_limit: int = 10000,
+        updated_blocks_behind: int = 100,
+        query_chunk_size: int = 500,
+        safe_creation_threshold: int = 150000,
+    ):
         """
         :param ethereum_client:
         :param confirmations: Threshold of blocks to scan to prevent reorgs
@@ -48,8 +60,9 @@ class TransactionScanService(ABC):
         pass
 
     @abstractmethod
-    def find_relevant_tx_hashes(self, safe_addresses: List[str], from_block_number: int,
-                                to_block_number: int) -> Set[str]:
+    def find_relevant_tx_hashes(
+        self, safe_addresses: List[str], from_block_number: int, to_block_number: int
+    ) -> Set[str]:
         """
         Find blockchain relevant tx hashes for the `safe_addresses`
         :param safe_addresses:
@@ -73,7 +86,9 @@ class TransactionScanService(ABC):
             ethereum_tx = EthereumTx.objects.get(tx_hash=tx_hash)
             if ethereum_tx.block is None:
                 tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
-                ethereum_tx.block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
+                ethereum_tx.block = self.get_or_create_ethereum_block(
+                    tx_receipt.blockNumber
+                )
                 ethereum_tx.gas_used = tx_receipt.gasUsed
                 ethereum_tx.save()
             return ethereum_tx
@@ -81,9 +96,9 @@ class TransactionScanService(ABC):
             tx_receipt = self.ethereum_client.get_transaction_receipt(tx_hash)
             ethereum_block = self.get_or_create_ethereum_block(tx_receipt.blockNumber)
             tx = self.ethereum_client.get_transaction(tx_hash)
-            return EthereumTx.objects.create_from_tx_dict(tx, tx_hash,
-                                                          tx_receipt=tx_receipt,
-                                                          ethereum_block=ethereum_block)
+            return EthereumTx.objects.create_from_tx_dict(
+                tx, tx_hash, tx_receipt=tx_receipt, ethereum_block=ethereum_block
+            )
 
     def get_or_create_ethereum_block(self, block_number: int):
         try:
@@ -99,12 +114,22 @@ class TransactionScanService(ABC):
         except SafeTxStatus.DoesNotExist:
             # We subtract a little (about one week) to get the funding tx of the safe
             # On new Safes this object is created when SafeCreation2 is created and is more accurate
-            block_number = max(0, self.get_safe_creation_block_number(safe_address) - self.safe_creation_threshold)
-            logger.info('Safe=%s - Creating SafeTxStatus at block=%d', safe_address, block_number)
-            return SafeTxStatus.objects.create(safe=safe_contract,
-                                               initial_block_number=block_number,
-                                               tx_block_number=block_number,
-                                               erc_20_block_number=block_number)
+            block_number = max(
+                0,
+                self.get_safe_creation_block_number(safe_address)
+                - self.safe_creation_threshold,
+            )
+            logger.info(
+                "Safe=%s - Creating SafeTxStatus at block=%d",
+                safe_address,
+                block_number,
+            )
+            return SafeTxStatus.objects.create(
+                safe=safe_contract,
+                initial_block_number=block_number,
+                tx_block_number=block_number,
+                erc_20_block_number=block_number,
+            )
 
     def get_safe_creation_block_number(self, safe_address: str) -> int:
         """
@@ -117,16 +142,24 @@ class TransactionScanService(ABC):
                 return safe_creation_2.block_number
             else:
                 # This should never happen, every deployed safe will have `block_number` stored
-                logger.warning('Safe=%s has not a `block_number` stored')
-                return self.ethereum_client.get_transaction_receipt(safe_creation_2.tx_hash).blockNumber
+                logger.warning("Safe=%s has not a `block_number` stored")
+                return self.ethereum_client.get_transaction_receipt(
+                    safe_creation_2.tx_hash
+                ).blockNumber
         except SafeCreation2.DoesNotExist:
             try:
                 safe_creation = SafeCreation.objects.get(safe__address=safe_address)
-                tx_receipt = self.ethereum_client.get_transaction_receipt(safe_creation.tx_hash)
+                tx_receipt = self.ethereum_client.get_transaction_receipt(
+                    safe_creation.tx_hash
+                )
                 if tx_receipt:
                     return tx_receipt.blockNumber
                 else:
-                    logger.warning('Safe=%s with tx-hash=%s not valid', safe_address, safe_creation.tx_hash)
+                    logger.warning(
+                        "Safe=%s with tx-hash=%s not valid",
+                        safe_address,
+                        safe_creation.tx_hash,
+                    )
                     return 0
             except SafeCreation.DoesNotExist:
                 return 0
@@ -139,8 +172,13 @@ class TransactionScanService(ABC):
         :return:
         """
         return SafeTxStatus.objects.deployed().filter(
-            **{self.database_field + '__lt': current_block_number - self.confirmations,
-               self.database_field + '__gt': current_block_number - self.updated_blocks_behind})
+            **{
+                self.database_field + "__lt": current_block_number - self.confirmations,
+                self.database_field
+                + "__gt": current_block_number
+                - self.updated_blocks_behind,
+            }
+        )
 
     def get_not_updated_safes(self, current_block_number: int) -> List[SafeTxStatus]:
         """
@@ -148,14 +186,20 @@ class TransactionScanService(ABC):
         :param current_block_number:
         :return:
         """
-        return SafeTxStatus.objects.deployed().filter(**{
-            self.database_field + '__lt': current_block_number - self.confirmations})
+        return SafeTxStatus.objects.deployed().filter(
+            **{self.database_field + "__lt": current_block_number - self.confirmations}
+        )
 
-    def update_safe_tx_status(self, safe_addresses: List[str], to_block_number: int) -> int:
-        return SafeTxStatus.objects.filter(safe_id__in=safe_addresses
-                                           ).update(**{self.database_field: to_block_number})
+    def update_safe_tx_status(
+        self, safe_addresses: List[str], to_block_number: int
+    ) -> int:
+        return SafeTxStatus.objects.filter(safe_id__in=safe_addresses).update(
+            **{self.database_field: to_block_number}
+        )
 
-    def get_block_numbers_for_search(self, safe_addresses: List[str]) -> Optional[Tuple[int, int]]:
+    def get_block_numbers_for_search(
+        self, safe_addresses: List[str]
+    ) -> Optional[Tuple[int, int]]:
         """
         :param safe_addresses:
         :return: Minimum common `from_block_number` and `to_block_number` for search of relevant `tx hashes`
@@ -164,10 +208,12 @@ class TransactionScanService(ABC):
         confirmations = self.confirmations
         current_block_number = self.ethereum_client.current_block_number
 
-        safe_tx_status_queryset = SafeTxStatus.objects.filter(safe_id__in=safe_addresses)
-        common_minimum_block_number = safe_tx_status_queryset.aggregate(**{
-            self.database_field: Min(self.database_field)
-        })[self.database_field]
+        safe_tx_status_queryset = SafeTxStatus.objects.filter(
+            safe_id__in=safe_addresses
+        )
+        common_minimum_block_number = safe_tx_status_queryset.aggregate(
+            **{self.database_field: Min(self.database_field)}
+        )[self.database_field]
         if common_minimum_block_number is None:  # Empty queryset
             return
 
@@ -176,31 +222,42 @@ class TransactionScanService(ABC):
             return  # We don't want problems with reorgs
 
         if block_process_limit:
-            to_block_number = min(common_minimum_block_number + block_process_limit,
-                                  current_block_number - confirmations)
+            to_block_number = min(
+                common_minimum_block_number + block_process_limit,
+                current_block_number - confirmations,
+            )
         else:
             to_block_number = current_block_number - confirmations
 
         return from_block_number, to_block_number
 
-    def process_addresses(self, safe_addresses: List[str]) -> Optional[Tuple[List[Any], bool]]:
+    def process_addresses(
+        self, safe_addresses: List[str]
+    ) -> Optional[Tuple[List[Any], bool]]:
         """
         Find and process relevant data for `safe_addresses`, then store and return it
         :param safe_addresses: Addresses to process
         :return: List of processed data and a boolean (`True` if no more blocks to scan, `False` otherwise)
         """
-        assert safe_addresses, 'Safe addresses cannot be empty!'
-        assert all([Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]), \
-            'A safe address has invalid checksum: %s' % safe_addresses
+        assert safe_addresses, "Safe addresses cannot be empty!"
+        assert all(
+            [Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]
+        ), ("A safe address has invalid checksum: %s" % safe_addresses)
 
         parameters = self.get_block_numbers_for_search(safe_addresses)
         if parameters is None:
             return
         from_block_number, to_block_number = parameters
-        updated = to_block_number == (self.ethereum_client.current_block_number - self.confirmations)
-        tx_hashes = self.find_relevant_tx_hashes(safe_addresses, from_block_number, to_block_number)
+        updated = to_block_number == (
+            self.ethereum_client.current_block_number - self.confirmations
+        )
+        tx_hashes = self.find_relevant_tx_hashes(
+            safe_addresses, from_block_number, to_block_number
+        )
         processed_objects = [self.process_tx_hash(tx_hash) for tx_hash in tx_hashes]
-        flatten_processed_objects = [item for sublist in processed_objects for item in sublist]
+        flatten_processed_objects = [
+            item for sublist in processed_objects for item in sublist
+        ]
 
         self.update_safe_tx_status(safe_addresses, to_block_number)
         return flatten_processed_objects, updated
@@ -214,10 +271,17 @@ class TransactionScanService(ABC):
         number_safes = 0
 
         # We need to cast the `iterable` to `list`, if not chunks will not work well when models are updated
-        almost_updated_safe_tx_statuses = list(self.get_almost_updated_safes(current_block_number))
-        almost_updated_safe_tx_statuses_chunks = chunks(almost_updated_safe_tx_statuses, self.query_chunk_size)
+        almost_updated_safe_tx_statuses = list(
+            self.get_almost_updated_safes(current_block_number)
+        )
+        almost_updated_safe_tx_statuses_chunks = chunks(
+            almost_updated_safe_tx_statuses, self.query_chunk_size
+        )
         for almost_updated_addresses_chunk in almost_updated_safe_tx_statuses_chunks:
-            almost_updated_addresses = [safe_tx_status.safe_id for safe_tx_status in almost_updated_addresses_chunk]
+            almost_updated_addresses = [
+                safe_tx_status.safe_id
+                for safe_tx_status in almost_updated_addresses_chunk
+            ]
             self.process_addresses(almost_updated_addresses)
             number_safes += len(almost_updated_addresses)
 

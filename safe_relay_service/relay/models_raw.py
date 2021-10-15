@@ -25,14 +25,13 @@ def run_raw_query(query: str, *arguments):
     with connection.cursor() as cursor:
         cursor.execute(query, arguments)
         columns = [col[0] for col in cursor.description]
-        return [
-            dict(zip(columns, parse_row(row)))
-            for row in cursor.fetchall()
-        ]
+        return [dict(zip(columns, parse_row(row))) for row in cursor.fetchall()]
 
 
 class SafeContractManagerRaw(models.Manager):
-    def get_average_deploy_time(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+    def get_average_deploy_time(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> datetime.timedelta:
         query = """
         SELECT AVG(A.created - B.first_transfer) FROM
           (SELECT address, timestamp as created
@@ -50,7 +49,9 @@ class SafeContractManagerRaw(models.Manager):
             cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
 
-    def get_average_deploy_time_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
+    def get_average_deploy_time_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Dict:
         query = """
         SELECT DATE(A.created) as created_date, AVG(A.created - B.first_transfer) as average_deploy_time FROM
           (SELECT address, timestamp as created
@@ -66,7 +67,9 @@ class SafeContractManagerRaw(models.Manager):
         """
         return run_raw_query(query, from_date, to_date)
 
-    def get_average_deploy_time_total(self, from_date: datetime.datetime, to_date: datetime.datetime) -> datetime.timedelta:
+    def get_average_deploy_time_total(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> datetime.timedelta:
         query = """
         SELECT AVG(EB.timestamp - SC.created)
         FROM (SELECT created, tx_hash FROM relay_safecreation
@@ -78,7 +81,9 @@ class SafeContractManagerRaw(models.Manager):
             cursor.execute(query, [from_date, to_date])
             return cursor.fetchone()[0]
 
-    def get_average_deploy_time_total_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict:
+    def get_average_deploy_time_total_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Dict:
         query = """
         SELECT DATE(SC.created) as created_date, AVG(EB.timestamp - SC.created) as average_deploy_time
         FROM (SELECT created, tx_hash FROM relay_safecreation
@@ -91,7 +96,9 @@ class SafeContractManagerRaw(models.Manager):
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+    def get_total_balance_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> int:
         """
         :return: Dictionary of {date: datetime.date, balance: decimal}
         """
@@ -118,7 +125,9 @@ class SafeContractManagerRaw(models.Manager):
         """
         return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_token_balance(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
+    def get_total_token_balance(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Dict[str, Any]:
         """
         :return: Dictionary of {token_address: str, balance: decimal}
         """
@@ -134,11 +143,15 @@ class SafeContractManagerRaw(models.Manager):
            WHERE arguments ? 'value' AND topic='{0}') AS EE
         WHERE EE.created BETWEEN %s AND %s
         GROUP BY token_address
-        """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+        """.format(
+            ERC20_721_TRANSFER_TOPIC.replace("0x", "")
+        )  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_token_balance_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Dict[str, Any]:
+    def get_total_token_balance_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Dict[str, Any]:
         """
         :return: Dictionary of {date: datetime.date, token_address: str, balance: decimal}
         """
@@ -165,12 +178,17 @@ class SafeContractManagerRaw(models.Manager):
         ) AS RESULT
         WHERE RESULT.date BETWEEN %s AND %s
         ORDER BY RESULT.date;
-       """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+       """.format(
+            ERC20_721_TRANSFER_TOPIC.replace("0x", "")
+        )  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date, from_date, to_date)
 
-    def get_total_volume(self, from_date: datetime.datetime, to_date: datetime.datetime) -> Optional[int]:
+    def get_total_volume(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Optional[int]:
         from .models import EthereumTxCallType
+
         query = """
         SELECT SUM(IT.value) AS value
         FROM relay_safecontract SC
@@ -180,7 +198,9 @@ class SafeContractManagerRaw(models.Manager):
         WHERE IT.call_type != {0}
               AND error IS NULL
               AND EB.timestamp BETWEEN %s AND %s
-        """.format(EthereumTxCallType.DELEGATE_CALL.value)
+        """.format(
+            EthereumTxCallType.DELEGATE_CALL.value
+        )
         with connection.cursor() as cursor:
             cursor.execute(query, [from_date, to_date])
             value = cursor.fetchone()[0]
@@ -188,8 +208,11 @@ class SafeContractManagerRaw(models.Manager):
                 return int(value)
         return None
 
-    def get_total_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime) -> int:
+    def get_total_volume_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> int:
         from .models import EthereumTxCallType
+
         query = """
         SELECT DATE(EB.timestamp) as date,
                SUM(IT.value) AS value
@@ -202,11 +225,15 @@ class SafeContractManagerRaw(models.Manager):
               AND EB.timestamp BETWEEN %s AND %s
         GROUP BY DATE(EB.timestamp)
         ORDER BY DATE(EB.timestamp)
-        """.format(EthereumTxCallType.DELEGATE_CALL.value)
+        """.format(
+            EthereumTxCallType.DELEGATE_CALL.value
+        )
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_token_volume(self, from_date: datetime.datetime, to_date: datetime.datetime):
+    def get_total_token_volume(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ):
         """
         :return: Dictionary of {token_address: str, volume: int}
         """
@@ -219,11 +246,15 @@ class SafeContractManagerRaw(models.Manager):
         WHERE arguments ? 'value'
               AND topic='{0}'
               AND EB.timestamp BETWEEN %s AND %s
-        GROUP BY token_address""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+        GROUP BY token_address""".format(
+            ERC20_721_TRANSFER_TOPIC.replace("0x", "")
+        )  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_total_token_volume_grouped(self, from_date: datetime.datetime, to_date: datetime.datetime):
+    def get_total_token_volume_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ):
         """
         :return: Dictionary of {token_address: str, volume: int}
         """
@@ -237,12 +268,15 @@ class SafeContractManagerRaw(models.Manager):
               AND topic='{0}'
               AND EB.timestamp BETWEEN %s AND %s
         GROUP BY DATE(EB.timestamp), token_address
-        ORDER BY DATE(EB.timestamp)""".format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))  # No risk of SQL Injection
+        ORDER BY DATE(EB.timestamp)""".format(
+            ERC20_721_TRANSFER_TOPIC.replace("0x", "")
+        )  # No risk of SQL Injection
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_creation_tokens_usage(self, from_date: datetime.datetime,
-                                  to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
+    def get_creation_tokens_usage(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT payment_token, COUNT(*) OVER(PARTITION BY payment_token) as number,
                         100.0 * COUNT(*) OVER(PARTITION BY payment_token) / COUNT(*) OVER() as percentage
@@ -254,8 +288,9 @@ class SafeContractManagerRaw(models.Manager):
 
         return run_raw_query(query, from_date, to_date)
 
-    def get_creation_tokens_usage_grouped(self, from_date: datetime.datetime,
-                                          to_date: datetime.datetime) -> Optional[List[Dict[str, Any]]]:
+    def get_creation_tokens_usage_grouped(
+        self, from_date: datetime.datetime, to_date: datetime.datetime
+    ) -> Optional[List[Dict[str, Any]]]:
         query = """
         SELECT DISTINCT DATE(SC.created), payment_token,
                         COUNT(*) OVER(PARTITION BY DATE(SC.created), payment_token) as number,
@@ -287,6 +322,8 @@ class SafeContractQuerySetRaw(models.QuerySet):
            ON relay_safecontract.address = relay_ethereumevent.arguments->>'to'
            WHERE arguments ? 'value' AND topic='{0}') AS X
         GROUP BY address, token_address
-        """.format(ERC20_721_TRANSFER_TOPIC.replace('0x', ''))
+        """.format(
+            ERC20_721_TRANSFER_TOPIC.replace("0x", "")
+        )
 
         return run_raw_query(query)

@@ -8,22 +8,27 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0009_safecreation2'),
+        ("relay", "0009_safecreation2"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EthereumTx',
+            name="EthereumTx",
             fields=[
-                ('tx_hash', gnosis.eth.django.models.Sha3HashField(primary_key=True, serialize=False, unique=True)),
-                ('block_number', models.IntegerField(default=None, null=True)),
-                ('_from', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('gas', gnosis.eth.django.models.Uint256Field()),
-                ('gas_price', gnosis.eth.django.models.Uint256Field()),
-                ('data', models.BinaryField(null=True)),
-                ('nonce', gnosis.eth.django.models.Uint256Field()),
-                ('to', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('value', gnosis.eth.django.models.Uint256Field()),
+                (
+                    "tx_hash",
+                    gnosis.eth.django.models.Sha3HashField(
+                        primary_key=True, serialize=False, unique=True
+                    ),
+                ),
+                ("block_number", models.IntegerField(default=None, null=True)),
+                ("_from", gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ("gas", gnosis.eth.django.models.Uint256Field()),
+                ("gas_price", gnosis.eth.django.models.Uint256Field()),
+                ("data", models.BinaryField(null=True)),
+                ("nonce", gnosis.eth.django.models.Uint256Field()),
+                ("to", gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ("value", gnosis.eth.django.models.Uint256Field()),
             ],
         ),
     ]
