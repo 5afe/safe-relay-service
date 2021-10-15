@@ -24,11 +24,19 @@ class RelayTestCaseMixin(SafeTestCaseMixin):
         cls.safe_creation_service = SafeCreationServiceProvider()
         cls.transaction_service = TransactionServiceProvider()
 
-    def create2_test_safe_in_db(self, owners=None, number_owners=3, threshold=None,
-                                payment_token=None, salt_nonce=None) -> SafeCreation2:
+    def create2_test_safe_in_db(
+        self,
+        owners=None,
+        number_owners=3,
+        threshold=None,
+        payment_token=None,
+        salt_nonce=None,
+    ) -> SafeCreation2:
 
         salt_nonce = salt_nonce or generate_salt_nonce()
         owners = owners or [Account.create().address for _ in range(number_owners)]
         threshold = threshold if threshold else len(owners)
 
-        return self.safe_creation_service.create2_safe_tx(salt_nonce, owners, threshold, payment_token)
+        return self.safe_creation_service.create2_safe_tx(
+            salt_nonce, owners, threshold, payment_token
+        )

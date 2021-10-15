@@ -8,8 +8,8 @@ import gnosis.eth.django.models
 def create_ethereum_txs(apps, schema_editor):
     # We can't import the Person model directly as it may be a newer
     # version than this migration expects. We use the historical version.
-    SafeMultisigTx = apps.get_model('relay', 'SafeMultisigTx')
-    EthereumTx = apps.get_model('relay', 'EthereumTx')
+    SafeMultisigTx = apps.get_model("relay", "SafeMultisigTx")
+    EthereumTx = apps.get_model("relay", "EthereumTx")
     for safe_multisig_tx in SafeMultisigTx.objects.all():
         EthereumTx.objects.create(
             tx_hash=safe_multisig_tx.tx_hash,
@@ -26,7 +26,7 @@ def create_ethereum_txs(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0010_ethereumtx'),
+        ("relay", "0010_ethereumtx"),
     ]
 
     operations = [

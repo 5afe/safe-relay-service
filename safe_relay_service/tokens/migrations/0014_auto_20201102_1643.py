@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tokens', '0013_auto_20200217_0942'),
+        ("tokens", "0013_auto_20200217_0942"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='priceoracle',
-            name='configuration',
+            model_name="priceoracle",
+            name="configuration",
             field=models.JSONField(default=dict),
         ),
     ]

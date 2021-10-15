@@ -7,23 +7,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0017_auto_20190424_1149'),
+        ("relay", "0017_auto_20190424_1149"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='internaltx',
-            name='ethereum_tx',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='internal_txs', to='relay.EthereumTx'),
+            model_name="internaltx",
+            name="ethereum_tx",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="internal_txs",
+                to="relay.EthereumTx",
+            ),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='ethereum_tx',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='multisig_txs', to='relay.EthereumTx'),
+            model_name="safemultisigtx",
+            name="ethereum_tx",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="multisig_txs",
+                to="relay.EthereumTx",
+            ),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='safe',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='multisig_txs', to='relay.SafeContract'),
+            model_name="safemultisigtx",
+            name="safe",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="multisig_txs",
+                to="relay.SafeContract",
+            ),
         ),
     ]

@@ -13,32 +13,71 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0008_safemultisigtx_safe_tx_hash'),
+        ("relay", "0008_safemultisigtx_safe_tx_hash"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SafeCreation2',
+            name="SafeCreation2",
             fields=[
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created')),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified')),
-                ('safe', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, serialize=False, to='relay.SafeContract')),
-                ('master_copy', gnosis.eth.django.models.EthereumAddressField()),
-                ('proxy_factory', gnosis.eth.django.models.EthereumAddressField()),
-                ('salt_nonce', gnosis.eth.django.models.Uint256Field()),
-                ('owners', django.contrib.postgres.fields.ArrayField(base_field=gnosis.eth.django.models.EthereumAddressField(), size=None)),
-                ('threshold', gnosis.eth.django.models.Uint256Field()),
-                ('payment_token', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('payment', gnosis.eth.django.models.Uint256Field()),
-                ('payment_receiver', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('setup_data', models.BinaryField(null=True)),
-                ('gas_estimated', gnosis.eth.django.models.Uint256Field()),
-                ('gas_price_estimated', gnosis.eth.django.models.Uint256Field()),
-                ('tx_hash', gnosis.eth.django.models.Sha3HashField(default=None, null=True, unique=True)),
-                ('block_number', models.IntegerField(default=None, null=True)),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="created",
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        verbose_name="modified",
+                    ),
+                ),
+                (
+                    "safe",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        serialize=False,
+                        to="relay.SafeContract",
+                    ),
+                ),
+                ("master_copy", gnosis.eth.django.models.EthereumAddressField()),
+                ("proxy_factory", gnosis.eth.django.models.EthereumAddressField()),
+                ("salt_nonce", gnosis.eth.django.models.Uint256Field()),
+                (
+                    "owners",
+                    django.contrib.postgres.fields.ArrayField(
+                        base_field=gnosis.eth.django.models.EthereumAddressField(),
+                        size=None,
+                    ),
+                ),
+                ("threshold", gnosis.eth.django.models.Uint256Field()),
+                (
+                    "payment_token",
+                    gnosis.eth.django.models.EthereumAddressField(null=True),
+                ),
+                ("payment", gnosis.eth.django.models.Uint256Field()),
+                (
+                    "payment_receiver",
+                    gnosis.eth.django.models.EthereumAddressField(null=True),
+                ),
+                ("setup_data", models.BinaryField(null=True)),
+                ("gas_estimated", gnosis.eth.django.models.Uint256Field()),
+                ("gas_price_estimated", gnosis.eth.django.models.Uint256Field()),
+                (
+                    "tx_hash",
+                    gnosis.eth.django.models.Sha3HashField(
+                        default=None, null=True, unique=True
+                    ),
+                ),
+                ("block_number", models.IntegerField(default=None, null=True)),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
     ]

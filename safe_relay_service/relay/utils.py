@@ -7,7 +7,7 @@ from gunicorn import glogging
 class IgnoreCheckUrl(logging.Filter):
     def filter(self, record):
         message = record.getMessage()
-        return not ('GET /check/' in message and '200' in message)
+        return not ("GET /check/" in message and "200" in message)
 
 
 class CustomGunicornLogger(glogging.Logger):
@@ -26,4 +26,4 @@ def chunks(elements: List[Any], n: int):
     :return: Yield successive n-sized chunks from l
     """
     for i in range(0, len(elements), n):
-        yield elements[i:i + n]
+        yield elements[i : i + n]

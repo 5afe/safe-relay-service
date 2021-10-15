@@ -9,63 +9,80 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0027_bannedsigner'),
+        ("relay", "0027_bannedsigner"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='block',
-            field=models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='txs', to='relay.EthereumBlock'),
+            model_name="ethereumtx",
+            name="block",
+            field=models.ForeignKey(
+                blank=True,
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="txs",
+                to="relay.EthereumBlock",
+            ),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='data',
+            model_name="ethereumtx",
+            name="data",
             field=models.BinaryField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='gas_used',
-            field=gnosis.eth.django.models.Uint256Field(blank=True, default=None, null=True),
+            model_name="ethereumtx",
+            name="gas_used",
+            field=gnosis.eth.django.models.Uint256Field(
+                blank=True, default=None, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='status',
-            field=models.IntegerField(blank=True, db_index=True, default=None, null=True),
+            model_name="ethereumtx",
+            name="status",
+            field=models.IntegerField(
+                blank=True, db_index=True, default=None, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='to',
-            field=gnosis.eth.django.models.EthereumAddressField(blank=True, db_index=True, null=True),
+            model_name="ethereumtx",
+            name="to",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                blank=True, db_index=True, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='transaction_index',
+            model_name="ethereumtx",
+            name="transaction_index",
             field=models.PositiveIntegerField(blank=True, default=None, null=True),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='data',
+            model_name="safemultisigtx",
+            name="data",
             field=models.BinaryField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='gas_token',
+            model_name="safemultisigtx",
+            name="gas_token",
             field=gnosis.eth.django.models.EthereumAddressField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='refund_receiver',
+            model_name="safemultisigtx",
+            name="refund_receiver",
             field=gnosis.eth.django.models.EthereumAddressField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='safe_tx_hash',
-            field=gnosis.eth.django.models.Sha3HashField(blank=True, null=True, unique=True),
+            model_name="safemultisigtx",
+            name="safe_tx_hash",
+            field=gnosis.eth.django.models.Sha3HashField(
+                blank=True, null=True, unique=True
+            ),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='to',
-            field=gnosis.eth.django.models.EthereumAddressField(blank=True, db_index=True, null=True),
+            model_name="safemultisigtx",
+            name="to",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                blank=True, db_index=True, null=True
+            ),
         ),
     ]

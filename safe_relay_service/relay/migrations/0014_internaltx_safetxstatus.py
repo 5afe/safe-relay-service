@@ -9,38 +9,68 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0013_auto_20190401_1445'),
+        ("relay", "0013_auto_20190401_1445"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SafeTxStatus',
+            name="SafeTxStatus",
             fields=[
-                ('safe', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, serialize=False, to='relay.SafeContract')),
-                ('initial_block_number', models.IntegerField(default=0)),
-                ('tx_block_number', models.IntegerField(default=0)),
-                ('erc_20_block_number', models.IntegerField(default=0)),
+                (
+                    "safe",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        serialize=False,
+                        to="relay.SafeContract",
+                    ),
+                ),
+                ("initial_block_number", models.IntegerField(default=0)),
+                ("tx_block_number", models.IntegerField(default=0)),
+                ("erc_20_block_number", models.IntegerField(default=0)),
             ],
         ),
         migrations.CreateModel(
-            name='InternalTx',
+            name="InternalTx",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('_from', gnosis.eth.django.models.EthereumAddressField()),
-                ('gas', gnosis.eth.django.models.Uint256Field()),
-                ('data', models.BinaryField(null=True)),
-                ('to', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('value', gnosis.eth.django.models.Uint256Field()),
-                ('gas_used', gnosis.eth.django.models.Uint256Field()),
-                ('contract_address', gnosis.eth.django.models.EthereumAddressField(null=True)),
-                ('code', models.BinaryField(null=True)),
-                ('output', models.BinaryField(null=True)),
-                ('call_type', models.PositiveSmallIntegerField(choices=[(0, 'CALL'), (1, 'DELEGATE_CALL')], null=True)),
-                ('transaction_index', models.PositiveIntegerField()),
-                ('ethereum_tx', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='relay.EthereumTx')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("_from", gnosis.eth.django.models.EthereumAddressField()),
+                ("gas", gnosis.eth.django.models.Uint256Field()),
+                ("data", models.BinaryField(null=True)),
+                ("to", gnosis.eth.django.models.EthereumAddressField(null=True)),
+                ("value", gnosis.eth.django.models.Uint256Field()),
+                ("gas_used", gnosis.eth.django.models.Uint256Field()),
+                (
+                    "contract_address",
+                    gnosis.eth.django.models.EthereumAddressField(null=True),
+                ),
+                ("code", models.BinaryField(null=True)),
+                ("output", models.BinaryField(null=True)),
+                (
+                    "call_type",
+                    models.PositiveSmallIntegerField(
+                        choices=[(0, "CALL"), (1, "DELEGATE_CALL")], null=True
+                    ),
+                ),
+                ("transaction_index", models.PositiveIntegerField()),
+                (
+                    "ethereum_tx",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="relay.EthereumTx",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('ethereum_tx', 'transaction_index')},
+                "unique_together": {("ethereum_tx", "transaction_index")},
             },
         ),
     ]

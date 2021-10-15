@@ -9,35 +9,46 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0020_auto_20190514_1211'),
+        ("relay", "0020_auto_20190514_1211"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EthereumBlock',
+            name="EthereumBlock",
             fields=[
-                ('number', models.PositiveIntegerField(primary_key=True, serialize=False, unique=True)),
-                ('gas_limit', models.PositiveIntegerField()),
-                ('gas_used', models.PositiveIntegerField()),
-                ('timestamp', models.DateTimeField()),
-                ('block_hash', gnosis.eth.django.models.Sha3HashField(unique=True)),
+                (
+                    "number",
+                    models.PositiveIntegerField(
+                        primary_key=True, serialize=False, unique=True
+                    ),
+                ),
+                ("gas_limit", models.PositiveIntegerField()),
+                ("gas_used", models.PositiveIntegerField()),
+                ("timestamp", models.DateTimeField()),
+                ("block_hash", gnosis.eth.django.models.Sha3HashField(unique=True)),
             ],
         ),
         migrations.AlterModelOptions(
-            name='safecreation2',
-            options={'verbose_name_plural': 'Safe creation2s'},
+            name="safecreation2",
+            options={"verbose_name_plural": "Safe creation2s"},
         ),
         migrations.AlterModelOptions(
-            name='safetxstatus',
-            options={'verbose_name_plural': 'Safe tx status'},
+            name="safetxstatus",
+            options={"verbose_name_plural": "Safe tx status"},
         ),
         migrations.RemoveField(
-            model_name='ethereumtx',
-            name='block_number',
+            model_name="ethereumtx",
+            name="block_number",
         ),
         migrations.AddField(
-            model_name='ethereumtx',
-            name='block',
-            field=models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='txs', to='relay.EthereumBlock'),
+            model_name="ethereumtx",
+            name="block",
+            field=models.ForeignKey(
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="txs",
+                to="relay.EthereumBlock",
+            ),
         ),
     ]

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tokens', '0008_priceoracleticker_inverse'),
+        ("tokens", "0008_priceoracleticker_inverse"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='token',
-            name='logo_uri',
+            model_name="token",
+            name="logo_uri",
             field=models.CharField(max_length=300),
         ),
     ]

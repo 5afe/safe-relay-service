@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('gas_station', '0001_initial'),
+        ("gas_station", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='gasprice',
-            options={'get_latest_by': 'created'},
+            name="gasprice",
+            options={"get_latest_by": "created"},
         ),
     ]

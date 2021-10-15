@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0025_auto_20200429_1101'),
+        ("relay", "0025_auto_20200429_1101"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='safemultisigtx',
+            name="safemultisigtx",
             unique_together=set(),
         ),
     ]
