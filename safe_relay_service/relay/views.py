@@ -227,11 +227,13 @@ class SafeBalanceView(APIView):
     serializer_class = SafeBalanceResponseSerializer
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use tx service",
         responses={
             200: SafeBalanceResponseSerializer(many=True),
             404: "Safe not found",
             422: "Safe address checksum not valid",
-        }
+        },
     )
     def get(self, request, address, format=None):
         """
@@ -256,11 +258,13 @@ class SafeSignalView(APIView):
     permission_classes = (AllowAny,)
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use /v2/safes/{address}/funded",
         responses={
             200: SafeFundingResponseSerializer(),
             404: "Safe not found",
             422: "Safe address checksum not valid",
-        }
+        },
     )
     def get(self, request, address, format=None):
         """
@@ -277,11 +281,13 @@ class SafeSignalView(APIView):
                 return Response(status=status.HTTP_404_NOT_FOUND)
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use /v2/safes/{address}/funded",
         responses={
             202: "Task was queued",
             404: "Safe not found",
             422: "Safe address checksum not valid",
-        }
+        },
     )
     def put(self, request, address, format=None):
         """
@@ -304,12 +310,14 @@ class SafeMultisigTxEstimateView(CreateAPIView):
     serializer_class = SafeMultisigEstimateTxSerializer
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use /v2/safes/{address}/transactions/estimate",
         responses={
             200: SafeMultisigEstimateTxResponseSerializer(),
             400: "Data not valid",
             404: "Safe not found",
             422: "Safe address checksum not valid/Tx not valid",
-        }
+        },
     )
     def post(self, request, address):
         """
@@ -354,7 +362,8 @@ class SafeMultisigTxEstimatesView(CreateAPIView):
     )
     def post(self, request, address):
         """
-        Estimates a Safe Multisig Transaction. `operational_gas` and `data_gas` are deprecated, use `base_gas` instead
+        Estimates a Safe Multisig Transaction for all tokens supported. `operational_gas` and `data_gas`
+        are deprecated, use `base_gas` instead
         """
         if not Web3.isChecksumAddress(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -474,6 +483,13 @@ class ERC20View(SafeListApiView):
             "ethereum_tx", "ethereum_tx__block"
         )
 
+    @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use tx service",
+    )
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
+
 
 class ERC721View(SafeListApiView):
     ordering = ("-ethereum_tx__block__number",)
@@ -484,6 +500,13 @@ class ERC721View(SafeListApiView):
         return EthereumEvent.objects.erc721_events(address=address).select_related(
             "ethereum_tx", "ethereum_tx__block"
         )
+
+    @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use tx service",
+    )
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
 
 
 class StatsView(APIView):

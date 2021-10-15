@@ -34,11 +34,13 @@ class SafeCreationEstimateView(CreateAPIView):
     serializer_class = SafeCreationEstimateV2Serializer
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use /v3/safes/estimates/",
         responses={
             201: SafeCreationEstimateResponseSerializer(),
             400: "Invalid data",
             422: "Cannot process data",
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
         """
@@ -70,11 +72,13 @@ class SafeCreationView(CreateAPIView):
     serializer_class = SafeCreation2Serializer
 
     @swagger_auto_schema(
+        deprecated=True,
+        operation_description="Use /v3/safes/",
         responses={
             201: SafeCreation2ResponseSerializer(),
             400: "Invalid data",
             422: "Cannot process data",
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
         """
