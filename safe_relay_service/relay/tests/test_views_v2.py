@@ -198,8 +198,8 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
             'operation': 1
         }
 
-        safe_creation = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
-        my_safe_address = safe_creation.safe_address
+        safe = self.deploy_test_safe(number_owners=3, threshold=2, initial_funding_wei=initial_funding)
+        my_safe_address = safe.address
 
         response = self.client.post(reverse('v2:safe-multisig-tx-estimate', args=(my_safe_address,)),
                                     data=data,
