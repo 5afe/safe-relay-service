@@ -310,7 +310,7 @@ SAFE_FUNDER_PRIVATE_KEY = env('SAFE_FUNDER_PRIVATE_KEY', default=None)
 SAFE_FUNDER_MAX_ETH = env.int('SAFE_FUNDER_MAX_ETH', default=0.1)
 SAFE_FUNDING_CONFIRMATIONS = env.int('SAFE_FUNDING_CONFIRMATIONS', default=0)  # Set to at least 3
 # Master Copy Address of Safe Contract
-SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F')
+SAFE_CONTRACT_ADDRESS = env('SAFE_CONTRACT_ADDRESS', default='0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552')
 SAFE_V1_0_0_CONTRACT_ADDRESS = env('SAFE_V1_0_0_CONTRACT_ADDRESS', default='0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A')
 SAFE_V0_0_1_CONTRACT_ADDRESS = env('SAFE_V0_0_1_CONTRACT_ADDRESS', default='0x8942595A2dC5181Df0465AF0D7be08c8f23C93af')
 SAFE_VALID_CONTRACT_ADDRESSES = set(env.list('SAFE_VALID_CONTRACT_ADDRESSES',
@@ -318,14 +318,14 @@ SAFE_VALID_CONTRACT_ADDRESSES = set(env.list('SAFE_VALID_CONTRACT_ADDRESSES',
                                                       '0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A',
                                                       '0x8942595A2dC5181Df0465AF0D7be08c8f23C93af',
                                                       '0xAC6072986E985aaBE7804695EC2d8970Cf7541A2'])
-                                    ) | {SAFE_CONTRACT_ADDRESS,
-                                         SAFE_V1_0_0_CONTRACT_ADDRESS,
-                                         SAFE_V0_0_1_CONTRACT_ADDRESS}
-SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B')
+                                    + [SAFE_CONTRACT_ADDRESS,
+                                       SAFE_V1_0_0_CONTRACT_ADDRESS,
+                                       SAFE_V0_0_1_CONTRACT_ADDRESS])
+SAFE_PROXY_FACTORY_ADDRESS = env('SAFE_PROXY_FACTORY_ADDRESS', default='0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2')
 SAFE_PROXY_FACTORY_V1_0_0_ADDRESS = env('SAFE_PROXY_FACTORY_V1_0_0_ADDRESS',
                                         default='0x12302fE9c02ff50939BaAaaf415fc226C078613C')
 SAFE_DEFAULT_CALLBACK_HANDLER = env('SAFE_DEFAULT_CALLBACK_HANDLER',
-                                    default='0xd5D82B6aDDc9027B22dCA772Aa68D5d74cdBdF44')
+                                    default='0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4')
 
 # If FIXED_GAS_PRICE is None, GasStation will be used
 FIXED_GAS_PRICE = env.int('FIXED_GAS_PRICE', default=None)

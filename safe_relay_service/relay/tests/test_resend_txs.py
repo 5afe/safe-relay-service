@@ -30,10 +30,10 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
         # Signatures must be sorted!
         accounts.sort(key=lambda account: account.address.lower())
 
-        safe_creation = self.deploy_test_safe(owners=[x.address for x in accounts],
-                                              threshold=len(accounts),
-                                              initial_funding_wei=safe_balance)
-        my_safe_address = safe_creation.safe_address
+        safe = self.deploy_test_safe(owners=[x.address for x in accounts],
+                                     threshold=len(accounts),
+                                     initial_funding_wei=safe_balance)
+        my_safe_address = safe.address
 
         to = Account().create().address
         value = safe_balance // 4

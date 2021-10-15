@@ -177,7 +177,7 @@ class TestSafeCreationService(RelayTestCaseMixin, TestCase):
         threshold = 1
         random_fallback_handler = Account.create().address
         safe_address = self.deploy_test_safe(threshold=threshold,
-                                             fallback_handler=random_fallback_handler).safe_address
+                                             fallback_handler=random_fallback_handler).address
         safe_info = self.safe_creation_service.retrieve_safe_info(safe_address)
         self.assertEqual(safe_info.threshold, threshold)
         self.assertEqual(safe_info.fallback_handler, random_fallback_handler)
