@@ -2,9 +2,13 @@
 
 set -euo pipefail
 
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --force-rm db redis ganache
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --no-start db redis ganache
-docker restart safe-relay-service_db_1 safe-relay-service_redis_1 safe-relay-service_ganache_1
-sleep 2
-DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env.local python manage.py check
-DJANGO_SETTINGS_MODULE=config.settings.test DJANGO_DOT_ENV_FILE=.env.local pytest
+export DJANGO_SETTINGS_MODULE=config.settings.test
+export DJANGO_DOT_ENV_FILE=.env.test
+docker compose -f docker-compose.yml -f docker-compose.dev.yml build --force-rm db redis ganache
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --no-start db redis ganache
+docker restart db redis ganache
+sleep 3
+python manage.py check
+pytest
+coverage run --source=safe_relay_service -m py.test -rxXs
+coverage report

@@ -269,8 +269,8 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         self.assertEqual(BannedSigner.objects.count(), 0)
 
         sender = self.transaction_service.tx_sender_account.address
-        sender_balance = w3.eth.getBalance(sender)
-        safe_balance = w3.eth.getBalance(my_safe_address)
+        sender_balance = w3.eth.get_balance(sender)
+        safe_balance = w3.eth.get_balance(my_safe_address)
 
         safe_multisig_tx = self.transaction_service.create_multisig_tx(
             my_safe_address,
@@ -303,7 +303,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
                 signatures,
             )
 
-        tx_receipt = w3.eth.waitForTransactionReceipt(
+        tx_receipt = w3.eth.wait_for_transaction_receipt(
             safe_multisig_tx.ethereum_tx.tx_hash
         )
         self.assertTrue(tx_receipt["status"])
@@ -313,13 +313,13 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             safe_multisig_tx.ethereum_tx.gas_price, gas_price
         )  # We used minimum gas price
 
-        sender_new_balance = w3.eth.getBalance(sender)
+        sender_new_balance = w3.eth.get_balance(sender)
         gas_used = tx_receipt["gasUsed"]
         tx_fees = gas_used * safe_multisig_tx.ethereum_tx.gas_price
         estimated_refund = (
             safe_multisig_tx.data_gas + safe_multisig_tx.safe_tx_gas
         ) * safe_multisig_tx.gas_price
-        real_refund = safe_balance - w3.eth.getBalance(my_safe_address) - value
+        real_refund = safe_balance - w3.eth.get_balance(my_safe_address) - value
         # Real refund can be less if not all the `safe_tx_gas` is used
         self.assertGreaterEqual(estimated_refund, real_refund)
         self.assertEqual(sender_new_balance, sender_balance - tx_fees + real_refund)
@@ -377,7 +377,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             nonce,
             signatures,
         )
-        tx_receipt = w3.eth.waitForTransactionReceipt(
+        tx_receipt = w3.eth.wait_for_transaction_receipt(
             safe_multisig_tx.ethereum_tx.tx_hash
         )
         self.assertTrue(tx_receipt["status"])

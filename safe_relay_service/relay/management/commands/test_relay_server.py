@@ -84,7 +84,7 @@ class Command(BaseCommand):
         self.main_account_nonce = self.w3.eth.getTransactionCount(
             self.main_account.address, "pending"
         )
-        main_account_balance = self.w3.eth.getBalance(self.main_account.address)
+        main_account_balance = self.w3.eth.get_balance(self.main_account.address)
         main_account_balance_eth = self.w3.fromWei(main_account_balance, "ether")
         self.stdout.write(
             self.style.SUCCESS(
@@ -151,7 +151,9 @@ class Command(BaseCommand):
 
             for tx_hash in tx_hashes:
                 assert (
-                    self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500).status
+                    self.w3.eth.wait_for_transaction_receipt(
+                        tx_hash, timeout=500
+                    ).status
                     == 1
                 ), ("Error on tx-hash=%s" % tx_hash)
             self.stdout.write(self.style.SUCCESS("Success with tx-hash=%s" % tx_hash))
@@ -218,7 +220,7 @@ class Command(BaseCommand):
                     "receipt with tx-hash=%s" % (payment_token, tx_hash.hex())
                 )
             )
-            self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=500)
 
         tx_hash = self.ethereum_client.send_eth_to(
             self.main_account.key,
@@ -234,7 +236,7 @@ class Command(BaseCommand):
             )
         )
         if wait_for_receipt:
-            self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=500)
             self.stdout.write(
                 self.style.SUCCESS(
                     "Payment sent and mined. Waiting for safe to be deployed"
@@ -273,7 +275,7 @@ class Command(BaseCommand):
         payment_token: Optional[str] = None,
         wait_for_receipt: bool = True,
     ) -> bytes:
-        safe_balance = self.w3.eth.getBalance(safe_address)
+        safe_balance = self.w3.eth.get_balance(safe_address)
         tx = {
             "to": self.main_account.address,
             "value": safe_balance,
@@ -349,7 +351,7 @@ class Command(BaseCommand):
             self.style.SUCCESS("Tx with tx-hash=%s was successful" % multisig_tx_hash)
         )
         if wait_for_receipt:
-            self.w3.eth.waitForTransactionReceipt(multisig_tx_hash, timeout=500)
+            self.w3.eth.wait_for_transaction_receipt(multisig_tx_hash, timeout=500)
         return multisig_tx_hash
 
     def send_multiple_txs(
@@ -375,7 +377,7 @@ class Command(BaseCommand):
                 "waiting for receipt with tx-hash=%s" % tx_hash.hex()
             )
         )
-        self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+        self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=500)
 
         self.stdout.write(self.style.SUCCESS("Sending %d txs of 1 wei" % number_txs))
         safe_nonce = None
@@ -448,11 +450,11 @@ class Command(BaseCommand):
             tx_hash = r.json()["txHash"]
             tx_hashes.append(tx_hash)
 
-            tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=500)
             assert tx_receipt.status == 1, "Error with tx %s" % tx_hash.hex()
 
         for tx_hash in tx_hashes:
-            tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash, timeout=500)
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=500)
             assert tx_receipt.status == 1, "Error with tx %s" % tx_hash.hex()
             self.stdout.write(
                 self.style.SUCCESS("Tx with tx-hash=%s was successful" % tx_hash)

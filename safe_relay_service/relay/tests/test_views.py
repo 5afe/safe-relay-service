@@ -377,7 +377,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
             owners=[owner], threshold=threshold, initial_funding_wei=safe_balance
         )
         my_safe_address = safe.address
-        self.assertEqual(self.w3.eth.getBalance(my_safe_address), safe_balance)
+        self.assertEqual(self.w3.eth.get_balance(my_safe_address), safe_balance)
         SafeContractFactory(address=my_safe_address)
 
         # Get tokens for the safe

@@ -20,17 +20,17 @@ class TestGasStation(TestCase):
         account1 = w3.eth.accounts[-1]
         account2 = w3.eth.accounts[-2]
 
-        if w3.eth.blockNumber < number_of_blocks and w3.eth.accounts:  # Ganache
+        if w3.eth.block_number < number_of_blocks and w3.eth.accounts:  # Ganache
             # Mine some blocks
             eth_balance = w3.toWei(0.00001, "ether")
-            for _ in range(number_of_blocks - w3.eth.blockNumber + 2):
-                w3.eth.waitForTransactionReceipt(
-                    w3.eth.sendTransaction(
+            for _ in range(number_of_blocks - w3.eth.block_number + 2):
+                w3.eth.wait_for_transaction_receipt(
+                    w3.eth.send_transaction(
                         {"from": account1, "to": account2, "value": eth_balance}
                     )
                 )
-                w3.eth.waitForTransactionReceipt(
-                    w3.eth.sendTransaction(
+                w3.eth.wait_for_transaction_receipt(
+                    w3.eth.send_transaction(
                         {"from": account2, "to": account1, "value": eth_balance}
                     )
                 )

@@ -115,7 +115,7 @@ class GasStation:
         return gas_prices
 
     def calculate_gas_prices(self) -> GasPrice:
-        current_block_number = self.w3.eth.blockNumber
+        current_block_number = self.w3.eth.block_number
         block_numbers = range(
             current_block_number - self.number_of_blocks, current_block_number
         )
