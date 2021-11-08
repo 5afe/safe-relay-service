@@ -18,7 +18,7 @@ ethereum==2.3.2
 gnosis-py[django]==3.5.3
 gunicorn[gevent]==20.1.0
 hexbytes==0.2.2
-lxml==4.6.3
+lxml==4.6.4
 numpy==1.21.3
 packaging==21.2
 psycogreen==1.0.2
