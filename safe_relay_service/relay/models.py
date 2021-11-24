@@ -329,11 +329,9 @@ class EthereumTxManager(models.Manager):
     ) -> "EthereumTx":
         data = HexBytes(tx.get("data") or tx.get("input"))
         # Supporting EIP1559
-        gas_price = (
-            tx["gasPrice"]
-            if "gasPrice" in tx
-            else int(tx_receipt.get("effectiveGasPrice", "0"), 0)
-        )
+        max_fee_per_gas = tx.get("maxFeePerGas", 0)
+        max_priority_fee_per_gas = tx.get("maxPriorityFeePerGas", 0)
+        gas_price = tx.get("gasPrice", max_fee_per_gas)
         return super().create(
             block=ethereum_block,
             tx_hash=tx_hash,
@@ -347,6 +345,8 @@ class EthereumTxManager(models.Manager):
             nonce=tx["nonce"],
             to=tx.get("to"),
             value=tx["value"],
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
         )
 
 
@@ -375,6 +375,8 @@ class EthereumTx(TimeStampedModel):
     nonce = Uint256Field()
     to = EthereumAddressField(null=True, blank=True, db_index=True)
     value = Uint256Field()
+    max_fee_per_gas = Uint256Field(default=0)
+    max_priority_fee_per_gas = Uint256Field(default=0)
 
     def __str__(self):
         return "{} status={} from={} to={}".format(
@@ -390,8 +392,11 @@ class EthereumTx(TimeStampedModel):
     def fee(self) -> int:
         return self.gas * self.gas_price
 
+    def is_eip1559(self):
+        return self.max_fee_per_gas or self.max_priority_fee_per_gas
+
     def as_tx_dict(self) -> TxParams:
-        return {
+        tx_params: TxParams = {
             "data": bytes(self.data) if self.data else b"",
             "from": self._from,
             "gas": self.gas,
@@ -400,6 +405,12 @@ class EthereumTx(TimeStampedModel):
             "to": self.to,
             "value": self.value,
         }
+        if self.is_eip1559():
+            tx_params["maxFeePerGas"] = self.max_fee_per_gas
+            tx_params["maxPriorityFeePerGas"] = self.max_priority_fee_per_gas
+        else:
+            tx_params["gasPrice"] = self.gas_price
+        return tx_params
 
 
 class SafeMultisigTxManager(models.Manager):

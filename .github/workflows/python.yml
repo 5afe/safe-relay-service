@@ -18,7 +18,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres:10
+        image: postgres:13
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -39,11 +39,19 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - uses: actions/cache@v2
+      name: Cache pip
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+    - uses: actions/cache@v2
+      name: Cache pre-commit
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ runner.os }}-precommit-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-precommit-
     - name: Install dependencies
       run: |
         pip install wheel
@@ -67,7 +75,7 @@ jobs:
         CELERY_BROKER_URL: redis://localhost:6379/0
     - name: Send results to coveralls
       continue-on-error: true  # Ignore coveralls problems
-      run: coveralls
+      run: coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Required for coveralls
   docker-deploy:
