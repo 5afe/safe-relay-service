@@ -6,11 +6,12 @@ from django.utils import timezone
 
 from celery import app
 from celery.utils.log import get_task_logger
-from ethereum.utils import check_checksum, checksum_encode, mk_contract_address
 from redis.exceptions import LockError
+from web3 import Web3
 
 from gnosis.eth import EthereumClientProvider, TransactionAlreadyImported
 from gnosis.eth.constants import NULL_ADDRESS
+from gnosis.eth.utils import mk_contract_address
 
 from safe_relay_service.gas_station.gas_station import GasStationProvider
 
@@ -60,12 +61,9 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     payment = safe_creation.payment
 
     # These asserts just to make sure we are not wasting money
-    assert check_checksum(safe_address)
-    assert check_checksum(deployer_address)
-    assert (
-        checksum_encode(mk_contract_address(sender=deployer_address, nonce=0))
-        == safe_address
-    )
+    assert Web3.isChecksumAddress(safe_address)
+    assert Web3.isChecksumAddress(deployer_address)
+    assert mk_contract_address(deployer_address, 0) == safe_address
     assert payment > 0
 
     redis = RedisRepository().redis
@@ -360,7 +358,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     :param retry: if True, retries are allowed, otherwise don't retry
     """
 
-    assert check_checksum(safe_address)
+    assert Web3.isChecksumAddress(safe_address)
 
     redis = RedisRepository().redis
     lock_name = f"locks:deploy_create2_safe:{safe_address}"
