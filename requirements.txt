@@ -19,7 +19,7 @@ gnosis-py[django]==3.7.7
 gunicorn[gevent]==20.1.0
 hexbytes==0.2.2
 lxml==4.7.1
-numpy==1.22.1
+numpy==1.22.3
 packaging==21.3
 psycogreen==1.0.2
 psycopg2-binary==2.9.3
