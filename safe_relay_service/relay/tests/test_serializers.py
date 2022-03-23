@@ -2,7 +2,6 @@ from django.conf import settings
 from django.test import TestCase
 
 from eth_account import Account
-from ethereum.transactions import secpk1n
 from faker import Faker
 from hexbytes import HexBytes
 
@@ -25,8 +24,12 @@ faker = Faker()
 
 
 class TestSerializers(TestCase):
+    SECPK1N = (
+        115792089237316195423570985008687907852837564279074904382605163141518161494337
+    )
+
     def test_safe_creation_serializer(self):
-        s = secpk1n // 2
+        s = self.SECPK1N // 2
         owners = [Account.create().address for _ in range(3)]
         invalid_checksumed_address = get_eth_address_with_invalid_checksum()
 

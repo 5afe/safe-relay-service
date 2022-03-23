@@ -3,7 +3,7 @@ import logging
 from urllib.parse import urljoin
 
 import requests
-from ethereum.utils import checksum_encode, privtoaddr
+from eth_account import Account
 from web3 import HTTPProvider, Web3
 
 from gnosis.safe.tests.utils import generate_valid_s
@@ -58,9 +58,9 @@ def notify_safes():
 
 
 def deploy_safes(number, owners, private_key):
+    funder = Account.from_key(private_key)
     safes = []
-    funding_public_key = checksum_encode(privtoaddr(private_key))
-    funding_nonce = w3.eth.getTransactionCount(funding_public_key, "pending")
+    funder_nonce = w3.eth.getTransactionCount(funder.address, "pending")
     for _ in range(number):
         payload_json = generate_payload(owners)
         r = requests.post(SAFES_URL, json=payload_json)
@@ -70,11 +70,11 @@ def deploy_safes(number, owners, private_key):
         payment = int(safe_created["payment"])
 
         logging.info("Created safe=%s, need payment=%d", safe_address, payment)
-        send_eth(private_key, safe_address, payment, funding_nonce)
+        send_eth(private_key, safe_address, payment, funder_nonce)
         logging.info("Sent payment=%s to safe=%s", payment, safe_address)
         r = requests.put(get_safes_notify_url(safe_address))
         assert r.ok
-        funding_nonce += 1
+        funder_nonce += 1
         safes.append(safe_address)
 
     with open("safes.txt", mode="a") as safes_file:
