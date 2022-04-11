@@ -31,8 +31,8 @@ deployed for free.
 
 Then:
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --force-rm
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker buildx bake -f docker-compose.yml -f docker-compose.dev.yml
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
 The service should be running in `localhost:8000`

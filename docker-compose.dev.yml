@@ -10,11 +10,12 @@ services:
     depends_on:
       - db
       - redis
+      - ganache
     working_dir: /app
     ports:
       - "8888:8888"
     volumes:
-      - nginx-shared:/nginx
+      - ./docker/nginx-shared:/nginx
     command: docker/web/run_web.sh
 
   worker: &worker
@@ -29,7 +30,7 @@ services:
     command: docker/web/celery/worker/run.sh
 
   ganache:
-    image: trufflesuite/ganache-cli
-    command: -d --defaultBalanceEther 10000 --gasLimit 10000000 -a 30 --chain.chainId 1337 --chain.networkId 1337
+    image: trufflesuite/ganache
+    command: -d --defaultBalanceEther 10000 --gasLimit 10000000 -a 30
     ports:
       - "8545:8545"
