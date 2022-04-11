@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.12] - 2022-04-11
+
+### Changed
+
+Increase onboarding funding [#53](https://github.com/CirclesUBI/safe-relay-service/pull/53)
+
 ## [4.1.11] - 2021-09-09
 
 ### Changed
