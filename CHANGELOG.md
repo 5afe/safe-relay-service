@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.13] - 2022-04-25
+
+### Changed
+
+- Increase gas in funding txs [#54](https://github.com/CirclesUBI/safe-relay-service/pull/54)
+
 ## [4.1.12] - 2022-04-11
 
 ### Changed
