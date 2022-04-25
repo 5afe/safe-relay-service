@@ -99,7 +99,8 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                                 safe_address, safe_creation.wei_deploy_cost(), deployer_address)
                     tx_hash = FundingServiceProvider().send_eth_to(deployer_address,
                                                                    safe_creation.wei_deploy_cost(),
-                                                                   retry=True)
+                                                                   retry=True,
+                                                                   gas=30000)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
@@ -499,7 +500,7 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
 
                     FundingServiceProvider().send_eth_to(safe_address,
                                                          payment,
-                                                         gas=24000)
+                                                         gas=30000)
                     # Retry later to check for enough funding and successful deployment
                     raise self.retry(countdown=30)
                 else:
@@ -570,7 +571,7 @@ def circles_onboarding_organization_safe_task(safe_address: str, owner_address: 
                     safe_deploy_cost = safe_creation.wei_estimated_deploy_cost()
                     FundingServiceProvider().send_eth_to(safe_address,
                                                          safe_deploy_cost,
-                                                         gas=24000)
+                                                         gas=30000)
                 else:
                     logger.info('Owner {} does not have a deployed safe'.format(owner_address))
     except LockError:
