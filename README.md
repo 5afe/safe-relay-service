@@ -24,7 +24,7 @@ Ganache, and the contract addresses are calculated to be the ones deployed by th
 so there's no need to configure anything.
 
 More parameters can be added to that file like:
-- `SAFE_FIXED_CREATION_COST`: For fixed price in wei for deploying a Safe. If you set `0` you allow Safes to be
+- `SAFE_FIXED_CREATION_COST`: For fixed price in gwei for deploying a Safe. If you set `0` you allow Safes to be
 deployed for free.
 - `SAFE_CONTRACT_ADDRESS` to change the Safe's master copy address.
 - For more parameters check `base.py` file.
