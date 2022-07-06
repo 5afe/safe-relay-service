@@ -17,7 +17,7 @@ drf-yasg[validation]==1.20.0
 gnosis-py[django]==3.9.2
 gunicorn[gevent]==20.1.0
 hexbytes==0.2.2
-lxml==4.8.0
+lxml==4.9.1
 numpy==1.22.3
 packaging==21.3
 psycogreen==1.0.2
