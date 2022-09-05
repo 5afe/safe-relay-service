@@ -13,12 +13,14 @@ from django.utils import timezone
 
 from hexbytes import HexBytes
 from model_utils.models import TimeStampedModel
+from web3.types import TxParams
 
 from gnosis.eth import EthereumClient
 from gnosis.eth.constants import ERC20_721_TRANSFER_TOPIC, NULL_ADDRESS
 from gnosis.eth.django.models import (EthereumAddressField, Sha3HashField,
                                       Uint256Field)
 from gnosis.safe import SafeOperation, SafeTx
+from gnosis.safe.safe_signature import SafeSignature
 
 from .models_raw import SafeContractManagerRaw, SafeContractQuerySetRaw
 
@@ -294,12 +296,14 @@ class EthereumTxManager(models.Manager):
                             tx_receipt: Optional[Dict[str, Any]] = None,
                             ethereum_block: Optional[EthereumBlock] = None) -> 'EthereumTx':
         data = HexBytes(tx.get('data') or tx.get('input'))
+        # Supporting EIP1559
+        gas_price = tx['gasPrice'] if 'gasPrice' in tx else int(tx_receipt.get('effectiveGasPrice', '0'), 0)
         return super().create(
             block=ethereum_block,
             tx_hash=tx_hash,
             _from=tx['from'],
             gas=tx['gas'],
-            gas_price=tx['gasPrice'],
+            gas_price=gas_price,
             gas_used=tx_receipt and tx_receipt['gasUsed'],
             status=tx_receipt and tx_receipt.get('status'),
             transaction_index=tx_receipt and tx_receipt['transactionIndex'],
@@ -338,6 +342,17 @@ class EthereumTx(TimeStampedModel):
     @property
     def fee(self) -> int:
         return self.gas * self.gas_price
+    
+    def as_tx_dict(self) -> TxParams:
+        return {
+            "data": bytes(self.data) if self.data else b'',
+            "from": self._from,
+            "gas": self.gas,
+            "gasPrice": self.gas_price,
+            "nonce": self.nonce,
+            "to": self.to,
+            "value": self.value,
+        }
 
 
 class SafeMultisigTxManager(models.Manager):
@@ -472,7 +487,7 @@ class SafeMultisigTx(TimeStampedModel):
         return '{} - {} - Safe {}'.format(self.ethereum_tx.tx_hash, SafeOperation(self.operation).name,
                                           self.safe.address)
 
-    def get_safe_tx(self, ethereum_client: Optional[EthereumClient] = None) -> SafeTx:
+    def get_safe_tx(self, ethereum_client: EthereumClient) -> SafeTx:
         return SafeTx(ethereum_client, self.safe_id, self.to, self.value, self.data.tobytes() if self.data else b'',
                       self.operation, self.safe_tx_gas, self.data_gas, self.gas_price, self.gas_token,
                       self.refund_receiver,
@@ -491,7 +506,12 @@ class SafeMultisigTx(TimeStampedModel):
             return payment_fee - executed_fee
 
     def signers(self) -> List[str]:
-        return self.get_safe_tx().signers
+        if not self.signatures:
+            return []
+        else:
+            signatures = bytes(self.signatures)
+            safe_signatures = SafeSignature.parse_signature(signatures, self.safe_tx_hash)
+            return [safe_signature.owner for safe_signature in safe_signatures]
 
 
 class SafeTxStatusQuerySet(models.QuerySet):

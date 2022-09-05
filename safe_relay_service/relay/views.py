@@ -64,7 +64,7 @@ def custom_exception_handler(exc, context):
         logger.warning('%s - Exception: %s - Data received %s',
                        context['request'].build_absolute_uri(),
                        exception_str,
-                       context['request'].data)
+                       context['request'].data, exc_info=exc)
     return response
 
 

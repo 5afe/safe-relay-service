@@ -153,7 +153,8 @@ class TestSerializers(TestCase):
             gas_price,
             gas_token,
             refund_receiver,
-            safe_nonce=nonce
+            safe_nonce=nonce,
+            safe_version='1.2.0',
         ).safe_tx_hash
 
         signatures = [account.signHash(multisig_tx_hash) for account in accounts]

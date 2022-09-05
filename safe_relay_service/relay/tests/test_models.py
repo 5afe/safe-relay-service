@@ -100,6 +100,10 @@ class TestSafeMultisigTxModel(TestCase):
         self.assertIsInstance(multisig_tx.ethereum_tx_id, HexBytes)
         multisig_tx.clean_fields()
         self.assertIsInstance(multisig_tx.ethereum_tx_id, str)
+    
+    def test_ethereum_tx_signers(self):
+        multisig_tx = SafeMultisigTxFactory(signatures=HexBytes('0x09aa550ba80c2b74f57649883e20f78b9bbfd914f729cb5638bc75617b2412392f96cd7e864263e623a9342535a67d8dbd7596a3c85d70c924c43f06ddd0cce51b0000000000000000000000004b7b1cbbd739a2a0e95b32b64fd3d249c671bd44000000000000000000000000000000000000000000000000000000000000000001'))
+        self.assertEqual(len(multisig_tx.signers()), 2)
 
     def test_get_last_nonce_for_safe(self):
         safe_address = Account.create().address

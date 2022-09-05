@@ -33,8 +33,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_swagger(self):
         response = self.client.get(reverse('schema-swagger-ui'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('max-age', response['Cache-Control'])
-        self.assertNotIn('max-age=0', response['Cache-Control'])
+        self.assertIn('max-age=0', response['Cache-Control'])
 
     def test_about(self):
         response = self.client.get(reverse('v1:about'))
@@ -142,7 +141,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         nonce = 0
 
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,
@@ -202,7 +201,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         safe_creation = self.deploy_test_safe(owners=owners, threshold=threshold, initial_funding_wei=safe_balance)
         my_safe_address = safe_creation.safe_address
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,
@@ -362,7 +361,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         gas_token = estimation_json['gasToken']
 
         multisig_tx_hash = SafeTx(
-            None,
+            self.ethereum_client,
             my_safe_address,
             to,
             value,

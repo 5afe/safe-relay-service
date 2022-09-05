@@ -97,15 +97,13 @@ class EthereumEventAdmin(EthereumTxForeignClassMixinAdmin, admin.ModelAdmin):
     def to(self, obj: EthereumEvent):
         return obj.arguments.get('to')
 
+    @admin.display(boolean=True)
     def erc20(self, obj: EthereumEvent):
         return obj.is_erc20()
 
+    @admin.display(boolean=True)
     def erc721(self, obj: EthereumEvent):
         return obj.is_erc721()
-
-    # Fancy icons
-    erc20.boolean = True
-    erc721.boolean = True
 
 
 @admin.register(EthereumTx)

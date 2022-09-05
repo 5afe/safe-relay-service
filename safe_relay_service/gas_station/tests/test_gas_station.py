@@ -1,20 +1,22 @@
 from django.conf import settings
 from django.test import TestCase
 
+from gnosis.eth import EthereumClient
+
 from ..gas_station import GasStation, NoBlocksFound
 from .factories import GasPriceFactory
 
 
 class TestGasStation(TestCase):
     def test_gas_station_mock(self):
-        gas_station = GasStation(http_provider_uri='http://localhost:8545',
+        gas_station = GasStation(EthereumClient(),
                                  number_of_blocks=0)
 
         with self.assertRaises(NoBlocksFound):
             gas_station.calculate_gas_prices()
 
         number_of_blocks = 50
-        gas_station = GasStation(http_provider_uri='http://localhost:8545',
+        gas_station = GasStation(EthereumClient(),
                                  number_of_blocks=number_of_blocks)
         w3 = gas_station.w3
         account1 = w3.eth.accounts[-1]
@@ -46,5 +48,5 @@ class TestGasStation(TestCase):
     def test_gas_station(self):
         gas_price_oldest = GasPriceFactory()
         gas_price_newest = GasPriceFactory()
-        gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+        gas_station = GasStation(EthereumClient(settings.ETHEREUM_NODE_URL), settings.GAS_STATION_NUMBER_BLOCKS)
         self.assertEqual(gas_station.get_gas_prices(), gas_price_newest)
