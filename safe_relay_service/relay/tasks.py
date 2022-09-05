@@ -99,8 +99,7 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
                                 safe_address, safe_creation.wei_deploy_cost(), deployer_address)
                     tx_hash = FundingServiceProvider().send_eth_to(deployer_address,
                                                                    safe_creation.wei_deploy_cost(),
-                                                                   retry=True,
-                                                                   gas=30000)
+                                                                   retry=True)
                     if tx_hash:
                         tx_hash = tx_hash.hex()
                         logger.info('Safe=%s. Transferred deployment-cost=%d to deployer=%s with tx-hash=%s',
@@ -489,7 +488,7 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
                     token_deploy_cost = transaction_service.estimate_circles_signup_tx(safe_address)
                     logger.info('Estimating %d for token deployment', token_deploy_cost)
                     # Find total onboarding costs
-                    payment = safe_deploy_cost + token_deploy_cost + 400000000000000 # Just in case
+                    payment = safe_deploy_cost + token_deploy_cost
                     # Get current safe balance
                     safe_balance = ethereum_client.get_balance(safe_address)
                     logger.info('Found %d balance for token deployment of safe=%s. Required=%d',
