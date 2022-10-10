@@ -1,6 +1,6 @@
 cachetools==5.2.0
 celery==5.2.7
-django==3.2.16
+django==4.1.2
 django-authtools==2.0.0
 django-celery-beat==2.3.0
 django-debug-toolbar
