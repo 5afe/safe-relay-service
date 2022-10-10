@@ -1,23 +1,24 @@
 FROM python:3.10-slim
 
-ENV PYTHONUNBUFFERED 1
-WORKDIR /app
+ARG APP_HOME=/app
+WORKDIR ${APP_HOME}
+ENV PYTHONUNBUFFERED=1
 
-# Signal handling for PID1 https://github.com/krallin/tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
+# https://eth-hash.readthedocs.io/en/latest/quickstart.html#specify-backend-by-environment-variable
+# `pysha3` is way faster than `pycryptodome` for CPython
+ENV ETH_HASH_BACKEND=pysha3
 
 COPY requirements.txt ./
 RUN set -ex \
 	&& buildDeps=" \
 		build-essential \
+        git \
 		libssl-dev \
-		libgmp-dev \
-		pkg-config \
+        libpq-dev \
 		" \
     && apt-get update \
-    && apt-get install -y --no-install-recommends $buildDeps \
+    && apt-get install -y --no-install-recommends $buildDeps tmux postgresql-client \
+    && pip install -U --no-cache-dir wheel setuptools pip \
     && pip install --no-cache-dir -r requirements.txt \
     && apt-get purge -y --auto-remove $buildDeps \
     && rm -rf /var/lib/apt/lists/* \
@@ -28,5 +29,3 @@ RUN set -ex \
 
 COPY . .
 RUN DJANGO_SETTINGS_MODULE=config.settings.local DJANGO_DOT_ENV_FILE=.env.local python manage.py collectstatic --noinput
-
-ENTRYPOINT ["/tini", "--"]
