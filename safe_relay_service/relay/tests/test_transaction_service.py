@@ -47,7 +47,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
 
         safe = self.deploy_test_safe(owners=owners, threshold=threshold)
         my_safe_address = safe.address
-        my_safe_contract = safe.get_contract()
+        my_safe_contract = safe.contract
         SafeContractFactory(address=my_safe_address)
 
         to = funder
