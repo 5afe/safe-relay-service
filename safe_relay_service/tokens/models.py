@@ -92,7 +92,7 @@ class Token(models.Model):
         return "%s - %s" % (self.name, self.address)
 
     def get_eth_value(self) -> float:
-        multiplier = 1e18 / 10 ** self.decimals
+        multiplier = 1e18 / 10**self.decimals
         if self.fixed_eth_conversion:  # `None` or `0` are ignored
             # Ether has 18 decimals, but maybe the token has a different number
             return round(multiplier * float(self.fixed_eth_conversion), 10)
