@@ -9,11 +9,6 @@ How is this possible? The **Transaction Relay Service** acts as a proxy, paying 
 back due to the transaction architecture we use. It also enables the user to pay for ethereum transactions
 using **ERC20 tokens**.
 
-Docs
-----
-Docs are available on [Gnosis Docs](https://docs.gnosis.io/safe/docs/services_relay/)
-You can open the diagrams explaining _Pre CREATE2_ deployment under `docs/` with [Staruml](http://staruml.io/)
-
 Setup for development (using ganache)
 -------------------------------------
 This is the recommended configuration for developing and testing the Relay service. `docker-compose` is required for
