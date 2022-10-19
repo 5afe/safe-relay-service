@@ -488,7 +488,7 @@ def circles_onboarding_safe_task(self, safe_address: str) -> None:
                     token_deploy_cost = transaction_service.estimate_circles_signup_tx(safe_address)
                     logger.info('Estimating %d for token deployment', token_deploy_cost)
                     # Find total onboarding costs
-                    payment = safe_deploy_cost + token_deploy_cost
+                    payment = safe_deploy_cost + token_deploy_cost + 400000000000000 # Just in case
                     # Get current safe balance
                     safe_balance = ethereum_client.get_balance(safe_address)
                     logger.info('Found %d balance for token deployment of safe=%s. Required=%d',
