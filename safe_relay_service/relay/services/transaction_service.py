@@ -322,7 +322,7 @@ class TransactionService:
         """
         # Tx data from Circles Hub contract `signup` method
         data = ("0xb7bc0f73")
-        return 1342817000000000
+        return 1800000000000000
 
     def estimate_circles_organization_signup_tx(self, safe_address: str,
                                                 gas_token: str = NULL_ADDRESS) -> int:
