@@ -82,7 +82,6 @@ class AboutView(APIView):
             'api_version': self.request.version,
             'https_detected': self.request.is_secure(),
             'settings': {
-                'ETHEREUM_NODE_URL': settings.ETHEREUM_NODE_URL,
                 'ETH_HASH_PREFIX ': settings.ETH_HASH_PREFIX,
                 'FIXED_GAS_PRICE': settings.FIXED_GAS_PRICE,
                 'GAS_STATION_NUMBER_BLOCKS': settings.GAS_STATION_NUMBER_BLOCKS,
