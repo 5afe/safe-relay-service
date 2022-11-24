@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2022-11-24
+
+### Changed
+
+- Update codebase to `v4.1.0` of [5afe/safe-relay-service](https://github.com/5afe/safe-relay-service) [#61](https://github.com/CirclesUBI/safe-relay-service/pull/61)
+
+### Added
+
+- Compatibility with both versions of the Safe contract (`v1.1.1+Circles`, and `v1.3.0`) [#64](https://github.com/CirclesUBI/safe-relay-service/pull/64)
+
+### Removed
+
+- Remove ETHEREUM_NODE_URL from about view [#61](https://github.com/CirclesUBI/safe-relay-service/pull/61)
+
 ## [4.1.13] - 2022-04-25
 
 ### Changed
