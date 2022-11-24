@@ -8,13 +8,13 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0002_safemultisigtx_refund_receiver'),
+        ("relay", "0002_safemultisigtx_refund_receiver"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='safecreation',
-            name='payment_token',
+            model_name="safecreation",
+            name="payment_token",
             field=gnosis.eth.django.models.EthereumAddressField(null=True),
         ),
     ]

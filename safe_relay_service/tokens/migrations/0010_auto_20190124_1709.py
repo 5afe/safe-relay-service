@@ -6,18 +6,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tokens', '0009_auto_20181221_1510'),
+        ("tokens", "0009_auto_20181221_1510"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='token',
-            name='fixed_eth_conversion',
-            field=models.DecimalField(blank=True, decimal_places=15, default=None, max_digits=25, null=True),
+            model_name="token",
+            name="fixed_eth_conversion",
+            field=models.DecimalField(
+                blank=True, decimal_places=15, default=None, max_digits=25, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='token',
-            name='logo_uri',
+            model_name="token",
+            name="logo_uri",
             field=models.CharField(blank=True, max_length=300),
         ),
     ]

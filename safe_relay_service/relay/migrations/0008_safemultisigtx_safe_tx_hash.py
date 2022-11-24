@@ -8,13 +8,13 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0007_safecreation_master_copy'),
+        ("relay", "0007_safecreation_master_copy"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='safemultisigtx',
-            name='safe_tx_hash',
+            model_name="safemultisigtx",
+            name="safe_tx_hash",
             field=gnosis.eth.django.models.Sha3HashField(null=True, unique=True),
         ),
     ]

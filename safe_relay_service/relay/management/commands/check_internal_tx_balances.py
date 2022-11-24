@@ -6,7 +6,7 @@ from ...models import SafeContract
 
 
 class Command(BaseCommand):
-    help = 'Check internal tx balances matches the ones from the ethereum blockchain'
+    help = "Check internal tx balances matches the ones from the ethereum blockchain"
 
     def handle(self, *args, **options):
         ethereum_client = EthereumClientProvider()
@@ -16,10 +16,16 @@ class Command(BaseCommand):
             internal_tx_balance = safe_contract.get_balance()
             if blockchain_balance != internal_tx_balance:
                 mismatchs += 1
-                self.stdout.write(self.style.NOTICE(f'safe={safe_contract.address} '
-                                                    f'blockchain-balance={blockchain_balance} does not match '
-                                                    f'internal-tx-balance={internal_tx_balance}'))
+                self.stdout.write(
+                    self.style.NOTICE(
+                        f"safe={safe_contract.address} "
+                        f"blockchain-balance={blockchain_balance} does not match "
+                        f"internal-tx-balance={internal_tx_balance}"
+                    )
+                )
         if mismatchs:
-            self.stdout.write(self.style.NOTICE(f"{mismatchs} Safes don't match blockchain balance"))
+            self.stdout.write(
+                self.style.NOTICE(f"{mismatchs} Safes don't match blockchain balance")
+            )
         else:
-            self.stdout.write(self.style.SUCCESS('All Safes match blockchain balance'))
+            self.stdout.write(self.style.SUCCESS("All Safes match blockchain balance"))

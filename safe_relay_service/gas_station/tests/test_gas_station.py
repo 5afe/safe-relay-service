@@ -1,39 +1,39 @@
 from django.conf import settings
 from django.test import TestCase
 
+from gnosis.eth import EthereumClient
+
 from ..gas_station import GasStation, NoBlocksFound
 from .factories import GasPriceFactory
 
 
 class TestGasStation(TestCase):
     def test_gas_station_mock(self):
-        gas_station = GasStation(http_provider_uri='http://localhost:8545',
-                                 number_of_blocks=0)
+        gas_station = GasStation(EthereumClient(), number_of_blocks=0)
 
         with self.assertRaises(NoBlocksFound):
             gas_station.calculate_gas_prices()
 
         number_of_blocks = 50
-        gas_station = GasStation(http_provider_uri='http://localhost:8545',
-                                 number_of_blocks=number_of_blocks)
+        gas_station = GasStation(EthereumClient(), number_of_blocks=number_of_blocks)
         w3 = gas_station.w3
         account1 = w3.eth.accounts[-1]
         account2 = w3.eth.accounts[-2]
 
-        if w3.eth.blockNumber < number_of_blocks and w3.eth.accounts:  # Ganache
+        if w3.eth.block_number < number_of_blocks and w3.eth.accounts:  # Ganache
             # Mine some blocks
-            eth_balance = w3.toWei(0.00001, 'ether')
-            for _ in range(number_of_blocks - w3.eth.blockNumber + 2):
-                w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-                    'from': account1,
-                    'to': account2,
-                    'value': eth_balance
-                }))
-                w3.eth.waitForTransactionReceipt(w3.eth.sendTransaction({
-                    'from': account2,
-                    'to': account1,
-                    'value': eth_balance
-                }))
+            eth_balance = w3.toWei(0.00001, "ether")
+            for _ in range(number_of_blocks - w3.eth.block_number + 2):
+                w3.eth.wait_for_transaction_receipt(
+                    w3.eth.send_transaction(
+                        {"from": account1, "to": account2, "value": eth_balance}
+                    )
+                )
+                w3.eth.wait_for_transaction_receipt(
+                    w3.eth.send_transaction(
+                        {"from": account2, "to": account1, "value": eth_balance}
+                    )
+                )
 
         gas_prices = gas_station.calculate_gas_prices()
         self.assertIsNotNone(gas_prices)
@@ -46,5 +46,8 @@ class TestGasStation(TestCase):
     def test_gas_station(self):
         gas_price_oldest = GasPriceFactory()
         gas_price_newest = GasPriceFactory()
-        gas_station = GasStation(settings.ETHEREUM_NODE_URL, settings.GAS_STATION_NUMBER_BLOCKS)
+        gas_station = GasStation(
+            EthereumClient(settings.ETHEREUM_NODE_URL),
+            settings.GAS_STATION_NUMBER_BLOCKS,
+        )
         self.assertEqual(gas_station.get_gas_prices(), gas_price_newest)

@@ -10,22 +10,40 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0018_auto_20190425_0928'),
+        ("relay", "0018_auto_20190425_0928"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EthereumEvent',
+            name="EthereumEvent",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('log_index', models.PositiveIntegerField()),
-                ('token_address', gnosis.eth.django.models.EthereumAddressField(db_index=True)),
-                ('topic', gnosis.eth.django.models.Sha3HashField(db_index=True)),
-                ('arguments', django.contrib.postgres.fields.jsonb.JSONField()),
-                ('ethereum_tx', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='events', to='relay.EthereumTx')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("log_index", models.PositiveIntegerField()),
+                (
+                    "token_address",
+                    gnosis.eth.django.models.EthereumAddressField(db_index=True),
+                ),
+                ("topic", gnosis.eth.django.models.Sha3HashField(db_index=True)),
+                ("arguments", django.contrib.postgres.fields.jsonb.JSONField()),
+                (
+                    "ethereum_tx",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="events",
+                        to="relay.EthereumTx",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('ethereum_tx', 'log_index')},
+                "unique_together": {("ethereum_tx", "log_index")},
             },
         ),
     ]

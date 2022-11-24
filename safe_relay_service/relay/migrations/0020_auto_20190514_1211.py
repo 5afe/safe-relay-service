@@ -8,38 +8,48 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0019_ethereumevent'),
+        ("relay", "0019_ethereumevent"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='_from',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="ethereumtx",
+            name="_from",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='ethereumtx',
-            name='to',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="ethereumtx",
+            name="to",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='internaltx',
-            name='_from',
+            model_name="internaltx",
+            name="_from",
             field=gnosis.eth.django.models.EthereumAddressField(db_index=True),
         ),
         migrations.AlterField(
-            model_name='internaltx',
-            name='contract_address',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="internaltx",
+            name="contract_address",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='internaltx',
-            name='to',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="internaltx",
+            name="to",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='to',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="safemultisigtx",
+            name="to",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
     ]

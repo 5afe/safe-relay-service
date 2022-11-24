@@ -6,22 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0016_internaltx_error'),
+        ("relay", "0016_internaltx_error"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='internaltx',
-            name='trace_address',
-            field=models.CharField(default='', max_length=100),
+            model_name="internaltx",
+            name="trace_address",
+            field=models.CharField(default="", max_length=100),
             preserve_default=False,
         ),
         migrations.AlterUniqueTogether(
-            name='internaltx',
-            unique_together={('ethereum_tx', 'trace_address')},
+            name="internaltx",
+            unique_together={("ethereum_tx", "trace_address")},
         ),
         migrations.RemoveField(
-            model_name='internaltx',
-            name='transaction_index',
+            model_name="internaltx",
+            name="transaction_index",
         ),
     ]

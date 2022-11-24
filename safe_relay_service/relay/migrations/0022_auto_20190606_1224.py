@@ -8,37 +8,42 @@ import gnosis.eth.django.models
 
 def reindex_all(apps, schema_editor):
     # Remove all indexed txs
-    InternalTx = apps.get_model('relay', 'InternalTx')
+    InternalTx = apps.get_model("relay", "InternalTx")
     InternalTx.objects.all().delete()
 
     # Start indexing again
-    SafeTxStatus = apps.get_model('relay', 'SafeTxStatus')
-    SafeTxStatus.objects.update(tx_block_number=F('initial_block_number'))
+    SafeTxStatus = apps.get_model("relay", "SafeTxStatus")
+    SafeTxStatus.objects.update(tx_block_number=F("initial_block_number"))
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0021_auto_20190527_0914'),
+        ("relay", "0021_auto_20190527_0914"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='internaltx',
-            name='refund_address',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="internaltx",
+            name="refund_address",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.AddField(
-            model_name='internaltx',
-            name='tx_type',
-            field=models.PositiveSmallIntegerField(choices=[(0, 'CALL'), (1, 'CREATE'), (2, 'SELF_DESTRUCT')],
-                                                   default=0),
+            model_name="internaltx",
+            name="tx_type",
+            field=models.PositiveSmallIntegerField(
+                choices=[(0, "CALL"), (1, "CREATE"), (2, "SELF_DESTRUCT")], default=0
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='internaltx',
-            name='_from',
-            field=gnosis.eth.django.models.EthereumAddressField(db_index=True, null=True),
+            model_name="internaltx",
+            name="_from",
+            field=gnosis.eth.django.models.EthereumAddressField(
+                db_index=True, null=True
+            ),
         ),
         migrations.RunPython(reindex_all),
     ]

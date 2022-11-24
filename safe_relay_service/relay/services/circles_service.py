@@ -1,16 +1,15 @@
 from django.conf import settings
 from hexbytes import HexBytes
 
-from ethereum.utils import check_checksum
+from web3 import Web3
 
 from gnosis.eth import EthereumClient
 from gnosis.eth.constants import NULL_ADDRESS
 
-MAPPING_NULL_PREFIX: str = '0' * 24
+MAPPING_NULL_PREFIX: str = "0" * 24
 
 
 class CirclesService:
-
     def __init__(self, ethereum_client: EthereumClient, gas_price: int = 1):
         """
         :param ethereum_client:
@@ -32,7 +31,7 @@ class CirclesService:
         :param token_address:
         :return: packed string
         """
-        assert check_checksum(token_address)
+        assert Web3.isChecksumAddress(token_address)
         return MAPPING_NULL_PREFIX + token_address[2:]
 
     def is_circles_token(self, token_address: str) -> bool:
@@ -42,9 +41,9 @@ class CirclesService:
         :return: true if Circles Token otherwise false
         """
         call_args = {
-            'to': settings.CIRCLES_HUB_ADDRESS,
+            "to": settings.CIRCLES_HUB_ADDRESS,
             # Calling tokenToUser mapping of Hub contract;
-            'data': '0xa18b506b' + self.pack_address(token_address)
+            "data": "0xa18b506b" + self.pack_address(token_address),
         }
         call_result = self.ethereum_client.w3.eth.call(call_args)
         return HexBytes(call_result).hex() != NULL_ADDRESS
@@ -56,9 +55,9 @@ class CirclesService:
         :return: true if Circles Token exists otherwise false
         """
         call_args = {
-            'to': settings.CIRCLES_HUB_ADDRESS,
+            "to": settings.CIRCLES_HUB_ADDRESS,
             # Calling userToToken mapping of Hub contract;
-            'data': '0x28d249fe' + self.pack_address(safe_address)
+            "data": "0x28d249fe" + self.pack_address(safe_address),
         }
         call_result = self.ethereum_client.w3.eth.call(call_args)
         return HexBytes(call_result).hex() != NULL_ADDRESS + MAPPING_NULL_PREFIX
@@ -70,9 +69,9 @@ class CirclesService:
         :return: true if Circles Organization exists otherwise false
         """
         call_args = {
-            'to': settings.CIRCLES_HUB_ADDRESS,
+            "to": settings.CIRCLES_HUB_ADDRESS,
             # Calling organization mapping of Hub contract;
-            'data': '0x5a1f7406' + self.pack_address(safe_address)
+            "data": "0x5a1f7406" + self.pack_address(safe_address),
         }
         call_result = self.ethereum_client.w3.eth.call(call_args)
         return HexBytes(call_result).hex() != NULL_ADDRESS + MAPPING_NULL_PREFIX

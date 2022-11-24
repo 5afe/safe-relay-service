@@ -9,12 +9,14 @@ from eth_account import Account
 
 from ..models import EthereumTx
 from ..services import Erc20EventsServiceProvider
-from ..tasks import (check_and_update_pending_transactions,
-                     check_balance_of_accounts_task,
-                     check_pending_transactions, deploy_create2_safe_task,
-                     find_erc_20_721_transfers_task)
-from .factories import (SafeCreation2Factory, SafeMultisigTxFactory,
-                        SafeTxStatusFactory)
+from ..tasks import (
+    check_and_update_pending_transactions,
+    check_balance_of_accounts_task,
+    check_pending_transactions,
+    deploy_create2_safe_task,
+    find_erc_20_721_transfers_task,
+)
+from .factories import SafeCreation2Factory, SafeMultisigTxFactory, SafeTxStatusFactory
 from .relay_test_case import RelayTestCaseMixin
 
 logger = logging.getLogger(__name__)
@@ -49,9 +51,15 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         safe_address = safe.address
         amount = 10
         owner_account = self.ethereum_test_account
-        erc20_contract = self.deploy_example_erc20(amount, self.ethereum_test_account.address)
-        self.send_tx(erc20_contract.functions.transfer(
-            safe_address, amount // 2).buildTransaction({'from': owner_account.address}), owner_account)
+        erc20_contract = self.deploy_example_erc20(
+            amount, self.ethereum_test_account.address
+        )
+        self.send_tx(
+            erc20_contract.functions.transfer(
+                safe_address, amount // 2
+            ).buildTransaction({"from": owner_account.address}),
+            owner_account,
+        )
 
         self.assertEqual(find_erc_20_721_transfers_task.delay().get(), 0)
         SafeTxStatusFactory(safe=safe)
@@ -62,22 +70,29 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         not_mined_alert_minutes = settings.SAFE_TX_NOT_MINED_ALERT_MINUTES
         self.assertEqual(check_pending_transactions.delay().get(), 0)
 
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=not_mined_alert_minutes - 1),
-                              ethereum_tx__block=None)
+        SafeMultisigTxFactory(
+            created=timezone.now() - timedelta(minutes=not_mined_alert_minutes - 1),
+            ethereum_tx__block=None,
+        )
         self.assertEqual(check_pending_transactions.delay().get(), 0)
 
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(minutes=not_mined_alert_minutes + 1),
-                              ethereum_tx__block=None)
+        SafeMultisigTxFactory(
+            created=timezone.now() - timedelta(minutes=not_mined_alert_minutes + 1),
+            ethereum_tx__block=None,
+        )
         self.assertEqual(check_pending_transactions.delay().get(), 1)
 
     def test_check_and_update_pending_transactions(self):
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=151),
-                              ethereum_tx__block=None)
+        SafeMultisigTxFactory(
+            created=timezone.now() - timedelta(seconds=151), ethereum_tx__block=None
+        )
         self.assertEqual(check_and_update_pending_transactions.delay().get(), 0)
 
         tx_hash = self.send_ether(Account.create().address, 1)
-        SafeMultisigTxFactory(created=timezone.now() - timedelta(seconds=151),
-                              ethereum_tx__tx_hash=tx_hash,
-                              ethereum_tx__block=None)
+        SafeMultisigTxFactory(
+            created=timezone.now() - timedelta(seconds=151),
+            ethereum_tx__tx_hash=tx_hash,
+            ethereum_tx__block=None,
+        )
         self.assertEqual(check_and_update_pending_transactions.delay().get(), 1)
         self.assertGreaterEqual(EthereumTx.objects.get(tx_hash=tx_hash).block_id, 0)

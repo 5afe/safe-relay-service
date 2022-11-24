@@ -8,26 +8,32 @@ from django.db.models import F
 def populate_ethereum_tx_foreign_key(apps, schema_editor):
     # We can't import the Person model directly as it may be a newer
     # version than this migration expects. We use the historical version.
-    SafeMultisigTx = apps.get_model('relay', 'SafeMultisigTx')
-    SafeMultisigTx.objects.update(ethereum_tx=F('tx_hash'))
+    SafeMultisigTx = apps.get_model("relay", "SafeMultisigTx")
+    SafeMultisigTx.objects.update(ethereum_tx=F("tx_hash"))
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0011_populate_ethereumtx'),
+        ("relay", "0011_populate_ethereumtx"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='safemultisigtx',
-            name='ethereum_tx',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='relay.EthereumTx'),
+            model_name="safemultisigtx",
+            name="ethereum_tx",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="relay.EthereumTx",
+            ),
         ),
         migrations.RunPython(populate_ethereum_tx_foreign_key),
         migrations.AlterField(
-            model_name='safemultisigtx',
-            name='ethereum_tx',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='relay.EthereumTx'),
-        )
+            model_name="safemultisigtx",
+            name="ethereum_tx",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="relay.EthereumTx"
+            ),
+        ),
     ]

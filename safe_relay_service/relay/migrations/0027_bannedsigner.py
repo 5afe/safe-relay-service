@@ -8,14 +8,19 @@ import gnosis.eth.django.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0026_auto_20200626_1531'),
+        ("relay", "0026_auto_20200626_1531"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BannedSigner',
+            name="BannedSigner",
             fields=[
-                ('address', gnosis.eth.django.models.EthereumAddressField(primary_key=True, serialize=False)),
+                (
+                    "address",
+                    gnosis.eth.django.models.EthereumAddressField(
+                        primary_key=True, serialize=False
+                    ),
+                ),
             ],
         ),
     ]

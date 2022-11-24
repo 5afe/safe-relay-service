@@ -9,8 +9,11 @@ from django.db.models import JSONField
 
 from gnosis.eth.django.models import EthereumAddressField
 
-from .price_oracles import (CannotGetTokenPriceFromApi, ExchangeApiException,
-                            get_price_oracle)
+from .price_oracles import (
+    CannotGetTokenPriceFromApi,
+    ExchangeApiException,
+    get_price_oracle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,27 +23,47 @@ class PriceOracle(models.Model):
     configuration = JSONField(null=False, default=dict)
 
     def __str__(self):
-        return f'{self.name} configuration={self.configuration}'
+        return f"{self.name} configuration={self.configuration}"
 
 
 class PriceOracleTicker(models.Model):
-    price_oracle = models.ForeignKey(PriceOracle, null=True, on_delete=models.CASCADE, related_name='tickers')
-    token = models.ForeignKey('Token', null=True, on_delete=models.CASCADE, related_name='price_oracle_tickers')
+    price_oracle = models.ForeignKey(
+        PriceOracle, null=True, on_delete=models.CASCADE, related_name="tickers"
+    )
+    token = models.ForeignKey(
+        "Token",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="price_oracle_tickers",
+    )
     ticker = models.CharField(max_length=90, blank=False, null=False)
     inverse = models.BooleanField(default=False)
 
     def __str__(self):
-        return '%s - %s - %s - Inverse %s' % (self.price_oracle.name, self.token.symbol, self.ticker, self.inverse)
+        return "%s - %s - %s - Inverse %s" % (
+            self.price_oracle.name,
+            self.token.symbol,
+            self.ticker,
+            self.inverse,
+        )
 
     def _price(self) -> Optional[float]:
         try:
-            price = get_price_oracle(self.price_oracle.name, self.price_oracle.configuration).get_price(self.ticker)
+            price = get_price_oracle(
+                self.price_oracle.name, self.price_oracle.configuration
+            ).get_price(self.ticker)
             if price and self.inverse:  # Avoid 1 / 0
                 price = 1 / price
         except ExchangeApiException:
-            logger.warning('Cannot get price for %s - %s', self.price_oracle.name, self.ticker, exc_info=True)
+            logger.warning(
+                "Cannot get price for %s - %s",
+                self.price_oracle.name,
+                self.ticker,
+                exc_info=True,
+            )
             price = None
         return price
+
     price = property(_price)
 
 
@@ -60,25 +83,32 @@ class Token(models.Model):
     website_uri = models.URLField(blank=True)
     gas = models.BooleanField(default=False)
     price_oracles = models.ManyToManyField(PriceOracle, through=PriceOracleTicker)
-    fixed_eth_conversion = models.DecimalField(null=True, default=None, blank=True, max_digits=25, decimal_places=15)
+    fixed_eth_conversion = models.DecimalField(
+        null=True, default=None, blank=True, max_digits=25, decimal_places=15
+    )
     relevance = models.PositiveIntegerField(default=100)
 
     def __str__(self):
-        return '%s - %s' % (self.name, self.address)
+        return "%s - %s" % (self.name, self.address)
 
     def get_eth_value(self) -> float:
-        multiplier = 1e18 / 10 ** self.decimals
+        multiplier = 1e18 / 10**self.decimals
         if self.fixed_eth_conversion:  # `None` or `0` are ignored
             # Ether has 18 decimals, but maybe the token has a different number
             return round(multiplier * float(self.fixed_eth_conversion), 10)
         else:
-            prices = [price_oracle_ticker.price for price_oracle_ticker in self.price_oracle_tickers.all()]
+            prices = [
+                price_oracle_ticker.price
+                for price_oracle_ticker in self.price_oracle_tickers.all()
+            ]
             prices = [price for price in prices if price is not None and price > 0]
             if prices:
                 # Get the average price of the price oracles
                 return multiplier * (sum(prices) / len(prices))
             else:
-                raise CannotGetTokenPriceFromApi('There is no working provider for token=%s' % self.address)
+                raise CannotGetTokenPriceFromApi(
+                    "There is no working provider for token=%s" % self.address
+                )
 
     def calculate_payment(self, eth_payment: int) -> int:
         """
@@ -107,4 +137,7 @@ class Token(models.Model):
             return urljoin(settings.TOKEN_LOGO_BASE_URI, self.logo_uri)
         else:
             # Generate logo uri based on configuration
-            return urljoin(settings.TOKEN_LOGO_BASE_URI, self.address + settings.TOKEN_LOGO_EXTENSION)
+            return urljoin(
+                settings.TOKEN_LOGO_BASE_URI,
+                self.address + settings.TOKEN_LOGO_EXTENSION,
+            )

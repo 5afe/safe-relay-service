@@ -10,7 +10,7 @@ class PriceOracleFactory(DjangoModelFactory):
     class Meta:
         model = models.PriceOracle
 
-    name = factory.Faker('company')
+    name = factory.Faker("company")
 
 
 class TokenFactory(DjangoModelFactory):
@@ -18,12 +18,12 @@ class TokenFactory(DjangoModelFactory):
         model = models.Token
 
     address = factory.LazyFunction(lambda: get_eth_address_with_key()[0])
-    name = factory.Faker('cryptocurrency_name')
-    symbol = factory.Faker('cryptocurrency_code')
-    description = factory.Faker('catch_phrase')
+    name = factory.Faker("cryptocurrency_name")
+    symbol = factory.Faker("cryptocurrency_code")
+    description = factory.Faker("catch_phrase")
     decimals = 18
-    logo_uri = ''
-    website_uri = ''
+    logo_uri = ""
+    website_uri = ""
     gas = True
     fixed_eth_conversion = 1
 
@@ -34,5 +34,5 @@ class PriceOracleTickerFactory(DjangoModelFactory):
 
     price_oracle = factory.SubFactory(PriceOracleFactory)
     token = factory.SubFactory(TokenFactory)
-    ticker = factory.Faker('cryptocurrency_code')
+    ticker = factory.Faker("cryptocurrency_code")
     inverse = False

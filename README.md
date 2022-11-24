@@ -45,14 +45,14 @@
 
 <br/>
 
-Fork of [Gnosis Safe Relay Service](https://docs.gnosis.io/safe/docs/services_relay/) to provide a relayer service and onboarding user tasks for the [Circles](https://github.com/CirclesUBI/circles-myxogastria/) web-app running on xDai.
+Fork of [Gnosis Safe Relay Service](https://docs.gnosis-safe.io/) to provide a relayer service and onboarding user tasks for the [Circles](https://github.com/CirclesUBI/circles-myxogastria/) web-app running on xDai.
 
 ## License
 
 ```
 MIT License
 
-Copyright (c) 2018 Gnosis Ltd
+Copyright (c) 2018 Safe Ecosystem Foundation
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

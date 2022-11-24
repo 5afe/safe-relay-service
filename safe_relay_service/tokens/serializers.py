@@ -9,7 +9,7 @@ class TokenSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Token
-        exclude = ['fixed_eth_conversion', 'price_oracles', 'relevance']
+        exclude = ["fixed_eth_conversion", "price_oracles", "relevance"]
 
     def get_logo_uri(self, obj: Token):
         return obj.get_full_logo_uri()

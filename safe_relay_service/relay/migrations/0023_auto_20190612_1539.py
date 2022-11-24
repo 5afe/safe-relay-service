@@ -9,18 +9,26 @@ import model_utils.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('relay', '0022_auto_20190606_1224'),
+        ("relay", "0022_auto_20190606_1224"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='ethereumtx',
-            name='created',
-            field=model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, editable=False, verbose_name='created'),
+            model_name="ethereumtx",
+            name="created",
+            field=model_utils.fields.AutoCreatedField(
+                default=django.utils.timezone.now,
+                editable=False,
+                verbose_name="created",
+            ),
         ),
         migrations.AddField(
-            model_name='ethereumtx',
-            name='modified',
-            field=model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, editable=False, verbose_name='modified'),
+            model_name="ethereumtx",
+            name="modified",
+            field=model_utils.fields.AutoLastModifiedField(
+                default=django.utils.timezone.now,
+                editable=False,
+                verbose_name="modified",
+            ),
         ),
     ]

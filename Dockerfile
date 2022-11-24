@@ -1,7 +1,11 @@
-FROM python:3.8-slim
+FROM python:3.9-slim
 
 ENV PYTHONUNBUFFERED 1
 ENV TINI_VERSION v0.19.0
+
+# https://eth-hash.readthedocs.io/en/latest/quickstart.html#specify-backend-by-environment-variable
+# `pysha3` is way faster than `pycryptodome` for CPython
+ENV ETH_HASH_BACKEND=pysha3
 
 # Signal handling for PID1 https://github.com/krallin/tini
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
@@ -27,7 +31,8 @@ RUN set -ex \
       libgmp-dev \
       pkg-config \
       " \
-      && apt-get install -y --no-install-recommends $buildDeps \
+      && apt-get install -y --no-install-recommends $buildDeps tmux \
+      && pip install -U --no-cache-dir wheel setuptools pip \
       && pip install --no-cache-dir -r requirements.txt \
       && apt-get purge -y --auto-remove $buildDeps \
       && rm -rf /var/lib/apt/lists/* \
