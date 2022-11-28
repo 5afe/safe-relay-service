@@ -126,10 +126,10 @@ class AboutView(APIView):
                 "SAFE_PROXY_FACTORY_V1_0_0_ADDRESS": settings.SAFE_PROXY_FACTORY_V1_0_0_ADDRESS,
                 "SAFE_TX_NOT_MINED_ALERT_MINUTES": settings.SAFE_TX_NOT_MINED_ALERT_MINUTES,
                 "SAFE_TX_SENDER_PUBLIC_KEY": safe_sender_public_key,
-                "SAFE_V0_0_1_CONTRACT_ADDRESS": settings.SAFE_V0_0_1_CONTRACT_ADDRESS,
                 "SAFE_V1_0_0_CONTRACT_ADDRESS": settings.SAFE_V1_0_0_CONTRACT_ADDRESS,
                 "SAFE_V1_1_1_CONTRACT_ADDRESS": settings.SAFE_V1_1_1_CONTRACT_ADDRESS,
-                "SAFE_CONTRACT_ADDRESS": settings.SAFE_CONTRACT_ADDRESS,
+                "SAFE_V1_3_0_CONTRACT_ADDRESS": settings.SAFE_V1_3_0_CONTRACT_ADDRESS,
+                "SAFE_CONTRACT_ADDRESS (vV1.3.0+L2)": settings.SAFE_CONTRACT_ADDRESS,
                 "SAFE_VALID_CONTRACT_ADDRESSES": settings.SAFE_VALID_CONTRACT_ADDRESSES,
             },
         }
