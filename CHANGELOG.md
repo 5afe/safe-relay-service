@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] - 2022-11-28
+
+### Fixed
+
+- Use the GnosisSafeL2 address by default and add the GnosisSafe address the Safe valid contracts addresses list [#65](https://github.com/CirclesUBI/safe-relay-service/pull/65)
+
 ## [5.0.0] - 2022-11-24
 
 ### Changed
