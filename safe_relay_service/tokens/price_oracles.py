@@ -6,7 +6,13 @@ import requests
 from cachetools import TTLCache, cached
 
 from gnosis.eth import EthereumClientProvider
-from gnosis.eth.oracles import KyberOracle, OracleException, UniswapOracle
+from gnosis.eth.oracles import (
+    KyberOracle,
+    OracleException,
+    UniswapOracle,
+    UniswapV2Oracle,
+    UniswapV3Oracle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +127,42 @@ class Uniswap(PriceOracle):
             raise CannotGetTokenPriceFromApi from e
 
 
+class UniswapV2(PriceOracle):
+    def __init__(self, router_address: str, **kwargs):
+        self.router_address = router_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        uniswap = UniswapV2Oracle(ethereum_client, self.router_address)
+        try:
+            return uniswap.get_price(ticker)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
+
+
+class UniswapV3(PriceOracle):
+    def __init__(self, router_address: str, **kwargs):
+        self.router_address = router_address
+
+    @cached(cache=TTLCache(maxsize=1024, ttl=60))
+    def get_price(self, ticker: str) -> float:
+        """
+        :param ticker: Address of the token
+        :return: price
+        """
+        ethereum_client = EthereumClientProvider()
+        uniswap = UniswapV3Oracle(ethereum_client, self.router_address)
+        try:
+            return uniswap.get_price(ticker)
+        except OracleException as e:
+            raise CannotGetTokenPriceFromApi from e
+
+
 class Kyber(PriceOracle):
     def __init__(self, kyber_network_proxy_address: str, **kwargs):
         self.kyber_network_proxy_address = kyber_network_proxy_address
@@ -147,6 +189,8 @@ def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOrac
         "kraken": Kraken,
         "kyber": Kyber,
         "uniswap": Uniswap,
+        "uniswapv3": UniswapV3,
+        "uniswapv2": UniswapV2,
     }
 
     oracle = oracles.get(name.lower())
