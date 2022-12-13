@@ -111,7 +111,7 @@ class GasStation:
             for transaction in block["transactions"]
             if transaction.get("gasPrice")
         ]
-
+        logger.info(f'Calculated gas prices {gas_prices} in requested block {requested_blocks}  and {cached_blocks}' )
         return gas_prices
 
     def calculate_gas_prices(self) -> GasPrice:
@@ -156,14 +156,15 @@ class GasStation:
             return gas_price
 
     def get_gas_prices(self) -> GasPrice:
-        gas_price = self._get_gas_price_from_cache()
-        if not gas_price:
-            try:
-                gas_price = GasPrice.objects.latest()
-            except GasPrice.DoesNotExist:
-                # This should never happen, just the first execution
+        gas_price_from_cache = self._get_gas_price_from_cache()
+        logger.info(f" Gas price from cache - {gas_price_from_cache}")
+        # if not gas_price:
+        #     try:
+        #         gas_price = GasPrice.objects.latest()
+        #     except GasPrice.DoesNotExist:
+        #         # This should never happen, just the first execution
                 # Celery worker should have GasPrice created
-                gas_price = self.calculate_gas_prices()
+        gas_price = self.calculate_gas_prices()
         return gas_price
 
 
