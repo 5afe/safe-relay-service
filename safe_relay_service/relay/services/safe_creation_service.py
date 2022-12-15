@@ -369,7 +369,7 @@ class SafeCreationService:
                 setup_data,
                 safe_creation2.salt_nonce,
                 gas=safe_creation2.gas_estimated + 50000,  # Just in case
-                gas_price=safe_creation2.gas_price_estimated,
+                gas_price=safe_creation2.gas_price_estimated + 8,
                 nonce=tx_nonce,
             )
             logger.info(
