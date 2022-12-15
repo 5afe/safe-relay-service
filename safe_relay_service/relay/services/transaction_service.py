@@ -645,7 +645,7 @@ class TransactionService:
             tx_hash, tx = safe_tx.execute(
                 tx_sender_private_key,
                 tx_gas=tx_gas,
-                tx_gas_price=tx_gas_price,
+                tx_gas_price=tx_gas_price+8,
                 tx_nonce=tx_nonce,
                 block_identifier=block_identifier,
                 eip1559_speed=TxSpeed.NORMAL,
