@@ -85,7 +85,7 @@ class GasStation:
         """
         cached_blocks = []
         not_cached_block_numbers = []
-
+        logger.debug(f'Block number to calculate gas_prices {block_numbers}')
         for block_number in block_numbers:
             block = self._get_block_from_cache(block_number)
             if block:
@@ -111,18 +111,21 @@ class GasStation:
             for transaction in block["transactions"]
             if transaction.get("gasPrice")
         ]
-        logger.info(
+        print(f"Calculated gas prices {gas_prices} in requested block {requested_blocks}  and {cached_blocks}")
+        logger.debug(
             f"Calculated gas prices {gas_prices} in requested block {requested_blocks}  and {cached_blocks}"
         )
         return gas_prices
 
     def calculate_gas_prices(self) -> GasPrice:
+        
         current_block_number = self.w3.eth.block_number
         block_numbers = range(
             current_block_number - self.number_of_blocks, current_block_number
         )
+        logger.debug(f'inside calculate prices with current block {current_block_number} and blocks {block_numbers}')
         gas_prices = self.get_tx_gas_prices(block_numbers)
-        logger.info(f" Gas price from get_tx_gas_prices{gas_price}")
+        logger.debug(f" Gas price from get_tx_gas_prices{gas_price}")
         if not gas_prices:
             raise NoBlocksFound
         else:
@@ -152,7 +155,7 @@ class GasStation:
             )
 
             self._store_gas_price_in_cache(gas_price)
-            logger.info(
+            logger.debug(
                 f" - Calculated gas price lowest={lowest} safe_low={safe_low} standard={standard} "
                 f"fast={fast} fastest={fastest}"
             )
