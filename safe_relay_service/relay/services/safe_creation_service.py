@@ -357,6 +357,7 @@ class SafeCreationService:
         logger.info(
             f"Attempting to deploy safe {safe_address} with setup_data {setup_data}"
         )
+        logger.info(f"Attempting to deploy safe with safe_creation2 {safe_creation2} gas {safe_creation2.gas_estimated} and gas_price {safe_creation2.gas_price_estimated }")
         with EthereumNonceLock(
             self.redis,
             self.ethereum_client,
@@ -371,9 +372,6 @@ class SafeCreationService:
                 gas=safe_creation2.gas_estimated + 50000,  # Just in case
                 gas_price=safe_creation2.gas_price_estimated + 8,
                 nonce=tx_nonce,
-            )
-            logger.info(
-                f"attempting to deploy safe {safe_address} and gas {gas} and gas_price {gas_price} and {safe_creation2.gas_price_estimated}"
             )
             EthereumTx.objects.create_from_tx_dict(
                 ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash
