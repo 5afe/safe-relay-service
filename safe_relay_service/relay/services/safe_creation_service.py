@@ -373,7 +373,7 @@ class SafeCreationService:
                 nonce=tx_nonce,
             )
             logger.info(
-                f"attempting to deploy safe {safe_address} and gas {gas} and {safe_creation2.gas_price_estimated}"
+                f"attempting to deploy safe {safe_address} and gas {gas} and gas_price {gas_price} and {safe_creation2.gas_price_estimated}"
             )
             EthereumTx.objects.create_from_tx_dict(
                 ethereum_tx_sent.tx, ethereum_tx_sent.tx_hash

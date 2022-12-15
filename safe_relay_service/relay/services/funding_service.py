@@ -67,7 +67,7 @@ class FundingService:
     ):
 
         if not gas_price:
-            gas_price = self.gas_station.get_gas_prices().standard
+            gas_price = self.gas_station.get_gas_prices().standard + 8
             logger.info(f"Gas price for circles transaction {gas_price}")
         if self.max_eth_to_send and value > Web3.toWei(self.max_eth_to_send, "ether"):
             raise EtherLimitExceeded(
