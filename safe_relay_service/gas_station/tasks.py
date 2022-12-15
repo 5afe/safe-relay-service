@@ -13,7 +13,7 @@ def calculate_gas_prices() -> GasPrice:
     logger.info("Starting Gas Price Calculations")
     try:
         gas_price = GasStationProvider().calculate_gas_prices()
-        logger.info("Gas price" + gas_price)
+        logger.info(f'Gas price from Starting calculations {gas_price}')
     except RequestsConnectionError:
         logger.warning(
             "Problem connecting to node, cannot calculate gas price", exc_info=True
