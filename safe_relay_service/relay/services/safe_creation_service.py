@@ -355,7 +355,7 @@ class SafeCreationService:
         setup_data = HexBytes(safe_creation2.setup_data.tobytes())
         proxy_factory = ProxyFactory(safe_creation2.proxy_factory, self.ethereum_client)
         logger.info(
-            f"Attempting to deploy safe {safe_address} with setup_data {setup_data}, tx_nonce {tx_nonce}"
+            f"Attempting to deploy safe {safe_address} with setup_data {setup_data}"
         )
         with EthereumNonceLock(
             self.redis,
