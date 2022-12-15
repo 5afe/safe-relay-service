@@ -641,6 +641,7 @@ class TransactionService:
                 safe_address,
                 safe_nonce,
             )
+            logger.info(f"Gas and gas price in execute tx {tx_gas} {tx_gas_price}")
             tx_hash, tx = safe_tx.execute(
                 tx_sender_private_key,
                 tx_gas=tx_gas,

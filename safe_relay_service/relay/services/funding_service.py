@@ -66,7 +66,6 @@ class FundingService:
         block_identifier="pending",
     ):
 
-    
         if not gas_price:
             gas_price = self.gas_station.get_gas_prices().standard
             logger.info(f"Gas price for circles transaction {gas_price}")

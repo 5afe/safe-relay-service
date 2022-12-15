@@ -111,7 +111,9 @@ class GasStation:
             for transaction in block["transactions"]
             if transaction.get("gasPrice")
         ]
-        logger.info(f'Calculated gas prices {gas_prices} in requested block {requested_blocks}  and {cached_blocks}' )
+        logger.info(
+            f"Calculated gas prices {gas_prices} in requested block {requested_blocks}  and {cached_blocks}"
+        )
         return gas_prices
 
     def calculate_gas_prices(self) -> GasPrice:
@@ -120,11 +122,12 @@ class GasStation:
             current_block_number - self.number_of_blocks, current_block_number
         )
         gas_prices = self.get_tx_gas_prices(block_numbers)
-
+        logger.info(f" Gas price from get_tx_gas_prices{gas_price}")
         if not gas_prices:
             raise NoBlocksFound
         else:
             np_gas_prices = np.array(gas_prices)
+            logger.info(f"array gas prices {np_gas_prices}")
             lowest = np_gas_prices.min() + self.constant_gas_increment
             safe_low = (
                 math.ceil(np.percentile(np_gas_prices, 30))
@@ -150,7 +153,7 @@ class GasStation:
 
             self._store_gas_price_in_cache(gas_price)
             logger.info(
-                f"Calculated gas price lowest={lowest} safe_low={safe_low} standard={standard} "
+                f" - Calculated gas price lowest={lowest} safe_low={safe_low} standard={standard} "
                 f"fast={fast} fastest={fastest}"
             )
             return gas_price
@@ -163,7 +166,7 @@ class GasStation:
         #         gas_price = GasPrice.objects.latest()
         #     except GasPrice.DoesNotExist:
         #         # This should never happen, just the first execution
-                # Celery worker should have GasPrice created
+        # Celery worker should have GasPrice created
         gas_price = self.calculate_gas_prices()
         return gas_price
 
