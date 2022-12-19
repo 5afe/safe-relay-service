@@ -29,47 +29,6 @@ class PriceOracle(ABC):
         pass
 
 
-class Binance(PriceOracle):
-    """
-    Get valid symbols from https://api.binance.com/api/v1/exchangeInfo
-    Remember to always use USDT instead of USD
-    """
-
-    @cached(cache=TTLCache(maxsize=1024, ttl=60))
-    def get_price(self, ticker) -> float:
-        url = "https://api.binance.com/api/v3/avgPrice?symbol=" + ticker
-        response = requests.get(url)
-        api_json = response.json()
-        if not response.ok:
-            logger.warning("Cannot get price from url=%s", url)
-            raise CannotGetTokenPriceFromApi(api_json.get("msg"))
-        return float(api_json["price"])
-
-
-class DutchX(PriceOracle):
-    def validate_ticker(self, ticker: str):
-        # Example ticker `0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359-WETH`
-        if "WETH" not in ticker:
-            raise InvalidTicker(ticker)
-
-    def reverse_ticker(self, ticker: str):
-        return "-".join(reversed(ticker.split("-")))
-
-    @cached(cache=TTLCache(maxsize=1024, ttl=1200))
-    def get_price(self, ticker: str) -> float:
-        self.validate_ticker(ticker)
-        url = (
-            "https://dutchx.d.exchange/api/v1/markets/{}/prices/custom-median?requireWhitelisted=false&"
-            "maximumTimePeriod=388800&numberOfAuctions=9".format(ticker)
-        )
-        response = requests.get(url)
-        api_json = response.json()
-        if not response.ok or api_json is None:
-            logger.warning("Cannot get price from url=%s", url)
-            raise CannotGetTokenPriceFromApi(api_json)
-        return float(api_json)
-
-
 class Huobi(PriceOracle):
     """
     Get valid symbols from https://api.huobi.pro/v1/common/symbols
@@ -141,8 +100,6 @@ class Kyber(PriceOracle):
 
 def get_price_oracle(name: str, configuration: Dict[Any, Any] = {}) -> PriceOracle:
     oracles = {
-        "binance": Binance,
-        "dutchx": DutchX,
         "huobi": Huobi,
         "kraken": Kraken,
         "kyber": Kyber,

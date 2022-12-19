@@ -7,13 +7,13 @@ from django.test import TestCase
 from web3 import Web3
 
 from ..models import PriceOracle
-from ..price_oracles import CannotGetTokenPriceFromApi, DutchX
+from ..price_oracles import CannotGetTokenPriceFromApi, Kraken
 from .factories import PriceOracleTickerFactory, TokenFactory
 
 
 class TestModels(TestCase):
     def test_price_oracles(self):
-        self.assertEqual(PriceOracle.objects.count(), 6)
+        self.assertEqual(PriceOracle.objects.count(), 4)
 
     def test_token_calculate_payment(self):
         token = TokenFactory(fixed_eth_conversion=0.1)
@@ -46,9 +46,9 @@ class TestModels(TestCase):
             token.calculate_payment(Web3.toWei(1, "ether")), Web3.toWei(0.1, "ether")
         )
 
-    @mock.patch.object(DutchX, "get_price", return_value=3.8, autospec=True)
+    @mock.patch.object(Kraken, "get_price", return_value=3.8, autospec=True)
     def test_token_eth_value(self, get_price_mock):
-        price_oracle = PriceOracle.objects.get(name="DutchX")
+        price_oracle = PriceOracle.objects.get(name="Kraken")
         token = TokenFactory(fixed_eth_conversion=None)
         with self.assertRaises(CannotGetTokenPriceFromApi):
             token.get_eth_value()
@@ -71,9 +71,9 @@ class TestModels(TestCase):
         with self.assertRaises(CannotGetTokenPriceFromApi):
             token.get_eth_value()
 
-    @mock.patch.object(DutchX, "get_price", return_value=3.8, autospec=True)
+    @mock.patch.object(Kraken, "get_price", return_value=3.8, autospec=True)
     def test_token_eth_value_inverted(self, get_price_mock):
-        price_oracle = PriceOracle.objects.get(name="DutchX")
+        price_oracle = PriceOracle.objects.get(name="Kraken")
 
         token = TokenFactory(fixed_eth_conversion=None)
         PriceOracleTickerFactory(
