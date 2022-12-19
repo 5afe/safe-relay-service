@@ -10,7 +10,7 @@ from drf_yasg.views import get_schema_view
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Gnosis Safe Relay API",
+        title="Safe Relay API",
         default_version="v1",
         description="API to manage creation of safes and multisig transaction sending",
         contact=openapi.Contact(email="uxio@gnosis.pm"),

@@ -268,7 +268,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn(
-            "Please use Gnosis Safe CreateLib", str(response.data["non_field_errors"])
+            "Please use Safe CreateLib", str(response.data["non_field_errors"])
         )
 
     def test_safe_signal_v2(self):
