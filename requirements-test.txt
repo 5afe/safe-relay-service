@@ -4,7 +4,7 @@ django-stubs==1.13.1
 factory-boy==3.2.1
 faker==15.3.4
 mypy==0.991
-pytest==7.2.0
+pytest==7.2.1
 pytest-celery==0.0.0
 pytest-django==4.5.2
 pytest-env==0.8.1
