@@ -341,6 +341,7 @@ class SafeCreationService:
         :return: tx_hash
         """
         safe_creation2: SafeCreation2 = SafeCreation2.objects.get(safe=safe_address)
+        logger.info(f"Safe Creation Info {safe_creation2}")
 
         if safe_creation2.tx_hash:
             logger.info(
@@ -366,7 +367,7 @@ class SafeCreationService:
                 setup_data,
                 safe_creation2.salt_nonce,
                 gas=safe_creation2.gas_estimated + 50000,  # Just in case
-                gas_price=safe_creation2.gas_price_estimated,
+                gas_price=safe_creation2.gas_price_estimated+8,
                 nonce=tx_nonce,
             )
             EthereumTx.objects.create_from_tx_dict(
