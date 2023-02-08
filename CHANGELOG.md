@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [5.0.3] - 2023-02-08
 
 ### Fixed 
-Update gas price for account sign up [#71](https://github.com/CirclesUBI/safe-relay-service/pull/71)
-Update safe-eth-py package [8e789c](https://github.com/CirclesUBI/safe-relay-service/commit/8e789c17065cb38246f64008a824b04266eeb2ef)
+- Update gas price for account sign up [#71](https://github.com/CirclesUBI/safe-relay-service/pull/71)
+
+- Update safe-eth-py package [8e789c](https://github.com/CirclesUBI/safe-relay-service/commit/8e789c17065cb38246f64008a824b04266eeb2ef)
  
 ## [5.0.2] - 2022-11-28
 
