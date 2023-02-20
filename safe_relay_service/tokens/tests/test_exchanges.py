@@ -39,4 +39,4 @@ class TestExchanges(TestCase):
 
     def test_kraken(self):
         exchange = Kraken()
-        self.exchange_helper(exchange, ["ETHEUR", "GNOETH"], ["BADTICKER"])
+        self.exchange_helper(exchange, ["ETHEUR", "GNOEUR"], ["BADTICKER"])
