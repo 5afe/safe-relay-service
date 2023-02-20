@@ -9,7 +9,6 @@ def remove_price_oracles(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tokens", "0015_auto_20210610_1502"),
     ]

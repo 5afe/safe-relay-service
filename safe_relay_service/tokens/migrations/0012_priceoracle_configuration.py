@@ -23,7 +23,6 @@ def create_uniswap_price_oracle(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tokens", "0011_auto_20190225_1646"),
     ]

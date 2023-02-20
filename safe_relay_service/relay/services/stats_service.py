@@ -82,7 +82,6 @@ class StatsService:
     def get_relay_history_stats(
         self, from_date: datetime.datetime = None, to_date: datetime.datetime = None
     ) -> Dict[str, Any]:
-
         from_date = (
             from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         )
@@ -124,7 +123,6 @@ class StatsService:
     def get_relay_stats(
         self, from_date: datetime.datetime = None, to_date: datetime.datetime = None
     ) -> Dict[str, Any]:
-
         from_date = (
             from_date if from_date else datetime.datetime(2018, 11, 1, tzinfo=utc)
         )

@@ -16,7 +16,6 @@ def create_price_oracles(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tokens", "0006_auto_20181205_1226"),
     ]

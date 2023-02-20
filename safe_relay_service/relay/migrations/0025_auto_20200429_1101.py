@@ -17,7 +17,6 @@ def add_status_and_index_to_txs(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0024_delete_internaltx"),
     ]

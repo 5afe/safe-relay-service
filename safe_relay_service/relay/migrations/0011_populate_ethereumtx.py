@@ -24,7 +24,6 @@ def create_ethereum_txs(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0010_ethereumtx"),
     ]

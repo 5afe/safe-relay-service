@@ -32,7 +32,6 @@ class RelayTestCaseMixin(SafeTestCaseMixin):
         payment_token=None,
         salt_nonce=None,
     ) -> SafeCreation2:
-
         salt_nonce = salt_nonce or generate_salt_nonce()
         owners = owners or [Account.create().address for _ in range(number_owners)]
         threshold = threshold if threshold else len(owners)
