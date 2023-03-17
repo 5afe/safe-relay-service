@@ -17,7 +17,6 @@ def reindex_all(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0021_auto_20190527_0914"),
     ]

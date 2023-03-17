@@ -7,7 +7,6 @@ import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0013_auto_20190401_1445"),
     ]

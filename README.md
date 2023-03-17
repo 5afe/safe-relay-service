@@ -1,9 +1,13 @@
-[![Build Status](https://travis-ci.com/gnosis/safe-relay-service.svg?branch=master)](https://travis-ci.com/gnosis/safe-relay-service)
-[![Coverage Status](https://coveralls.io/repos/github/gnosis/safe-relay-service/badge.svg?branch=master)](https://coveralls.io/github/gnosis/safe-relay-service?branch=master)
-![Python 3.9](https://img.shields.io/badge/Python-3.9-blue.svg)
-![Django 3](https://img.shields.io/badge/Django-3-blue.svg)
+[![Build Status](https://github.com/5afe/safe-relay-service/actions/workflows/python.yml/badge.svg)](https://github.com/5afe/safe-relay-service/actions/workflows/python.yml)
+[![Coverage Status](https://coveralls.io/repos/github/5afe/safe-relay-service/badge.svg?branch=master)](https://coveralls.io/github/5afe/safe-relay-service?branch=master)
+![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)
+![Django 4](https://img.shields.io/badge/Django-4-blue.svg)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/safeglobal/safe-relay-service?label=Docker&sort=semver)](https://hub.docker.com/r/safeglobal/safe-relay-service)
 
-# Gnosis Safe Relay Service
+# Disclaimer
+Relay is no longer actively maintained by the Safe team and will only get dependency updates when possible.
+
+# Safe Relay Service
 This service allows us to have owners of the Safe contract that don’t need to hold any ETH on those owner addresses.
 How is this possible? The **Transaction Relay Service** acts as a proxy, paying for the transaction fees and getting it
 back due to the transaction architecture we use. It also enables the user to pay for ethereum transactions
@@ -43,7 +47,7 @@ Configure the parameters needed on `.env`. These parameters **need to be changed
 - `SAFE_TX_SENDER_PRIVATE_KEY`: Same as the `SAFE_FUNDER_PRIVATE_KEY`, but it's used to relay all transactions.
 
 Another parameters can be configured like:
-- `SAFE_CONTRACT_ADDRESS`: If you are not using default Gnosis Safe Master Copy.
+- `SAFE_CONTRACT_ADDRESS`: If you are not using default Safe Master Copy.
 - `SAFE_FIXED_CREATION_COST`: For fixed price in wei for deploying a Safe. If you set `0` you allow Safes to be
 deployed for free.
 - For more parameters check `base.py` file.

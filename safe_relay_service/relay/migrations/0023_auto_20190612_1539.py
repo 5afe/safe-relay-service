@@ -7,7 +7,6 @@ import model_utils.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0022_auto_20190606_1224"),
     ]

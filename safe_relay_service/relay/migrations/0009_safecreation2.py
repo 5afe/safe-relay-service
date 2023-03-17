@@ -11,7 +11,6 @@ import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0008_safemultisigtx_safe_tx_hash"),
     ]

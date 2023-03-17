@@ -11,7 +11,6 @@ import gnosis.eth.django.models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []

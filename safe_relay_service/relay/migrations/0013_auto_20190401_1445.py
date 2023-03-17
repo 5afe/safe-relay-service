@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0012_safemultisigtx_ethereum_tx"),
     ]

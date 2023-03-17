@@ -82,7 +82,7 @@ class SafeCreationView(CreateAPIView):
     )
     def post(self, request, *args, **kwargs):
         """
-        Begins creation of a Gnosis Safe V1.0.0
+        Begins creation of a Safe V1.0.0
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():

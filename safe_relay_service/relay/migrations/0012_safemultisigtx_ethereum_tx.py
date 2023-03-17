@@ -13,7 +13,6 @@ def populate_ethereum_tx_foreign_key(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("relay", "0011_populate_ethereumtx"),
     ]

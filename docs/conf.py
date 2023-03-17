@@ -1,4 +1,4 @@
-# Gnosis Safe Relay Service documentation build configuration file, created by
+# Safe Relay Service documentation build configuration file, created by
 # sphinx-quickstart.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -39,8 +39,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "Gnosis Safe Relay Service"
-copyright = """2018, Gnosis"""
+project = "Safe Relay Service"
+copyright = """2018, Safe Foundation"""
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -183,8 +183,8 @@ latex_documents = [
     (
         "index",
         "safe_relay_service.tex",
-        "Gnosis Safe Relay Service Documentation",
-        """Gnosis""",
+        "Safe Relay Service Documentation",
+        """Safe Foundation""",
         "manual",
     )
 ]
@@ -218,8 +218,8 @@ man_pages = [
     (
         "index",
         "safe_relay_service",
-        "Gnosis Safe Relay Service Documentation",
-        ["""Gnosis"""],
+        "Safe Relay Service Documentation",
+        ["""Safe Foundation"""],
         1,
     )
 ]
@@ -237,10 +237,10 @@ texinfo_documents = [
     (
         "index",
         "safe_relay_service",
-        "Gnosis Safe Relay Service Documentation",
-        """Gnosis""",
-        "Gnosis Safe Relay Service",
-        """Project to manage tx relay for Gnosis Safe""",
+        "Safe Relay Service Documentation",
+        """Safe Foundation""",
+        "Safe Relay Service",
+        """Project to manage tx relaying for Safe""",
         "Miscellaneous",
     )
 ]

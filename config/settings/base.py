@@ -169,7 +169,7 @@ EMAIL_BACKEND = env(
 ADMIN_URL = r"^admin/"
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [
-    ("""Gnosis""", "dev@gnosis.pm"),
+    ("""Safe""", "null@safe.global"),
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
@@ -370,7 +370,7 @@ NOTIFICATION_SERVICE_URI = env("NOTIFICATION_SERVICE_URI", default=None)
 NOTIFICATION_SERVICE_PASS = env("NOTIFICATION_SERVICE_PASS", default=None)
 
 TOKEN_LOGO_BASE_URI = env(
-    "TOKEN_LOGO_BASE_URI", default="https://gnosis-safe-token-logos.s3.amazonaws.com/"
+    "TOKEN_LOGO_BASE_URI", default="https://safe-transaction-assets.safe.global"
 )
 TOKEN_LOGO_EXTENSION = env("TOKEN_LOGO_EXTENSION", default=".png")
 

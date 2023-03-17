@@ -51,7 +51,6 @@ class GasStation:
         cache_timeout_seconds: int = 10 * 60,
         constant_gas_increment: int = 1,
     ):  # Increase a little for fastest mining for API Calls
-
         self.ethereum_client = ethereum_client
         self.number_of_blocks = number_of_blocks
         self.cache_timeout = cache_timeout_seconds
