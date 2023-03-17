@@ -29,6 +29,8 @@ from ..models import (
 )
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
 
+import math
+
 logger = getLogger(__name__)
 
 
@@ -227,7 +229,7 @@ class TransactionService:
             estimated_gas_price = base_gas_price
 
         # FIXME Remove 2 / 3, workaround to prevent frontrunning
-        return int(estimated_gas_price * 2 / 3)
+        return math.ceil(estimated_gas_price * 2 / 3)
 
     def _get_configured_gas_price(self) -> int:
         """

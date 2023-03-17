@@ -483,3 +483,10 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
 
         SafeMultisigTxFactory(safe=safe_contract, nonce=22, ethereum_tx__status=0)
         self.assertEqual(self.transaction_service.get_last_used_nonce(safe_address), 17)
+
+    def test__estimate_tx_gas_price_of_token_with_lowest_decimals_and_high_eth_conversion(self):
+        gas_token = TokenFactory(address=Account.create().address, gas=True, decimals=6, fixed_eth_conversion=10)
+        gas_price = self.transaction_service._estimate_tx_gas_price(
+            self.transaction_service._get_minimum_gas_price(), gas_token.address
+        )
+        self.assertEqual(gas_price, 1)
