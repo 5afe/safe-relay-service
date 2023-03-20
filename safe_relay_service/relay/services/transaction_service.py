@@ -1,3 +1,4 @@
+import math
 from logging import getLogger
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
@@ -28,8 +29,6 @@ from ..models import (
     SafeMultisigTx,
 )
 from ..repositories.redis_repository import EthereumNonceLock, RedisRepository
-
-import math
 
 logger = getLogger(__name__)
 
