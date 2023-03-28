@@ -366,6 +366,12 @@ SAFE_ACCOUNTS_BALANCE_WARNING = env.int(
 )  # 0.2 Eth
 SAFE_TX_NOT_MINED_ALERT_MINUTES = env("SAFE_TX_NOT_MINED_ALERT_MINUTES", default=10)
 
+# Disable to prevent front-running, as if refunder is set to zero address `tx.origin` will be refunded
+SAFE_RELAY_ALLOW_ZERO_ADDRESS_REFUND_RECEIVER = env.bool(
+    "SAFE_RELAY_ALLOW_ZERO_ADDRESS_REFUND_RECEIVER",
+    default=True,
+)
+
 NOTIFICATION_SERVICE_URI = env("NOTIFICATION_SERVICE_URI", default=None)
 NOTIFICATION_SERVICE_PASS = env("NOTIFICATION_SERVICE_PASS", default=None)
 

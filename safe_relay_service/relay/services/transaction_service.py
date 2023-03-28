@@ -129,6 +129,7 @@ class TransactionServiceProvider:
                 settings.SAFE_VALID_CONTRACT_ADDRESSES,
                 settings.SAFE_PROXY_FACTORY_ADDRESS,
                 settings.SAFE_TX_SENDER_PRIVATE_KEY,
+                settings.SAFE_RELAY_ALLOW_ZERO_ADDRESS_REFUND_RECEIVER,
             )
         return cls.instance
 
@@ -147,6 +148,7 @@ class TransactionService:
         safe_valid_contract_addresses: Set[str],
         proxy_factory_address: str,
         tx_sender_private_key: str,
+        safe_relay_allow_zero_address_refund_receiver: bool,
     ):
         self.gas_station = gas_station
         self.ethereum_client = ethereum_client
@@ -154,16 +156,22 @@ class TransactionService:
         self.safe_valid_contract_addresses = safe_valid_contract_addresses
         self.proxy_factory = ProxyFactory(proxy_factory_address, self.ethereum_client)
         self.tx_sender_account: LocalAccount = Account.from_key(tx_sender_private_key)
+        self.safe_relay_allow_zero_address_refund_receiver = (
+            safe_relay_allow_zero_address_refund_receiver
+        )
 
     def _check_refund_receiver(self, refund_receiver: str) -> bool:
         """
-        Support tx.origin or relay tx sender as refund receiver.
-        This would prevent that anybody can front-run our service
+        Check refund receiver.
+        `safe_relay_allow_zero_address_refund_receiver` should be `False` to prevent front-running
 
         :param refund_receiver: Payment refund receiver as Ethereum checksummed address
-        :return: True if refund_receiver is ok, False otherwise
+        :return: `True` if refund_receiver is ok, `False` otherwise
         """
-        return refund_receiver in (NULL_ADDRESS, self.tx_sender_account.address)
+        if self.safe_relay_allow_zero_address_refund_receiver:
+            return refund_receiver in (NULL_ADDRESS, self.tx_sender_account.address)
+
+        return refund_receiver == self.tx_sender_account.address
 
     @staticmethod
     def _is_valid_gas_token(address: Optional[str]) -> float:
