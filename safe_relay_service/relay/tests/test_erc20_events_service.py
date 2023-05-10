@@ -35,20 +35,20 @@ class TestErc20EventsService(SafeTestCaseMixin, TestCase):
         to_tx_hash = self.send_tx(
             erc20_contract.functions.transfer(
                 account_1.address, amount // 2
-            ).buildTransaction({"from": owner_account.address}),
+            ).build_transaction({"from": owner_account.address}),
             owner_account,
         )
         self.send_tx(
             erc20_contract.functions.transfer(
                 account_3.address, amount // 2
-            ).buildTransaction({"from": owner_account.address}),
+            ).build_transaction({"from": owner_account.address}),
             owner_account,
         )
         # `account1` sends `amount // 2` (all) to `account_2`
         from_tx_hash = self.send_tx(
             erc20_contract.functions.transfer(
                 account_2.address, amount // 2
-            ).buildTransaction({"from": account_1.address}),
+            ).build_transaction({"from": account_1.address}),
             account_1,
         )
 

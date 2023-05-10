@@ -34,7 +34,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         w3 = self.w3
 
         # The balance we will send to the safe
-        safe_balance = w3.toWei(0.02, "ether")
+        safe_balance = w3.to_wei(0.02, "ether")
 
         # Create Safe
         funder_account = self.ethereum_test_account
@@ -119,7 +119,7 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
         proxy_create_tx = (
             get_paying_proxy_contract(self.w3)
             .constructor(random_master_copy, b"", NULL_ADDRESS, NULL_ADDRESS, 0)
-            .buildTransaction({"from": self.ethereum_test_account.address})
+            .build_transaction({"from": self.ethereum_test_account.address})
         )
         tx_hash = self.ethereum_client.send_unsigned_transaction(
             proxy_create_tx, private_key=self.ethereum_test_account.key
@@ -307,8 +307,8 @@ class TestTransactionService(RelayTestCaseMixin, TestCase):
             safe_multisig_tx.ethereum_tx.tx_hash
         )
         self.assertTrue(tx_receipt["status"])
-        self.assertEqual(w3.toChecksumAddress(tx_receipt["from"]), sender)
-        self.assertEqual(w3.toChecksumAddress(tx_receipt["to"]), my_safe_address)
+        self.assertEqual(w3.to_checksum_address(tx_receipt["from"]), sender)
+        self.assertEqual(w3.to_checksum_address(tx_receipt["to"]), my_safe_address)
         # Changed with EIP1559
         # self.assertGreater(
         #     safe_multisig_tx.ethereum_tx.gas_price, gas_price

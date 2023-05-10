@@ -68,7 +68,7 @@ class FundingService:
         if not gas_price:
             gas_price = self.gas_station.get_gas_prices().standard
 
-        if self.max_eth_to_send and value > Web3.toWei(self.max_eth_to_send, "ether"):
+        if self.max_eth_to_send and value > Web3.to_wei(self.max_eth_to_send, "ether"):
             raise EtherLimitExceeded(
                 "%d is bigger than %f" % (value, self.max_eth_to_send)
             )

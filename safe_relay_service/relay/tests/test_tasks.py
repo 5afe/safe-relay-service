@@ -57,7 +57,7 @@ class TestTasks(RelayTestCaseMixin, TestCase):
         self.send_tx(
             erc20_contract.functions.transfer(
                 safe_address, amount // 2
-            ).buildTransaction({"from": owner_account.address}),
+            ).build_transaction({"from": owner_account.address}),
             owner_account,
         )
 
