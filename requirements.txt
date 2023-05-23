@@ -22,6 +22,6 @@ packaging==23.0
 psycogreen==1.0.2
 psycopg2==2.9.5
 redis==4.5.4
-requests==2.28.2
+requests==2.31.0
 safe-eth-py[django]==5.0.2
 web3==5.31.3
