@@ -241,7 +241,7 @@ class TransactionScanService(ABC):
         """
         assert safe_addresses, "Safe addresses cannot be empty!"
         assert all(
-            [Web3.isChecksumAddress(safe_address) for safe_address in safe_addresses]
+            [Web3.is_checksum_address(safe_address) for safe_address in safe_addresses]
         ), ("A safe address has invalid checksum: %s" % safe_addresses)
 
         parameters = self.get_block_numbers_for_search(safe_addresses)

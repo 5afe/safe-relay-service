@@ -215,7 +215,7 @@ class SafeCreationAdmin(admin.ModelAdmin):
     search_fields = ["=safe__address", "=deployer", "owners"]
 
     def ether_deploy_cost(self, obj: SafeCreation) -> float:
-        return Web3.fromWei(obj.wei_deploy_cost(), "ether")
+        return Web3.from_wei(obj.wei_deploy_cost(), "ether")
 
 
 class SafeCreation2DeployedListFilter(admin.SimpleListFilter):
@@ -258,7 +258,7 @@ class SafeCreation2Admin(admin.ModelAdmin):
     search_fields = ["=safe__address", "owners", "=tx_hash"]
 
     def ether_deploy_cost(self, obj: SafeCreation2) -> float:
-        return Web3.fromWei(obj.wei_estimated_deploy_cost(), "ether")
+        return Web3.from_wei(obj.wei_estimated_deploy_cost(), "ether")
 
     def gas_used(self, obj: SafeCreation2) -> Optional[int]:
         return obj.gas_used()
@@ -330,7 +330,7 @@ class SafeMultisigTxAdmin(admin.ModelAdmin):
 
     def refund_benefit_eth(self, obj: SafeMultisigTx) -> Optional[float]:
         if (refund_benefit := obj.refund_benefit()) is not None:
-            refund_benefit_eth = Web3.fromWei(abs(refund_benefit), "ether") * (
+            refund_benefit_eth = Web3.from_wei(abs(refund_benefit), "ether") * (
                 -1 if refund_benefit < 0 else 1
             )
             return "{:.5f}".format(refund_benefit_eth)

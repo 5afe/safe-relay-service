@@ -22,7 +22,7 @@ class TestGasStation(TestCase):
 
         if w3.eth.block_number < number_of_blocks and w3.eth.accounts:  # Ganache
             # Mine some blocks
-            eth_balance = w3.toWei(0.00001, "ether")
+            eth_balance = w3.to_wei(0.00001, "ether")
             for _ in range(number_of_blocks - w3.eth.block_number + 2):
                 w3.eth.wait_for_transaction_receipt(
                     w3.eth.send_transaction(

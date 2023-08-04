@@ -41,7 +41,7 @@ class StatsService:
         :param safe_address:
         :return: `{'token_address': str, 'balance': int}`. For ether, `token_address` is `None`
         """
-        assert Web3.isChecksumAddress(
+        assert Web3.is_checksum_address(
             safe_address
         ), f"Not valid address {safe_address} for getting balances"
 

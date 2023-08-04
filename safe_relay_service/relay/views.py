@@ -215,7 +215,7 @@ class SafeView(APIView):
         """
         Get status of the safe
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         safe_info = SafeCreationServiceProvider().retrieve_safe_info(address)
@@ -240,7 +240,7 @@ class SafeBalanceView(APIView):
         """
         Get status of the safe
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -271,7 +271,7 @@ class SafeSignalView(APIView):
         """
         Get status of the safe creation
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -294,7 +294,7 @@ class SafeSignalView(APIView):
         """
         Force check of a safe balance to start the safe creation
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -324,7 +324,7 @@ class SafeMultisigTxEstimateView(CreateAPIView):
         """
         Estimates a Safe Multisig Transaction. `operational_gas` and `data_gas` are deprecated, use `base_gas` instead
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         request.data["safe"] = address
@@ -366,7 +366,7 @@ class SafeMultisigTxEstimatesView(CreateAPIView):
         Estimates a Safe Multisig Transaction for all tokens supported. `operational_gas` and `data_gas`
         are deprecated, use `base_gas` instead
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         request.data["safe"] = address
@@ -405,7 +405,7 @@ class SafeListApiView(ListAPIView):
         }
     )
     def get(self, request, address):
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             try:
@@ -444,7 +444,7 @@ class SafeMultisigTxView(SafeListApiView):
         """
         Send a Safe Multisig Transaction
         """
-        if not Web3.isChecksumAddress(address):
+        if not Web3.is_checksum_address(address):
             return Response(status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         request.data["safe"] = address
