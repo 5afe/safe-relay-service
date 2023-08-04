@@ -68,8 +68,8 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json["safe"]
-        self.assertTrue(Web3.isChecksumAddress(safe_address))
-        self.assertTrue(Web3.isChecksumAddress(response_json["paymentReceiver"]))
+        self.assertTrue(Web3.is_checksum_address(safe_address))
+        self.assertTrue(Web3.is_checksum_address(response_json["paymentReceiver"]))
         self.assertEqual(response_json["paymentToken"], NULL_ADDRESS)
         self.assertEqual(
             int(response_json["payment"]),
@@ -129,8 +129,8 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json["safe"]
-        self.assertTrue(Web3.isChecksumAddress(safe_address))
-        self.assertTrue(Web3.isChecksumAddress(response_json["paymentReceiver"]))
+        self.assertTrue(Web3.is_checksum_address(safe_address))
+        self.assertTrue(Web3.is_checksum_address(response_json["paymentReceiver"]))
         self.assertEqual(response_json["paymentToken"], NULL_ADDRESS)
         self.assertEqual(response_json["payment"], str(fixed_creation_cost))
         self.assertGreater(int(response_json["gasEstimated"]), 0)
@@ -164,8 +164,8 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         response_json = response.json()
         safe_address = response_json["safe"]
-        self.assertTrue(Web3.isChecksumAddress(safe_address))
-        self.assertTrue(Web3.isChecksumAddress(response_json["paymentReceiver"]))
+        self.assertTrue(Web3.is_checksum_address(safe_address))
+        self.assertTrue(Web3.is_checksum_address(response_json["paymentReceiver"]))
         self.assertEqual(response_json["paymentToken"], payment_token)
         self.assertEqual(
             int(response_json["payment"]),
@@ -204,7 +204,7 @@ class TestViewsV2(RelayTestCaseMixin, APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        initial_funding = self.w3.toWei(0.0001, "ether")
+        initial_funding = self.w3.to_wei(0.0001, "ether")
         to = Account.create().address
         data = {"to": to, "value": initial_funding // 2, "data": "0x", "operation": 1}
 

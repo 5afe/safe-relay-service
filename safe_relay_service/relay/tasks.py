@@ -61,8 +61,8 @@ def fund_deployer_task(self, safe_address: str, retry: bool = True) -> None:
     payment = safe_creation.payment
 
     # These asserts just to make sure we are not wasting money
-    assert Web3.isChecksumAddress(safe_address)
-    assert Web3.isChecksumAddress(deployer_address)
+    assert Web3.is_checksum_address(safe_address)
+    assert Web3.is_checksum_address(deployer_address)
     assert mk_contract_address(deployer_address, 0) == safe_address
     assert payment > 0
 
@@ -358,7 +358,7 @@ def deploy_create2_safe_task(self, safe_address: str, retry: bool = True) -> Non
     :param retry: if True, retries are allowed, otherwise don't retry
     """
 
-    assert Web3.isChecksumAddress(safe_address)
+    assert Web3.is_checksum_address(safe_address)
 
     redis = RedisRepository().redis
     lock_name = f"locks:deploy_create2_safe:{safe_address}"

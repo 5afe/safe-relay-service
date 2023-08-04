@@ -113,7 +113,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_safe_multisig_tx_post(self):
         # Create Safe ------------------------------------------------
         w3 = self.ethereum_client.w3
-        safe_balance = w3.toWei(0.01, "ether")
+        safe_balance = w3.to_wei(0.01, "ether")
         accounts = [self.create_account(), self.create_account()]
         # Signatures must be sorted!
         accounts.sort(key=lambda account: account.address.lower())
@@ -368,7 +368,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
     def test_safe_multisig_tx_post_gas_token(self):
         # Create Safe ------------------------------------------------
         w3 = self.ethereum_client.w3
-        safe_balance = w3.toWei(0.01, "ether")
+        safe_balance = w3.to_wei(0.01, "ether")
         owner_account = self.create_account()
         owner = owner_account.address
         threshold = 1
@@ -513,7 +513,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        initial_funding = self.w3.toWei(0.0001, "ether")
+        initial_funding = self.w3.to_wei(0.0001, "ether")
         to, _ = get_eth_address_with_key()
         data = {"to": to, "value": initial_funding // 2, "data": "0x", "operation": 1}
 
@@ -586,7 +586,7 @@ class TestViews(RelayTestCaseMixin, APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        initial_funding = self.w3.toWei(0.0001, "ether")
+        initial_funding = self.w3.to_wei(0.0001, "ether")
 
         safe = self.deploy_test_safe(
             number_owners=3, threshold=2, initial_funding_wei=initial_funding

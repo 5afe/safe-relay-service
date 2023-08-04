@@ -85,7 +85,7 @@ class Command(BaseCommand):
             self.main_account.address, "pending"
         )
         main_account_balance = self.w3.eth.get_balance(self.main_account.address)
-        main_account_balance_eth = self.w3.fromWei(main_account_balance, "ether")
+        main_account_balance_eth = self.w3.from_wei(main_account_balance, "ether")
         self.stdout.write(
             self.style.SUCCESS(
                 f"Using {self.main_account.address} as main account with "
@@ -366,7 +366,7 @@ class Command(BaseCommand):
             self.main_account.key,
             safe_address,
             self.ethereum_client.w3.eth.gasPrice,
-            self.w3.toWei(1, "ether"),
+            self.w3.to_wei(1, "ether"),
             nonce=self.main_account_nonce,
         )
         self.main_account_nonce += 1

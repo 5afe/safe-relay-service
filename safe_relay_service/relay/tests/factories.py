@@ -64,7 +64,7 @@ class SafeCreationFactory(DjangoModelFactory):
     tx_hash = factory.Sequence(lambda n: Web3.keccak(n))
     gas = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price = factory.fuzzy.FuzzyInteger(
-        Web3.toWei(1, "gwei"), Web3.toWei(20, "gwei")
+        Web3.to_wei(1, "gwei"), Web3.to_wei(20, "gwei")
     )
     payment_token = None
     value = 0
@@ -98,7 +98,7 @@ class SafeCreation2Factory(DjangoModelFactory):
     setup_data = factory.Sequence(lambda n: HexBytes("%x" % (n + 1000)))
     gas_estimated = factory.fuzzy.FuzzyInteger(100000, 200000)
     gas_price_estimated = factory.fuzzy.FuzzyInteger(
-        Web3.toWei(1, "gwei"), Web3.toWei(20, "gwei")
+        Web3.to_wei(1, "gwei"), Web3.to_wei(20, "gwei")
     )
     tx_hash = factory.Sequence(lambda n: Web3.keccak(text="safe-creation-2-%d" % n))
     block_number = None

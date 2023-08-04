@@ -27,7 +27,7 @@ class Command(BaseCommand):
         ethereum_client = EthereumClientProvider()
 
         for token_address in tokens:
-            token_address = ethereum_client.w3.toChecksumAddress(token_address)
+            token_address = ethereum_client.w3.to_checksum_address(token_address)
             try:
                 token = Token.objects.get(address=token_address)
                 self.stdout.write(

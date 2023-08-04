@@ -169,17 +169,17 @@ class GasStation:
 class GasStationMock(GasStation):
     def __init__(self, gas_price: Optional[int] = None):
         if gas_price is None:
-            self.lowest = Web3.toWei(1, "gwei")
-            self.safe_low = Web3.toWei(5, "gwei")
-            self.standard = Web3.toWei(10, "gwei")
-            self.fast = Web3.toWei(20, "gwei")
-            self.fastest = Web3.toWei(50, "gwei")
+            self.lowest = Web3.to_wei(1, "gwei")
+            self.safe_low = Web3.to_wei(5, "gwei")
+            self.standard = Web3.to_wei(10, "gwei")
+            self.fast = Web3.to_wei(20, "gwei")
+            self.fastest = Web3.to_wei(50, "gwei")
         else:
-            self.lowest = Web3.toWei(gas_price, "gwei")
-            self.safe_low = Web3.toWei(gas_price + 1, "gwei")
-            self.standard = Web3.toWei(gas_price + 2, "gwei")
-            self.fast = Web3.toWei(gas_price + 3, "gwei")
-            self.fastest = Web3.toWei(gas_price + 4, "gwei")
+            self.lowest = Web3.to_wei(gas_price, "gwei")
+            self.safe_low = Web3.to_wei(gas_price + 1, "gwei")
+            self.standard = Web3.to_wei(gas_price + 2, "gwei")
+            self.fast = Web3.to_wei(gas_price + 3, "gwei")
+            self.fastest = Web3.to_wei(gas_price + 4, "gwei")
 
     def calculate_gas_prices(self) -> GasPrice:
         return GasPrice(

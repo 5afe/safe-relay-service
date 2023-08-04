@@ -13,7 +13,7 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
 
         # w3 = self.w3
         # # The balance we will send to the safe
-        # safe_balance = w3.toWei(0.02, "ether")
+        # safe_balance = w3.to_wei(0.02, "ether")
         #
         # # Create Safe
         # accounts = [self.create_account(), self.create_account()]
@@ -76,8 +76,8 @@ class TestResendTxsCommand(RelayTestCaseMixin, TestCase):
         #     safe_multisig_tx.ethereum_tx.tx_hash
         # )
         # self.assertTrue(tx_receipt["status"])
-        # self.assertEqual(w3.toChecksumAddress(tx_receipt["from"]), sender)
-        # self.assertEqual(w3.toChecksumAddress(tx_receipt["to"]), my_safe_address)
+        # self.assertEqual(w3.to_checksum_address(tx_receipt["from"]), sender)
+        # self.assertEqual(w3.to_checksum_address(tx_receipt["to"]), my_safe_address)
         # self.assertEqual(w3.eth.get_balance(to), value)
         #
         # w3.testing.revert(snapshot_id)  # Revert to snapshot in ganache
